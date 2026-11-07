@@ -17,6 +17,7 @@ public static class SaloonProject
     {
         Directory.CreateDirectory("Assets/Scenes");Directory.CreateDirectory("Assets/Generated/Materials");
         AssetDatabase.Refresh();
+        LinkCloudProject();
         foreach(string path in new[]{"Assets/Resources/Art/Character/characterMedium.fbx","Assets/Resources/Art/Animations/idle.fbx","Assets/Resources/Art/Animations/run.fbx"})
         {
             var importer=(ModelImporter)AssetImporter.GetAtPath(path);
@@ -55,7 +56,7 @@ public static class SaloonProject
         EditorSceneManager.SaveScene(SceneManager.GetActiveScene(),ScenePath);
         EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(ScenePath,true)};
         PlayerSettings.companyName="Saloon Prototype";PlayerSettings.productName="Last Call - Saloon Prototype";
-        PlayerSettings.bundleVersion="0.1.1";PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone,"com.saloonprototype.lastcall");
+        PlayerSettings.bundleVersion="0.1.2";PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone,"com.saloonprototype.lastcall");
         PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone,ScriptingImplementation.Mono2x);
         PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=720;
         PlayerSettings.defaultIsNativeResolution=false;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;
@@ -86,6 +87,7 @@ public static class SaloonProject
         string json=JsonUtility.ToJson(publicPlayer);
         Assert(!json.Contains("Outlaw")&&!json.Contains("Deputy")&&!json.Contains("Renegade"),"Public player payload excludes hidden allegiance");
         Assert(AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath)!=null,"Playable scene saved");
+        Assert(CloudProjectSettings.projectId=="df9e82b7-ec21-4418-bf3e-8e50cdecf800","Saloon cloud project linked");
         Debug.Log("SALOON_VERIFY PASS: victory precedence, deck, imported models, texture, public payload, saved scene");
     }
 
@@ -116,6 +118,16 @@ public static class SaloonProject
     }
 
     public static void SetupAndVerify(){Setup();Verify();}
+    static void LinkCloudProject()
+    {
+        const string project="df9e82b7-ec21-4418-bf3e-8e50cdecf800";
+        if(CloudProjectSettings.projectId==project)return;
+        var connectType=typeof(CloudProjectSettings).Assembly.GetType("UnityEditor.Connect.UnityConnect",true);
+        var instance=connectType.GetProperty("instance",System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Static).GetValue(null);
+        connectType.GetMethod("BindProject",System.Reflection.BindingFlags.Public|System.Reflection.BindingFlags.Instance)
+            .Invoke(instance,new object[]{project,"Last Call Saloon","kiskalloakos1"});
+        Debug.Log("SALOON_CLOUD_LINK bound="+CloudProjectSettings.projectBound+" project="+CloudProjectSettings.projectId);
+    }
     public static void InspectCharacter()
     {
         var go=UnityEngine.Object.Instantiate(Resources.Load<GameObject>("Art/Character/characterMedium"));

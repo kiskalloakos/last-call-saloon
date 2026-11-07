@@ -78,6 +78,7 @@ namespace Saloon
             Voice=gameObject.AddComponent<SaloonVoice>();Voice.Game=this;
             gameObject.AddComponent<SaloonHUD>().Game=this;
             gameObject.AddComponent<SaloonAutomation>().Game=this;
+            gameObject.AddComponent<SaloonCloudVerification>().Game=this;
             AddEvent("Prototype ready. Five humans for a real match; solo practice has inert targets.");
         }
 

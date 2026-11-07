@@ -17,7 +17,8 @@ Extract the whole archive; Unity does not need to be installed to run the builds
 Both devices must be on the same local network; guest-network client isolation can prevent direct connections.
 If the operating system asks, allow the game to receive connections on the private/home network.
 Cloud services, port forwarding, and internet hosting are not required for LAN gameplay.
-Built-in voice still requires Vivox; for two laptops next to each other, talk in person for this test.
+Proximity voice connects automatically after joining; allow microphone access and hold **V** to speak.
+Both laptops need internet access for Vivox even when the game connection uses LAN.
 
 ## Play
 
@@ -28,9 +29,20 @@ Built-in voice still requires Vivox; for two laptops next to each other, talk in
 - **Host LAN** starts a five-player lobby. Friends on the same network choose **Join LAN** and enter the host's local IP address and matching UDP port (default `7777`).
 - On one computer, use the editor plus separate builds and `127.0.0.1`, with distinct player names.
 - Once five people have joined, the host presses **Esc → Deal roles & start match**.
-- For friends on different networks, use the prepared online-room integration after following `Documentation/CLOUD-SETUP.md`.
+- For friends on different networks, choose **Online room** and create/join a private room code.
 
-LAN gameplay works without a Unity cloud project. **Voice requires Vivox configuration, including on LAN**; the voice integration cannot connect until the project is linked and its services are enabled.
+The shipped builds are linked to the saloon's Unity project, with Vivox, Relay, Lobby, and anonymous authentication configured.
+You do not need a Unity account or the Unity Editor to play.
+
+## Proximity voice
+
+- **Hold V** to transmit; releasing it stops your microphone transmission.
+- **M** toggles microphone mute.
+- Voice is full-volume within two metres and fades to silence at ten metres.
+- **Esc → Microphone** cycles input devices; the echo test lets you hear yourself for eight seconds without broadcasting to the saloon.
+- The voice list shows who is speaking and lets you mute individual players locally.
+- Eliminated players use a separate voice channel; rematches return them to proximity voice.
+- Use headphones when testing two laptops next to each other to avoid feedback.
 
 ## Controls
 
@@ -45,7 +57,7 @@ LAN gameplay works without a Unity cloud project. **Voice requires Vivox configu
 | B | Drink carried beer when injured |
 | G | Give carried beer to the player you are looking at |
 | Hold Tab | Privately read your role and objective |
-| Hold V | Push-to-talk after connecting voice |
+| Hold V | Push-to-talk (voice connects automatically) |
 | M | Toggle microphone mute |
 | Esc | Lobby, tuning, voice controls, leave room |
 
@@ -84,6 +96,8 @@ Other parameters are in the scene's **Saloon Prototype → Tuning** component.
 - **Saloon → Build Windows playtest** needs the matching Windows Build Support module installed through Unity Hub.
 - `python3 Tools/smoke_test.py` launches five real app processes and checks their replicated match outcomes and private role views.
 - `python3 Tools/smoke_test.py --practice` verifies two real app processes plus three inert practice targets.
+- `python3 Tools/cloud_test.py relay` checks a real private Relay room with two app processes.
+- `python3 Tools/cloud_test.py voice --wave /path/to/test.wav` checks Vivox voice using a generated mono 16-bit PCM WAV at 48 kHz; microphone inputs stay muted during this test.
 - Do not rebuild the app while smoke-test processes are using it.
 
 ## Scope and next playtest

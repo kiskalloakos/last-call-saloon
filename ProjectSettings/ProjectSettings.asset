@@ -148,7 +148,7 @@ PlayerSettings:
   loadStoreDebugModeEnabled: 0
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
-  bundleVersion: 0.1.1
+  bundleVersion: 0.1.2
   preloadedAssets: []
   metroInputSource: 0
   wsaTransparentSwapchain: 0
@@ -689,12 +689,12 @@ PlayerSettings:
   activeInputHandler: 0
   windowsGamepadBackendHint: 0
   enableDirectStorage: 0
-  cloudProjectId: 
+  cloudProjectId: df9e82b7-ec21-4418-bf3e-8e50cdecf800
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: 
+  projectName: Last Call Saloon
   organizationId: 
-  cloudEnabled: 0
+  cloudEnabled: 1
   legacyClampBlendShapeWeights: 0
   hmiLoadingImage: {fileID: 0}
   platformRequiresReadableAssets: 0

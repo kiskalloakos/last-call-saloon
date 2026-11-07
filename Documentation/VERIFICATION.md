@@ -1,3 +1,20 @@
+# Current update — 0.1.2, 2026-11-07
+
+- Separate Last Call Saloon Unity cloud project created and bound to this project.
+- Vivox, Relay, and Lobby enabled; anonymous UAS sign-in used for players.
+- Two real app processes authenticated and joined the same positional Vivox channel.
+- Generated test speech was injected while microphone inputs stayed muted; the receiver decoded remote audio with measured energy 0.0620.
+- A private Relay room was created and joined by another app process; both saw two replicated players.
+- Two-player LAN practice passed with three inert targets, private roles, movement, and synchronized results.
+- Normal first-launch auto-connect produced SALOON_VOICE CONNECTED positional.
+- Hat geometry removed from all runtime avatars; hat-free gameplay capture inspected.
+- macOS and Windows x64 Mono builds succeeded.
+- No Vivox signing key is included in the client or source.
+
+Still requiring the human two-laptop test: physical microphones, perceived distance/panning, and Windows voice runtime behavior.
+
+---
+
 # Verification — 2026-11-07
 
 Unity 6000.5.10f1, macOS development build.

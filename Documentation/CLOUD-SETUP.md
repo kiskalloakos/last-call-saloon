@@ -1,49 +1,61 @@
-# Enable online rooms and proximity voice
+# Configured Unity services
 
-This project contains real Unity Multiplayer Services and Vivox calls, but **no cloud
-project has been created or linked**. LAN does not need one; Relay rooms and all voice do.
-No live Relay or Vivox session can be verified until this setup is complete.
+Configured on 2026-11-07 for **Last Call Saloon** in the existing Unity organization.
 
-1. Open this separate project in Unity 6000.5.10f1 and sign in to your Unity account.
-2. In **Edit → Project Settings → Services**, create or link a Unity cloud project for this prototype.
-3. In that project's Unity Gaming Services dashboard, enable **Authentication** with anonymous sign-in,
-   **Multiplayer / Lobby and Relay**, and **Vivox**. Complete any service activation or account prompts shown by Unity.
-4. Return to Unity and make a new build so it contains the linked project ID.
+- Project ID: `df9e82b7-ec21-4418-bf3e-8e50cdecf800`
+- Vivox Voice and Text Chat: enabled
+- Relay: enabled
+- Lobby: enabled
+- Authentication: anonymous player sign-in
+- Optional Safe Text, recording, and transcription: not enabled
 
-The code uses UGS anonymous authentication and SDK integration; credentials are not embedded in source.
-Every app process uses a separate authentication profile to permit editor/build testing on one machine.
+The builds contain public Vivox connection identifiers and use Unity Authentication
+for access tokens. **No Vivox signing key is included in code or builds.**
+The editor setup binds this separate project to its cloud project before building.
 
-## Internet playtest
+## Playing
 
-1. The host chooses **Online room → Create room**, then shares the displayed room code.
-2. Four friends choose **Online room → Join code** with that code.
-3. Everyone opens **Esc → Connect voice**, accepts microphone access, and uses **V** to talk.
-4. Test voice up close, across the room, and from the porch before starting a match.
-5. Verify that an eliminated player can speak only to other eliminated players; a rematch returns them to the living channel.
+No Unity account is needed by players. Join a LAN or online room as usual; proximity
+voice connects automatically once the player and room are ready. Allow microphone
+access, then hold V to speak. M toggles your microphone mute.
 
-The host's game process must remain running. A host exit ends the playtest.
-This prototype does not automatically create paid resources or enable billing.
+An internet connection is required for Vivox, including when gameplay is on LAN.
+For internet gameplay, choose Online room, create a room, and give its room code to friends.
+The host must keep the game running.
 
-## LAN with voice
+## Microphone controls
 
-The players can connect using IP addresses while still using Vivox for voice, after linking
-the same cloud project and rebuilding. A random voice-room identifier is shared by the host
-through the game connection, so these players enter the same voice channel.
-LAN without a linked cloud project has gameplay but no built-in voice.
+Open Esc for microphone selection, an eight-second local echo test, and per-player mute.
+The macOS build includes the microphone usage description and requests OS permission.
+Windows microphone access may also be governed by its privacy settings.
 
-## Microphone and mute
+The echo test transmits only to your unique echo channel; other players cannot hear it.
+Push-to-talk uses microphone muting with transmission restricted to the current voice channel.
+The microphone is muted before joining or switching channels.
 
-- The lobby has an eight-second **Microphone echo test**; use headphones.
-- Each participant can be muted locally from the voice list.
-- **M** toggles your own microphone mute; speaking additionally requires holding **V**.
-- The macOS build includes `NSMicrophoneUsageDescription` and requests microphone permission.
-- Distance attenuation is configured for full conversation around two metres and silence beyond ten metres.
-- Walls do not block the sound in this first integration.
+## Spatial and life-state behavior
 
-## Relevant official documentation
+- Conversational distance: 2 metres
+- Audible distance: 10 metres
+- Linear distance attenuation and directional panning
+- Position/orientation updates: 10 times per second
+- Eliminated players: separate non-positional channel
+- Rematches: living players return to the positional channel
+- Wall occlusion: not implemented in this prototype
+
+Channel isolation is enforced by trusted game clients. A production release would need
+server-issued channel permissions rather than relying on clients to choose correctly.
+
+## Configuration for forks
+
+To use your own backend, create your own Unity project and activate Vivox, Relay, and Lobby.
+Update the project binding in `Assets/Editor/SaloonProject.cs` and the public Vivox routing
+identifiers in `Assets/Scripts/SaloonConnection.cs`. Keep any signing key out of the client;
+use UAS authentication or a server-side token provider.
+
+## Official references
 
 - [Sessions with Netcode for GameObjects](https://docs.unity.com/en-us/mps-sdk/tutorials/build-your-first-session)
 - [Vivox positional channels](https://docs.unity.com/en-us/vivox-unity/developer-guide/channels/positional-channels)
 - [Vivox positional channel configuration](https://docs.unity.com/en-us/vivox-unity/developer-guide/channels/positional-channel-configuration)
-
-Package versions are pinned in `Packages/manifest.json`; the resolved dependencies are in `Packages/packages-lock.json`.
+- [Microphone mute and transmission modes](https://docs.unity.com/en-us/vivox-unity/developer-guide/muting/mute-user-microphone)

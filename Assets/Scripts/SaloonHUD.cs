@@ -68,7 +68,7 @@ namespace Saloon
                 if(Button(67,541,233,42,"CREATE ROOM")){Game.SaveName();Game.Cloud(true);}
                 if(Button(314,541,233,42,"JOIN CODE")){Game.SaveName();Game.Cloud(false);}
                 GUI.enabled=true;
-                Text(67,589,480,32,"Requires a linked Unity Services project with Relay and Vivox.",small);
+                Text(67,589,480,32,"Private room codes work across different networks.",small);
             }
             Text(67,632,480,72,Game.Connection.Status,small);
             Text(727,547,440,30,"TALK FIRST. DRAW CAREFULLY.",subtitle);
@@ -93,7 +93,8 @@ namespace Saloon
             Panel(new Rect(0,653,1280,67),new Color(.035f,.03f,.025f,.9f));
             Text(35,664,1220,24,"WASD  move     Q  draw / holster     Click  fire     R  reload     E  interact     B  drink     G  offer beer     V  talk     Esc  menu",small);
             Text(35,689,1210,25,view.busyRemaining>0?$"Hands occupied  /  {view.busyRemaining:0.0}s":view.notice,small);
-            Text(40,609,1000,28,Game.Voice.Connected?(Game.Voice.Muted?"MIC MUTED  /  M to unmute":"PROXIMITY VOICE  /  hold V"):"VOICE OFF  /  Esc → Connect voice (requires cloud setup)",subtitle);
+            string voiceLabel=Game.Voice.Connected?(Game.Voice.Muted?"MIC MUTED  /  M to unmute":!Game.Voice.MicrophoneAllowed?"LISTENING ONLY  /  Esc for microphone settings":Game.Voice.Transmitting?"TRANSMITTING  /  release V to stop":"PROXIMITY VOICE  /  hold V to talk"):Game.Voice.Busy?"CONNECTING VOICE...":"VOICE DISCONNECTED  /  Esc to retry";
+            Text(40,609,1000,28,voiceLabel,subtitle);
             if(Game.Self!=null&&!Game.Self.alive&&view.phase!=Phase.Finished)
             {Panel(new Rect(390,280,500,100),new Color(.05f,.035f,.03f,.95f));Text(420,298,440,70,"ELIMINATED\nYour voice is separated from living players.",roleStyle);}
             if(Game.ShowRole&&!Game.MenuOpen)
@@ -146,6 +147,11 @@ namespace Saloon
             if(Button(325,y,315,38,"MICROPHONE ECHO TEST"))Game.Voice.EchoTest();
             GUI.enabled=true;y+=49;
             Text(0,y,640,75,Game.Voice.Status,small);y+=80;
+            GUI.enabled=Game.Voice.Connected&&!Game.Voice.Busy;
+            if(Button(0,y,640,36,"MICROPHONE: "+Game.Voice.MicrophoneName+"  /  click to change"))Game.Voice.CycleMicrophone();
+            y+=46;
+            if(Button(0,y,310,34,Game.Voice.Muted?"UNMUTE MICROPHONE":"MUTE MICROPHONE"))Game.Voice.Muted=!Game.Voice.Muted;
+            y+=44;GUI.enabled=true;
             if(Game.Voice.Connected&&VivoxService.Instance.ActiveChannels.TryGetValue(Game.Voice.Channel,out var participants))
             {
                 foreach(var p in participants)

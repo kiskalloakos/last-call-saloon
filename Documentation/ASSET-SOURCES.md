@@ -15,6 +15,6 @@ Barrel FBX: https://dl.polyhaven.org/file/ph-assets/Models/fbx/1k/wine_barrel_01
 
 Barrel diffuse: https://dl.polyhaven.org/file/ph-assets/Models/jpg/1k/wine_barrel_01/wine_barrel_01_diff_1k.jpg
 
-The wooden building shell, bottles, hats, brass tap, placeholder revolver, materials, and
+The wooden building shell, bottles, brass tap, placeholder revolver, materials, and
 generated gunshot sound were assembled for this prototype; they are not downloaded third-party content.
 The supplied Kenney/Poly Haven websites are sources, not game branding.

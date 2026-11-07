@@ -42,9 +42,6 @@ namespace Saloon
                 }
                 if(locomotion.GetClip("idle")!=null)locomotion.Play("idle");
             }
-            var hatMat=SaloonWorld.Material("Hat "+initial.id,new Color(.18f,.10f,.055f));
-            Part("Hat brim",new Vector3(0,1.66f,0),new Vector3(.42f,.035f,.35f),hatMat,model.transform,true);
-            Part("Hat crown",new Vector3(0,1.77f,0),new Vector3(.27f,.10f,.25f),hatMat,model.transform,true);
             gun=MakeGun(transform);gun.transform.localPosition=new Vector3(.27f,1.1f,.36f);
             var nameObject=new GameObject("Name");nameObject.transform.SetParent(transform);nameObject.transform.localPosition=new Vector3(0,2.05f,0);
             label=nameObject.AddComponent<TextMesh>();label.characterSize=.035f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;

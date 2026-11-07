@@ -7,6 +7,7 @@ using Unity.Netcode.Transports.UTP;
 using Unity.Services.Authentication;
 using Unity.Services.Core;
 using Unity.Services.Multiplayer;
+using Unity.Services.Vivox;
 using UnityEngine;
 
 namespace Saloon
@@ -28,6 +29,7 @@ namespace Saloon
         public event Action<Snapshot> SnapshotReceived;
         ISession session;
         bool registered;
+        static Task servicesInitialization,playerSignIn;
 
         public void Initialize()
         {
@@ -145,12 +147,25 @@ namespace Saloon
         public static async Task EnsureServices()
         {
             if (UnityServices.State != ServicesInitializationState.Initialized)
-                await UnityServices.InitializeAsync();
+            {
+                if(servicesInitialization==null||servicesInitialization.IsFaulted||servicesInitialization.IsCanceled)
+                {
+                    // Public routing identifiers only. UAS issues access tokens; no signing key is shipped.
+                    var options=new InitializationOptions().SetVivoxCredentials(
+                        "https://unity.vivox.com/appconfig/79718-last_-75603","mtu1xp.vivox.com","79718-last_-75603");
+                    servicesInitialization=UnityServices.InitializeAsync(options);
+                }
+                await servicesInitialization;
+            }
             if (!AuthenticationService.Instance.IsSignedIn)
             {
-                // Separate editor/build processes must NOT share an anonymous player ID.
-                AuthenticationService.Instance.SwitchProfile("saloon-" + Guid.NewGuid().ToString("N").Substring(0, 16));
-                await AuthenticationService.Instance.SignInAnonymouslyAsync();
+                if(playerSignIn==null||playerSignIn.IsFaulted||playerSignIn.IsCanceled)
+                {
+                    // Separate editor/build processes must NOT share an anonymous player ID.
+                    AuthenticationService.Instance.SwitchProfile("saloon-" + Guid.NewGuid().ToString("N").Substring(0, 16));
+                    playerSignIn=AuthenticationService.Instance.SignInAnonymouslyAsync();
+                }
+                await playerSignIn;
             }
         }
 
