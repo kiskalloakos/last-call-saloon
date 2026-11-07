@@ -9,6 +9,15 @@ on:
         default: v0.2.3
         type: string
 
+      suite:
+        description: Standard regressions or delayed/lossy connection tests
+        required: true
+        default: standard
+        type: choice
+        options:
+          - standard
+          - stress
+
 permissions:
   contents: read
 
@@ -40,7 +49,9 @@ jobs:
           Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion | Format-List | Out-File -Append TestResults/windows.txt
       - name: Execute actual Windows gameplay and multiplayer tests
         shell: pwsh
-        run: python Tools/windows_release_test.py --app "DownloadedGame/Windows/Last Call.exe" --logs TestResults
+        env:
+          TEST_SUITE: ${{ inputs.suite }}
+        run: python Tools/windows_release_test.py --app "DownloadedGame/Windows/Last Call.exe" --logs TestResults --suite $env:TEST_SUITE
       - name: Collect Windows application errors
         if: always()
         shell: pwsh
@@ -51,6 +62,6 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: windows-release-test-${{ inputs.release }}
+          name: windows-release-test-${{ inputs.release }}-${{ inputs.suite }}
           path: TestResults/
           retention-days: 14

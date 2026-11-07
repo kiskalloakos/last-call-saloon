@@ -4,27 +4,39 @@ import argparse
 from pathlib import Path
 import subprocess
 import time
+from udp_test_link import ImpairedLink
 
 p = argparse.ArgumentParser()
 p.add_argument('--app', required=True)
 p.add_argument('--logs', type=Path, default=Path('/tmp/saloon-room-test'))
+p.add_argument('--impaired', action='store_true', help='80ms each way, jitter, 2% loss and a 5s outage during room choice')
 p.add_argument('--pair', action='store_true', help='Test mutual room invitation, coin choice and both actions')
 p.add_argument('--voice', action='store_true', help='Connect real Vivox sessions with microphones muted')
 args = p.parse_args()
 args.logs.mkdir(parents=True, exist_ok=True)
 processes = []
+link = ImpairedLink(17997, 17996) if args.impaired else None
+outage_started = False
 try:
     for side in ('host', 'client'):
         mode = 'rooms-' + ('pair-' if args.pair else '') + ('voice-' if args.voice else '') + side
         command = [args.app, '-saloonTest', mode, '-saloonName', 'Room-' + side,
-                   '-saloonPort', '17996', '-logFile', str(args.logs / (side + '.log'))]
+                   '-saloonPort', '17997' if link and side == 'client' else '17996', '-logFile', str(args.logs / (side + '.log'))]
         processes.append(subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
         if side == 'host':
             time.sleep(2)
     deadline = time.monotonic() + 100
     while any(x.poll() is None for x in processes) and time.monotonic() < deadline:
+        if link and not outage_started:
+            host_log = args.logs / 'host.log'
+            if host_log.exists() and 'SALOON_PHASE Choosing' in host_log.read_text(errors='replace'):
+                link.blackout(5)
+                outage_started = True
+                print('SALOON_LINK starting 5s packet outage during room selection', flush=True)
         time.sleep(.25)
-    passed = True
+    passed = not link or (outage_started and link.error is None and link.forwarded > 0 and link.dropped > 0)
+    if link:
+        print(f'SALOON_LINK forwarded={link.forwarded} dropped={link.dropped} outage={outage_started} error={link.error}', flush=True)
     for side, process in zip(('host', 'client'), processes):
         if process.poll() is None:
             process.terminate()
@@ -36,6 +48,8 @@ try:
         passed &= process.returncode == 0 and 'SALOON_ROOMS PASS' in log and 'Exception:' not in log
     raise SystemExit(0 if passed else 1)
 finally:
+    if link:
+        link.close()
     for process in processes:
         if process.poll() is None:
             process.terminate()
