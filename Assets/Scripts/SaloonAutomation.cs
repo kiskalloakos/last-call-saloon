@@ -67,8 +67,10 @@ namespace Saloon
             {
                 if(RoomTest)
                 {
-                    if(mode.Contains("voice")&&!voiceStarted){voiceStarted=true;_ = Game.Voice.ConnectForVerification();}
+                    if(mode.Contains("voice")&&!voiceStarted&&Game.InRoom){voiceStarted=true;_ = Game.Voice.ConnectForVerification();}
                     int desired=PairTest?1:Game.Hosting?2:1;
+                    if(!Game.Hosting&&Game.Connection.SnapshotAge>8)
+                    {ReportRooms(false,"state stream stalled age="+Game.Connection.SnapshotAge.ToString("F2"));return;}
                     if(Game.View.phase!=Phase.Turns&&(Game.View.duel!=null||Game.View.roomTurn!=null))
                     {ReportRooms(false,"phantom panels in "+Game.View.phase);return;}
                     if(Game.View.phase==Phase.Discussion&&!plannerChecked)

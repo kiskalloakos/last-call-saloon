@@ -11,7 +11,7 @@ import sys
 p = argparse.ArgumentParser()
 p.add_argument('--app', type=Path, required=True)
 p.add_argument('--logs', type=Path, required=True)
-p.add_argument('--suite', choices=['standard', 'rooms', 'stress'], default='standard')
+p.add_argument('--suite', choices=['standard', 'rooms', 'stress', 'limited'], default='standard')
 args = p.parse_args()
 if sys.platform != 'win32':
     p.error('This test must execute on Windows, not a cross-build host')
@@ -59,10 +59,14 @@ if args.suite in ('standard', 'rooms'):
                           ('paired-room-voice', ['--pair', '--voice'])]:
         run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),
                    '--logs', str(logs / name), *options], 120)
-else:
+elif args.suite == 'stress':
     for name, options in [('impaired-separate', []), ('impaired-pair', ['--pair'])]:
         run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),
                    '--logs', str(logs / name), '--impaired', *options], 120)
+else:
+    for name, options in [('limited-separate', []), ('limited-pair', ['--pair'])]:
+        run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),
+                   '--logs', str(logs / name), '--limited', *options], 120)
 summary = '\n'.join(f"- {'PASS' if r['passed'] else 'FAIL'}: {r['name']}" for r in results)
 print(summary, flush=True)
 if os.environ.get('GITHUB_STEP_SUMMARY'):

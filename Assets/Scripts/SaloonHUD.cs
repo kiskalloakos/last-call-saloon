@@ -107,7 +107,7 @@ namespace Saloon
                 var hintStyle=new GUIStyle(small){fontSize=13,wordWrap=false};hintStyle.normal.textColor=new Color(.79f,.75f,.66f,.65f);
                 Text(28,650,1220,22,SaloonRules.Hint(view,Game.Self),hintStyle);
             }
-            string notice=view.phase==Phase.Aftermath?"":view.busyRemaining>0?$"{view.busyRemaining:0.0}s":view.notice;
+            string notice=Game.Connection.WaitingForSnapshot?"Connection delayed — waiting for host ("+Game.Connection.SnapshotAge.ToString("0")+"s)":view.phase==Phase.Aftermath?"":view.busyRemaining>0?$"{view.busyRemaining:0.0}s":view.notice;
             if(!string.IsNullOrEmpty(notice))Text(370,620,540,45,notice,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
             string voiceLabel=Game.Voice.Transmitting?"●  Speaking":Game.Voice.Muted?"Microphone muted":Game.Voice.Connected?"V  Talk":"Voice offline";
             Text(28,674,300,25,voiceLabel,Game.Voice.Transmitting?subtitle:small);
@@ -131,8 +131,8 @@ namespace Saloon
             if(view.phase==Phase.Finished&&!Game.MenuOpen)
             {
                 Panel(new Rect(350,195,580,320),new Color(.04f,.035f,.03f,.97f));
-                Text(375,220,530,45,view.outcome,roleStyle);
-                int row=0;foreach(var p in view.players)Text(400,280+row++*30,500,28,$"{p.name}  /  {p.revealedRole}  /  {(p.alive?"survived":"eliminated")}",small);
+                Text(375,220,530,80,view.outcome,new GUIStyle(roleStyle){fontSize=26,wordWrap=true});
+                int row=0;foreach(var p in view.players)Text(400,310+row++*30,500,28,$"{p.name}  /  {p.revealedRole}  /  {(p.alive?"survived":"eliminated")}",small);
                 Text(400,460,500,30,"Esc → lobby to start the next match",subtitle);
             }
         }

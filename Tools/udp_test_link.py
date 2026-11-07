@@ -8,7 +8,7 @@ import time
 
 
 class ImpairedLink:
-    def __init__(self, client_port, host_port, latency=.08, jitter=.025, loss=.02):
+    def __init__(self, client_port, host_port, latency=.08, jitter=.025, loss=.02, bytes_per_second=0):
         self.front = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         self.back = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         try:
@@ -24,7 +24,11 @@ class ImpairedLink:
         self.random = random.Random(12345)
         self.stopping = threading.Event()
         self.blackout_until = 0
-        self.forwarded = self.dropped = 0
+        self.forwarded = self.dropped = self.rate_dropped = 0
+        self.rate = bytes_per_second
+        self.capacity = max(3200, bytes_per_second * .3)
+        self.tokens = self.capacity
+        self.token_at = time.monotonic()
         self.error = None
         self.thread = threading.Thread(target=self._run, daemon=True)
         self.thread.start()
@@ -65,6 +69,14 @@ class ImpairedLink:
                     if now < self.blackout_until:
                         self.dropped += 1
                     else:
+                        if self.rate and target is self.front:
+                            self.tokens = min(self.capacity, self.tokens + (now - self.token_at) * self.rate)
+                            self.token_at = now
+                            if self.tokens < len(payload):
+                                self.dropped += 1
+                                self.rate_dropped += 1
+                                continue
+                            self.tokens -= len(payload)
                         target.sendto(payload, destination)
                         self.forwarded += 1
         except OSError as e:

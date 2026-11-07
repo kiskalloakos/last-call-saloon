@@ -577,9 +577,12 @@ namespace Saloon
         // Exercises actual host commands, snapshots, raycasts and timed actions in Play mode.
         public System.Collections.IEnumerator VerifyGameplay()
         {
-            VerificationFinished=false;VerificationPassed=false;verifying=true;yield return null;
+            VerificationFinished=false;VerificationPassed=false;verifying=true;SaloonSnapshotVerification.Run();yield return null;
             void Check(bool ok,string text){if(!ok){VerificationFinished=true;Debug.LogError("SALOON_GAMEPLAY FAIL "+text);throw new InvalidOperationException(text);}Debug.Log("SALOON_CHECK "+text);}
             var host=players[Connection.LocalId];var other=players.Values.First(p=>p.bot);
+            var packed=SaloonSnapshotWire.Encode(PrivateSnapshot(host.id),out int legacyBytes);
+            Check(packed.Length<legacyBytes/2,"real five-player snapshot uses less than half the old wire bytes");
+            Debug.Log("SALOON_WIRE_SIZE legacy="+legacyBytes+" packed="+packed.Length);
             void Do(Participant p,string kind){p.lastAction=-100;OnCommand(p.id,new Command{kind=kind});}
             Check(players.Values.All(p=>p.seat>=100&&!p.controller.enabled),"all players seated with movement disabled");
             var start=host.body.transform.position;OnCommand(host.id,new Command{kind="input",x=1,z=1});Do(host,"interact");TickServer();

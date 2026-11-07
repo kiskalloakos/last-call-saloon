@@ -24,7 +24,7 @@ public static class SaloonRoundVerification
     [MenuItem("Saloon/Verify round clock")]
     public static void VerifyClock()
     {
-        VerifySnapshotWire();
+        VerifySnapshotWire();SaloonSnapshotVerification.Run();
         void Check(bool ok,string message){if(!ok)throw new Exception("Round clock: "+message);}
         Check(SaloonStations.Position(false,0,0).y+1.35f>1.6f,"bar eye clears counter");
         var r=new SaloonRounds();var living=new HashSet<ulong>{1,2,3};
