@@ -10,6 +10,7 @@ p = argparse.ArgumentParser()
 p.add_argument('--app', required=True)
 p.add_argument('--logs', type=Path, default=Path('/tmp/saloon-room-test'))
 p.add_argument('--impaired', action='store_true', help='80ms each way, jitter, 2% loss and a 5s outage during room choice')
+p.add_argument('--software-gpu', action='store_true', help='Render at 640x360 on Windows CI software graphics')
 p.add_argument('--pair', action='store_true', help='Test mutual room invitation, coin choice and both actions')
 p.add_argument('--voice', action='store_true', help='Connect real Vivox sessions with microphones muted')
 args = p.parse_args()
@@ -22,6 +23,8 @@ try:
         mode = 'rooms-' + ('pair-' if args.pair else '') + ('voice-' if args.voice else '') + side
         command = [args.app, '-saloonTest', mode, '-saloonName', 'Room-' + side,
                    '-saloonPort', '17997' if link and side == 'client' else '17996', '-logFile', str(args.logs / (side + '.log'))]
+        if args.software_gpu:
+            command += ['-screen-width', '640', '-screen-height', '360', '-screen-fullscreen', '0', '-quality', 'Very Low']
         processes.append(subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
         if side == 'host':
             time.sleep(2)

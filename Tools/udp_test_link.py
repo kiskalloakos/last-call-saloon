@@ -39,7 +39,12 @@ class ImpairedLink:
             while not self.stopping.is_set():
                 ready, _, _ = select.select([self.front, self.back], [], [], .005)
                 for source in ready:
-                    payload, address = source.recvfrom(65535)
+                    try:
+                        payload, address = source.recvfrom(65535)
+                    except ConnectionResetError:
+                        # Windows reports asynchronous ICMP port-unreachable here when
+                        # a test player has not started listening yet or just quit.
+                        continue
                     if source is self.front:
                         self.client = address
                         target, destination = self.back, self.host

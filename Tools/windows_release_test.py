@@ -56,11 +56,11 @@ if args.suite == 'standard':
                         '--logs', str(logs / 'five-player'), '--port', '17992'], 100)
     for name, options in [('separate-rooms', []), ('paired-room', ['--pair']),
                           ('paired-room-voice', ['--pair', '--voice'])]:
-        run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--app', str(app),
+        run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),
                    '--logs', str(logs / name), *options], 120)
 else:
     for name, options in [('impaired-separate', []), ('impaired-pair', ['--pair'])]:
-        run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--app', str(app),
+        run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),
                    '--logs', str(logs / name), '--impaired', *options], 120)
 summary = '\n'.join(f"- {'PASS' if r['passed'] else 'FAIL'}: {r['name']}" for r in results)
 print(summary, flush=True)
