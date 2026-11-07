@@ -339,3 +339,73 @@ Re-run from GitHub Actions → **Test published Windows game**, selecting releas
 and suite `standard` or `stress`; `rooms` runs only the rendered cases. Logs are retained
 as workflow artifacts for 14 days. Test tooling lives in `Tools/windows_release_test.py`,
 `Tools/lan_room_test.py` and `Tools/udp_test_link.py`.
+
+
+## 0.2.4 slow-LAN snapshot stream — 2026-11-07
+
+The real Mac-host/Windows-client retest exposed a gap in the 0.2.3 checks: the host reached
+Turns while the joining player's room countdown stopped, followed by a remote close and
+match abort. The old snapshots were full UTF-16 JSON at 10 Hz, delivered through a reliable
+fragmented FIFO. Previous loss/outage tests had not limited available bandwidth.
+
+0.2.4 replaces that stream with UTF-8/deflate snapshots in datagrams of at most 1,012 payload
+bytes, with explicit version/part metadata. The receiver keeps at most two incomplete
+states, validates bounded sizes and ignores duplicate/stale updates; a missing state cannot
+block a subsequent complete state. Commands remain reliable. Transport packet queues are
+1,024 packets rather than 128. Existing disconnect timeouts are unchanged. Startup and
+both sides of disconnect now log build/platform, transport reason, state age/sequence,
+byte counters and timestamps. The HUD shows a stale-state warning and fits abort text.
+
+Confirmed evidence:
+
+- `SALOON_SNAPSHOT_STREAM PASS` in Unity: loss, reverse packet order, duplicates, stale
+  updates, sequence wrap, UTF-8, missing-panel presence flags, metadata bounds, and a
+  portable raw-deflate fixture. `SALOON_SNAPSHOT_WIRE PASS`, clock and asset/rule checks passed.
+- Full Mac built-player functional suite passed. Real five-player state size was 6,478
+  legacy bytes versus 787 compressed bytes before chunk headers (about 88% smaller).
+- Mac before/after bandwidth test: 8,000 bytes/s host-to-client, 80ms delay each way,
+  +/-25ms jitter, 2% random loss and a five-second outage during Choosing. The old client
+  remained behind while the host completed actions; the final 0.2.4 pair reached all phases,
+  selected companions/rooms, claimed the coin and spent both actions with voice connected.
+  Maximum observed phase lag in that final run was below the 250ms polling interval.
+- Native Windows old-build baseline failed both capped-link cases, unable to finish joining
+  before the harness deadline. This also reproduces a slow-join failure under limited
+  bandwidth. [Old Windows baseline](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42405044472).
+- Native Windows 0.2.4 capped-link cases both passed, using exactly the candidate ZIP checked
+  against its release SHA-256. Both clients joined, recovered from the five-second outage,
+  completed room/companion/coin selection and spent their actions. Room/action transition
+  lag was at most about 0.3s; initial discussion visibility lag was about 1.05s. The final
+  receive log shows state age returning from 4.38s during the outage to 0.21s after recovery.
+  [Windows capped-link pass](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42405254189).
+
+The cap and outage affect game UDP traffic; Vivox voice follows its own service connection.
+Windows rendered checks use a Windows Server 2022 software GPU at 640x360 / Very Low.
+The tests render controls and send production room/action commands; they do not simulate
+physical mouse clicks or prove operation on the user's specific laptop/Wi-Fi. The host's
+0.2.3 log did not preserve its remote-client transport reason, so the precise reason for
+that real disconnect cannot be established retrospectively. No personal laptop logs are
+included in this repository.
+
+
+Final 0.2.4 validation and remaining limitation:
+
+- The exact final Mac binary passed the full functional suite and a five-process match;
+  all five processes exited 0. Final Mac capped-link pair/voice test passed on both sides.
+- The exact Windows release binary passed the full functional suite, separate rooms,
+  paired room/coin actions, and voice-connected paired room. The Windows standard run
+  is red overall because its five-player host did not exit after a completed match;
+  all five logs contain `SALOON_SMOKE PASS` before shutdown.
+  [Windows gameplay/room/voice results](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42405251569).
+- Repeated five-player Windows matches: all three matches reached successful results on
+  every client. Runs 2 and 3 exited 0 on all five processes; run 1 again hung during the
+  host's intentional post-match shutdown. This shutdown issue is not claimed fixed and
+  must not be described as an entirely green Windows suite. It was not an unexpected
+  mid-match disconnect. [Repeat logs](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42405884748).
+- Both Windows capped-link cases passed with clean exits on both host and client:
+  [successful constrained-LAN suite](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42405254189).
+- Both platform ZIPs passed CRC checks and their uploaded sizes/SHA-256 matched local
+  files. Windows ZIP SHA-256:
+  `99dc5ad8788b367fe2cff27e321563b8c52a0ad308b52134c36f755b526d2884`.
+- The first two Windows candidate attempts failed at download because a read-only Actions
+  token cannot access a draft release. No game test ran in those attempts. The candidate
+  was then explicitly published as a prerelease for validation, with 0.2.3 remaining latest.

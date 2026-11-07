@@ -20,6 +20,15 @@ cover that bandwidth constraint.
 - Added loss/reordering/duplicate/bounds tests and an 8,000-byte/s LAN regression, with
   packet loss and a five-second outage during room selection.
 
-Validation results are recorded in Documentation/VERIFICATION.md. A host-side cause for
-the specific laptop disconnect cannot be proven retrospectively because 0.2.3 did not
-log remote-client transport reasons; the new diagnostics preserve that evidence.
+Validation: both builds succeeded. Native Windows functional, room/coin/voice-connected,
+and bandwidth-limited LAN checks passed; all repeated five-player matches completed.
+One Windows CI host hung during intentional post-match shutdown, while two repeated runs
+exited cleanly; that shutdown issue remains open. The Mac functional, five-player and
+capped-link voice tests passed. The specific laptop/Wi-Fi path still needs its own retest.
+
+[Windows bandwidth-cap results](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42405254189)
+· [Full validation and known shutdown limitation](https://github.com/kiskalloakos/last-call-saloon/blob/main/Documentation/VERIFICATION.md).
+
+The precise host-side reason for the earlier laptop disconnect cannot be proven
+retrospectively because 0.2.3 did not log remote-client transport reasons. 0.2.4 preserves
+that evidence if a problem remains.
