@@ -1,0 +1,21 @@
+{
+  "Assets/Resources/Art/Animations/idle.fbx": "c8a24e0294376ee5a195c56752a13310e1c0b5f8588a4db50e094120e3e4cc74",
+  "Assets/Resources/Art/Animations/run.fbx": "e635461fc8dace85ec67a7f7941e949a7c3f108b51ae4d2da1557e6e01749df8",
+  "Assets/Resources/Art/BarrelDiffuse.jpg": "6bea25b4fadda0636b6b7e46e0cc15153eda21ef62c823d5ee2e06a5a7589214",
+  "Assets/Resources/Art/Character/characterMedium.fbx": "18835fef534eede635b081ee7fe647d01a885550a591d2e6bf071010906167d8",
+  "Assets/Resources/Art/CharacterLicense.txt": "68280323c6dca1f532c71fb248a6f344abed39a574278a2edfa27801aea3d0cd",
+  "Assets/Resources/Art/CharacterSkin.png": "e2f66e682c95253fbb45206ab44bdb4fe61b03af3481abbd0e4344a6958a0530",
+  "Assets/Resources/Art/FurnitureLicense.txt": "f2e61608341204c8e28650702cdff7c87c946aec4b8ef83096c8a5c16a52cd5f",
+  "Assets/Resources/Art/PolyHavenLicense.txt": "8ed4e638ad344d76aaf22df4c382c52abbd8ea8675e58e1c6490029bea4974de",
+  "Assets/Resources/Art/WineBarrel.fbx": "ac938620a2d55a2741106763c2eb6251f78610ca8e2e564793a3249b093f6672",
+  "Assets/Resources/Art/bench.fbx": "af783ae0998d1079f093ba9a22050f3d493ea70fe6d513a9859cb64091e3a065",
+  "Assets/Resources/Art/bookcaseClosed.fbx": "e910f6d98fe79b996a0ba3dd498c3a295986444b4ba31a422a16ab4c6653460a",
+  "Assets/Resources/Art/bookcaseOpen.fbx": "7c678b0a68dc8a135eb20b55105faed01037666548638ca863290227b6a841ae",
+  "Assets/Resources/Art/chair.fbx": "50c318232497a028b91be172c0e90301521c4d3ddad6a447fc99726ed2c87482",
+  "Assets/Resources/Art/chairRounded.fbx": "946abf80126ab2a0dd76e73ae6810dd7b73f3b0ae66bf31e5a4aa00fb2740099",
+  "Assets/Resources/Art/kitchenBar.fbx": "752b95078078cb3cbbe8e31ec7119daffcc46ca72c9be37e1f3e9ac3a010aa08",
+  "Assets/Resources/Art/lampRoundTable.fbx": "f50ea34bda21df8d2ab4077787cda496459495ce4b946ac48ffed1c4b0d622d0",
+  "Assets/Resources/Art/stoolBar.fbx": "41ef250c78b41be0cb1db6e0c4995497e10483c14156b8c77d44178fd020cc0c",
+  "Assets/Resources/Art/table.fbx": "883e38018c352d6bc914cd815a2ed5e148e85cb29c1ac3f3f646ba14a203099a",
+  "Assets/Resources/Art/tableRound.fbx": "da6a81e6ba3297ee6cd8ee4192e4f9cff5a34955c45c59c2a3f3099c4499b178"
+}
