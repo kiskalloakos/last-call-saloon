@@ -21,6 +21,9 @@ namespace Saloon
             Limit=Math.Max(1,limit);Round=1;spent.Clear();Phase=Phase.Discussion;Deadline=now+this.discussion;
         }
         public bool CanAct(ulong id,float now)=>Phase==Phase.Turns&&order.Contains(id)&&!spent.ContainsKey(id)&&now<Deadline;
+        public void DelayDeadline(float seconds){if(Phase==Phase.Turns)Deadline+=Math.Max(0,seconds);}
+        public void EnsureDeadline(float until){if(Phase==Phase.Turns)Deadline=Math.Max(Deadline,until);}
+        public void BeginAftermath(float now){Phase=Phase.Aftermath;Deadline=now+3;}
         public bool TrySpend(ulong id,float now,float duration=0)
         {if(!CanAct(id,now))return false;spent[id]=now+Math.Max(0,duration);return true;}
         public void Tick(float now,Func<ulong,bool> alive)
@@ -30,11 +33,13 @@ namespace Saloon
                 var living=order.Where(alive).ToArray();
                 if(living.Any(id=>spent.TryGetValue(id,out var end)&&end>now))return;
                 if(now<Deadline&&living.Any(id=>!spent.ContainsKey(id)))return;
-                Phase=Phase.Regroup;Deadline=now+regroup;return;
+                BeginAftermath(now);return;
             }
             if(now<Deadline)return;
             if(Phase==Phase.Discussion){Phase=Phase.Choosing;Deadline=now+choosing;}
             else if(Phase==Phase.Choosing){spent.Clear();Phase=Phase.Turns;Deadline=now+actions;}
+            else if(Phase==Phase.Aftermath)
+            {if(Round>=Limit){Phase=Phase.Finished;return;}Phase=Phase.Regroup;Deadline=now+regroup;}
             else if(Phase==Phase.Regroup)
             {if(Round>=Limit){Phase=Phase.Finished;return;}Round++;Phase=Phase.Discussion;Deadline=now+discussion;}
         }

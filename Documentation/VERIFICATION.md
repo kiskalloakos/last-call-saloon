@@ -1,3 +1,60 @@
+# Release 0.2.1 — 2026-11-07
+
+- Mac and Windows builds succeeded: 354,205,448 and 212,966,516 bytes before packaging.
+- Two packaged Mac processes passed `SALOON_PRIVACY PASS` and `SALOON_SMOKE PASS`,
+  matching results, five participants, no walking and clean exits; `/tmp/saloon-021-lan`.
+- Local Mac app copied to `Builds/Playtest-0.2.1/Last Call.app`; bundle version verified 0.2.1.
+- Windows file confirmed PE32+ x86-64. Windows hardware runtime/microphones remain a human test.
+- ZIP CRC checks and authored whitespace checks passed; checksums accompany the release.
+- Earlier Editor checks below cover the source packaged into this release.
+
+# Earlier Editor-only drinking, aftermath and bar-turn fixes — 2026-11-07
+
+No new standalone build, upload or release was made.
+
+- `SALOON_BEER PASS`: first/third-person mug rim now tilts toward the drinker (-Z), rather
+  than presenting the base to the mouth. Direction checks and fresh rendered captures pass;
+  handoff, delayed healing, interruption and positional audio continue to pass.
+- `SALOON_POLISH PASS`: real Sheriff draw/fire commands rejected outside their bar turn;
+  a five-player queue contains each occupant once, idle turns auto-pass, and the Sheriff's
+  turn permits exactly one shot even with cooldown reset/repeated clicks.
+- The final action preserves position and weapon pose in a three-second `Aftermath` phase,
+  locks further actions, and retains the spin before regroup. The lethal final-shot fixture
+  keeps the dying shooter's recent first-person weapon visible without an elimination/result
+  overlay. Roles/results appear only after the three-second delay; the corpse keeps its seat.
+- Pure clock checks cover timed-action completion → aftermath → regroup/next round, plus
+  final-round aftermath → results. Existing heist/beer fixtures isolate their feature from
+  group ordering; the new polish fixture exercises actual group authorization.
+- `SALOON_HEIST PASS`, `SALOON_SOCIAL PASS`, `SALOON_RELEASE PASS`, `SALOON_GAMEPLAY PASS`
+  and `SALOON_EDITOR_ROUNDS PASS` passed in Unity. Rendered captures include corrected beer,
+  `BarOrderPreview.png` and `AftermathPreview.png`. README describes current Editor rules.
+- Authored whitespace checks passed. No new physical-device/network session was performed.
+
+# Earlier Editor-only social update — 2026-11-07
+
+No new standalone build, tag, upload or release was created for this update.
+
+- `SALOON_SOCIAL PASS`: real discussion room commands include sender/recipient/room,
+  withdraw correctly, and create a room-private coin state for exactly two living players.
+  First claim wins against a competing claim; opposite sides are assigned; the winner is
+  hidden until reveal. Drawing/firing before the toss and the loser's early fire command
+  are rejected without wasting their action. Real opening/response shots apply damage,
+  the opener receives no bonus shot, and no-input/dead-opener cases do not stall the room.
+- Private Sheriff inspection spends an action, reports missing money without naming the
+  carrier, and remains a last-known report after subsequent changes. Other roles receive
+  no report or safe-progress value. Inspection creates no global event.
+- Revised `SALOON_HEIST PASS`: no observer robbery, carrier, escape or robbery-busy flags,
+  including roommates; no forced holster or work/bag geometry. An empty-safe H attempt
+  spends its full action/time rather than revealing theft with a free rejected command.
+  Real-shot interruption, three shared steps and delayed escape still pass.
+- `SALOON_BEER PASS`, `SALOON_RELEASE PASS`, `SALOON_GAMEPLAY PASS` and
+  `SALOON_EDITOR_ROUNDS PASS` continue to pass. Actual shot/damage snapshots trigger
+  the camera feedback/hit tint and visible first-person muzzle mesh/light in the test.
+- UI captures: `InvitationPreview.png`, `CoinChoicePreview.png`, `MuzzleImpactPreview.png`.
+  Latest README distinguishes current Editor rules from the published 0.2.0 ZIPs.
+- Authored source/documentation whitespace checks passed. New rules/fields have not been
+  tested between physical devices; the user's next build remains pending.
+
 # Release 0.2.0 — 2026-11-07
 
 - `SALOON_RELEASE PASS`: no ally/hidden-role payload, stable dead seats and common-table

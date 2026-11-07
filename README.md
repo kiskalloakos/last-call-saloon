@@ -1,11 +1,15 @@
 # Last Call — current alpha
 
-Five players in a low-poly saloon: one public Sheriff, one hidden Deputy, two Outlaws,
-and one Renegade. Release **0.2.0**, 2026-11-07. Use matching 0.2.0 downloads on both laptops;
-old 0.1.2 clients have incompatible rules.
+Release **0.2.1**, 2026-11-07: room invitations, coin-flip openings, ordered bar turns,
+concealed robbery and Sheriff inspection, corrected drinking, muzzle flashes, and a
+three-second aftermath before regroup/results. Use **0.2.1 on both devices**; older builds
+have different rules.
 
-[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.0).
-Extract the entire Windows ZIP and run `Last Call.exe` inside its folder.
+[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.1).
+Extract the entire Windows ZIP and run `Last Call.exe`. The local Mac copy is in
+`Builds/Playtest-0.2.1/Last Call.app` inside this project.
+
+Five players: one public Sheriff, one hidden Deputy, two Outlaws and one Renegade.
 
 ## Start testing in Unity
 
@@ -16,7 +20,7 @@ They still obey the host's one-action budget, ammunition, health, rooms and rayc
 
 A real match needs five people. Host LAN and join using the host's local IP and matching
 UDP port (7777 by default), or create/join an online room code. All devices must use the
-same source/build version: do not mix this Editor with old 0.1.2 downloads.
+same source/build version: use matching 0.2.1 clients.
 
 ## What happens in a round
 
@@ -24,18 +28,57 @@ same source/build version: do not mix this Editor with old 0.1.2 downloads.
 |---|---:|---|
 | Discussion | 30 seconds | Everyone sits at the common table, looks around and talks. Major actions are locked. |
 | Choose rooms | 15 seconds | Click Bar, West room or East room, and optionally request a companion. |
-| Room actions | Up to 30 seconds | Players are automatically seated in their assigned rooms. Everyone can spend **one** action during the same window. |
-| Regroup | 3 seconds | Everyone returns to the common table; the next discussion begins. |
+| Room actions | About 30 seconds, extended for setup/turn budgets | Everyone gets **one** action, following the room's coin/turn order. Different rooms proceed independently. |
+| Aftermath | 3 seconds | Actions lock; players stay in their rooms while shots, hits and gun spins finish. |
+| Regroup | 3 seconds, between rounds | Everyone returns to the common table; the next discussion begins. |
 
 Walking and standing are disabled during the match. You can look, aim and speak. A new
 round preserves roles, HP, ammunition, items, safe progress and pending escape attempts.
 Actions can end early when all living players finish/pass; started timed actions finish
-before regroup. Six rounds maximum, configurable before starting the match.
+before aftermath. Six rounds maximum, configurable before starting the match. The final
+round ends after aftermath, without an unnecessary regroup. Elimination/escape victories
+also wait through aftermath before revealing roles/results. A dying shooter's recent gun
+animation stays visible briefly, and the elimination overlay waits for the effects.
 
 Each side room has two places. A requested pair must nominate **each other and the same
 room**. Mutual pairs receive priority; solo requests fill remaining places. Unaccepted
 invitations and full-room requests fall back to the bar. The bar can hold everyone.
 The assignment is locked during actions; the HUD/pause roster shows the actual room.
+
+Press **P during discussion** to plan a room and companion early. Incoming invitations
+show “Player wants to talk to you” above the room name, both at the table and above the
+room choices. Clicking an incoming player's entry accepts their room and companion in one
+step. Invitations update/disappear when the sender changes their plan or is eliminated.
+
+### Two-player rooms: coin for the opening
+
+Any room with exactly two living players (including the bar) starts with random opposite
+Heads/Tails assignments. Both can choose a side; the **first claim locks it**, giving the
+other player the opposite side. With no input, the assignments auto-flip after three seconds.
+The host rolls the coin after a 1.2-second flip; the result and opening player are visible
+only to that room. Major actions and drawing are blocked until the result.
+
+The winner gets the first move: Q to draw, then click to shoot, or another legal action/pass.
+The opponent can respond once the winner spends their action; both keep a one-action budget.
+Ignoring the opening automatically passes it after six seconds (shorter for short action
+windows), and an eliminated opener cannot block the survivor. This determines action
+**order**, not a mandatory shootout. The shared action deadline includes 4.2 extra seconds
+for coin setup, then still waits for already-started timed actions.
+
+### Larger rooms: ordered turns
+
+The bar with **three or more living players** uses a freshly randomized queue each round.
+The HUD shows the active player, their timer and the room order. Each player may start one
+major action or pass; the next player then gets their turn. Q/drawing and major actions are
+blocked outside your turn, including for the Sheriff and practice bots. Everyone can still
+look, talk and prepare one beer while waiting. Finished players see “Action spent,” not
+a promise of another turn.
+
+Each turn gets the action-window duration divided by the number of occupants, with a
+four-second minimum: at the default 30 seconds, five players get six seconds each. An idle
+turn auto-passes; dead players are skipped. The overall room-action deadline expands when
+needed to fit the queue. Started timed actions may overlap later turns and finish before
+aftermath; the turn order controls who **starts** an action, not a guaranteed safe healing period.
 
 ## What can I do with my one action?
 
@@ -51,6 +94,7 @@ The assignment is locked during actions; the HUD/pause roster shows the actual r
   A full-health recipient still drinks, so do not expect extra/max health.
 - **Work the safe / collect the money:** H at a bar station; see robbery below.
 - **Declare escape:** X at a bar station while carrying the money; see victory below.
+- **Inspect safe:** Sheriff only, C at the bar; costs your action and gives a private report.
 - **Pass:** Space gives up your action this round.
 
 Drawing/holstering (Q) is free preparation, but occupies your hands for 0.6 seconds.
@@ -66,23 +110,29 @@ A corpse in a side room reserves its seat until the next match.
 
 ## Robbery: why stay at the bar?
 
-Press **H** during room actions to work the safe for **three seconds**, weapon holstered.
+Press **H** during room actions to work the safe discreetly for **three seconds**.
 It costs your action. Three completed work actions open it; progress is shared and persists
-between rounds. Several people can work simultaneously. The player completing the third
+between rounds. Work begins in turn order; already-started attempts can overlap. The player completing the third
 step collects the money. Anyone, including Law players, can work or collect it: touching
 money does not automatically reveal a role.
 
 A shot interrupts work and gives no progress for that attempt; the action stays spent.
-If someone already carries the money, another work attempt is rejected without cost.
+Working an empty safe still takes your action/time and reports only that nothing was
+recovered; pressing H cannot reveal money state for free or identify the carrier.
 When the carrier is eliminated, the money becomes collectible at the bar again with H;
 the safe remains open. It does not become a loose object you have to walk over to pick up.
 
-People in the room can **look at the worker** and see leaning/reaching and the money pouch.
-There is no global notification, role reveal, robbery sound cue, or public action log.
-Robbery animation flags, bag visibility and safe progress are filtered out of other rooms'
-snapshots. Roommates still need to look in the right direction; testimony is not certified
-by the game. Work/bag visuals disappear from others' view on regroup, so discussion relies
-on what people saw and remember. The carrier can always see their own objective status.
+Robbery has no reaching/leaning animation, visible money pouch, forced holster, sound cue,
+global notification, role reveal or public action log. Even roommates receive no robbery,
+bag, escape or robbery-busy flags; they may suspect you from your choices, but cannot read
+an automatic visual confession. The worker/carrier still sees their own private status.
+Safe progress is no longer live public HUD information.
+
+The **Sheriff can spend an action pressing C at the bar** to inspect the safe. The private
+report says sealed/tampered/open with money inside, or money missing; it never names the
+thief. The displayed report is explicitly the **last inspection**, not live telemetry:
+later theft does not silently update it. Other players do not receive that report or
+the progress value. There is no automatic global theft announcement.
 
 ## How do we win now?
 
@@ -118,6 +168,9 @@ flies in an arc from giver to recipient, then the recipient drinks automatically
 plays during the sip; a quiet clink accompanies handoff. These are original procedural
 alpha sounds, not recorded samples. The revolver has a layered crack/body/metal/room gunshot and a short flourish after each
 accepted shot, visible in first and third person. The spin is cosmetic and grants no extra shot.
+Shooting adds a brief camera kick; receiving damage adds a short shake and red tint.
+Both viewpoints show a short muzzle burst/light. Camera feedback is cosmetic and does
+not alter the host's aiming ray or add movement to your seated position.
 
 A shot interrupts a normal or gifted drink: consumed beer is lost and no healing arrives.
 Healing applies only when the drinking timer completes. Drinking sound stops on interruption.
@@ -147,6 +200,7 @@ roles. This is deliberately aggressive test AI, not a simulation of human deduct
 | Q / left click / R | Draw or holster / shoot / reload |
 | E / B / G | Take beer at bar / drink / give beer to aimed player |
 | H / X | Work safe or collect money / declare escape |
+| P / C | Plan a conversation during discussion / Sheriff inspection at the bar |
 | Space / hold Tab | Pass / privately read role and objective |
 | Hold V / M | Push-to-talk / toggle mic mute |
 | Esc | Menu, host tuning, voice devices, roster, leave |
@@ -175,3 +229,14 @@ have private role access on the host. This is a trusted private alpha.
 Art provenance/licenses: [ASSET-SOURCES.md](Documentation/ASSET-SOURCES.md).
 Old design notes: [DESIGN-HISTORY.md](Documentation/DESIGN-HISTORY.md).
 Parent Project-IDK is separate and is not modified by this prototype.
+
+## Next playtest priorities
+
+1. Run a full five-human session: measure waiting, confusion, who wins and why; tune turn,
+   discussion and aftermath lengths from observations.
+2. Give eliminated players a useful spectator view and make the first-time controls clearer.
+3. Improve deduction: test how inspection reports, invitations and conflicting testimony
+   create believable suspicions; avoid mechanically revealing the thief.
+4. Balance the safe/escape economy and soften perfect-knowledge practice AI for normal practice.
+5. Polish seated poses, hand grips, hit reactions and sound levels after the rules settle.
+6. Harden networking with build-version checks, disconnect handling and reconnect support.

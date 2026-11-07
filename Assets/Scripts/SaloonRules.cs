@@ -5,7 +5,7 @@ using System.Linq;
 namespace Saloon
 {
     public enum Role { Unknown, Sheriff, Deputy, Outlaw, Renegade }
-    public enum Phase { Lobby, Discussion, Turns, Finished, Choosing, Regroup }
+    public enum Phase { Lobby, Discussion, Turns, Finished, Choosing, Regroup, Aftermath }
 
     [Serializable]
     public class Tuning
@@ -58,15 +58,21 @@ namespace Saloon
         {
             if(self==null||!self.alive||view.phase==Phase.Lobby||view.phase==Phase.Finished)return "";
             if(view.phase==Phase.Discussion)
-                return view.ownRole=="Outlaw"?"Ask who’s staying at the bar. An empty room is an opportunity.":view.ownRole=="Renegade"?"Listen for a quiet route to the money. Your escape must be your own.":"Ask who saw the safe. A story is only as good as its witness.";
+                return view.ownRole=="Outlaw"?"P · Invite someone away from the bar. Leave yourself a quiet opportunity.":view.ownRole=="Renegade"?"P · Plan a private conversation. Your escape must be your own.":"P · Plan a conversation. Ask who has checked the safe.";
             if(view.phase==Phase.Choosing)return view.moneyBag?"Choose the bar. A side room cancels your escape.":"Choose the bar for the safe, or invite someone for a private word.";
             if(view.phase==Phase.Regroup)return "Remember who you saw. Decide what you want to tell the table.";
+            if(view.phase==Phase.Aftermath)return "Let the dust settle.";
+            if(view.duel?.stage=="choosing")return "Choose Heads or Tails. First claim locks the sides; the coin decides the opening.";
+            if(view.duel?.stage=="flipping")return "Let the coin land. Weapons are locked until the opening is decided.";
+            if(view.duel?.waitingForOpening==true)return view.duel.firstName+" has the opening. You may respond after their action or pass.";
+            if(view.roomTurn?.spent==true)return "Your action is spent. Watch the remaining turns.";
+            if(view.roomTurn!=null&&!view.roomTurn.yourTurn)return string.IsNullOrEmpty(view.roomTurn.currentId)?"The room has finished its actions.":view.roomTurn.currentName+" has the next move. Your turn follows the room order.";
             if(view.busyRemaining>0)return "Keep an eye on the room. A hit interrupts what you’re doing.";
             if(!view.actionAvailable)return "Your action is spent. Listen, watch, and plan your next round.";
             if(view.escapePending)return "Hold the bar until this action phase ends. Protect the money.";
             if(view.moneyBag)return "X · Commit to escape, then survive the next action phase at the bar.";
             if(view.carriedBeer>0&&view.health<self.maxHealth)return "B · Drink to recover one health. G · Offer it to someone nearby.";
-            if(self.room==0)return view.safeProgress==3?"H · Collect the money before someone else does.":view.ownRole=="Outlaw"||view.ownRole=="Renegade"?"H · Work the safe. Three completed attempts release the money.":"Watch the safe. E prepares a beer; B drinks it as your action.";
+            if(self.room==0)return view.ownRole=="Sheriff"?"C · Inspect the safe privately, using your action.":view.ownRole=="Outlaw"||view.ownRole=="Renegade"?"H · Work the safe quietly. Three completed attempts release the money.":"Hear them out. E prepares a beer; B drinks it as your action.";
             return "One action. Draw with Q, then aim carefully—or hear them out.";
         }
     }
@@ -105,6 +111,9 @@ namespace Saloon
         public string[] turnOrder;
         public int round, roundLimit;
         public bool actionAvailable;
+        public DuelView duel;
+        public RoomTurnView roomTurn;
+        public string safeReport;
         public int health, ammo, beers, carriedBeer;
         public bool sandbox, moneyBag, escapePending;
         public int safeProgress=-1;

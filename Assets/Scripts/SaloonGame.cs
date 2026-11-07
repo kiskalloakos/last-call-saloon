@@ -33,7 +33,7 @@ namespace Saloon
         readonly SaloonRounds rounds = new SaloonRounds();
         float nextBroadcast, nextInput, yaw, pitch, helloAt;
         int beers;
-        string outcome = "", voiceRoom = "";
+        string outcome = "", voiceRoom = "", pendingOutcome="";
         bool helloSent,leaving;
         Phase shownPhase;int shownPose=-1;
         bool MatchActive=>phase!=Phase.Lobby&&phase!=Phase.Finished;
@@ -44,6 +44,8 @@ namespace Saloon
         {
             public ulong id;
             public string name, notice="", busyAction="";
+            public string safeReport="";
+            public int inspectedProgress=-1;
             public Role role;
             public GameObject body;
             public CharacterController controller;
@@ -187,13 +189,14 @@ namespace Saloon
 
         void Update()
         {
-            if(Input.GetKeyDown(KeyCode.Escape)){MenuOpen=!MenuOpen;if(MenuOpen)UnlockCursor();else LockCursor();}
+            if(Input.GetKeyDown(KeyCode.Escape)){MenuOpen=!MenuOpen;SyncPointer();}
             if(!InRoom){UnlockCursor();return;}
             if(!helloSent&&Time.unscaledTime>=helloAt){Connection.Send(new Command{kind="hello",name=PlayerName});helloAt=Time.unscaledTime+1;}
             if(Self!=null&&Self.name==CleanName(PlayerName))helloSent=true;
             if(!MenuOpen&&Self!=null)
             {
-                if(View.phase!=Phase.Choosing&&Cursor.lockState!=CursorLockMode.Locked&&Input.GetMouseButtonDown(0))LockCursor();
+                if(Input.GetKeyDown(KeyCode.P))ToggleRoomPlanner();
+                if(!NeedsPointer&&Cursor.lockState!=CursorLockMode.Locked&&Input.GetMouseButtonDown(0))LockCursor();
                 if(Cursor.lockState==CursorLockMode.Locked)
                 {
                     yaw+=Input.GetAxis("Mouse X")*Sensitivity;
@@ -207,6 +210,7 @@ namespace Saloon
                     if(Input.GetKeyDown(KeyCode.Space))Act("pass");
                     if(Input.GetKeyDown(KeyCode.H))Act("rob");
                     if(Input.GetKeyDown(KeyCode.X))Act("escape");
+                    if(Input.GetKeyDown(KeyCode.C))Act("inspect");
                     if(Input.GetMouseButtonDown(0))Act("fire");
                 }
             }
@@ -247,14 +251,17 @@ namespace Saloon
             }
             if(MatchActive)
             {
+                TickDuels();
                 if(!verifying)TickPracticeBots();
                 if(phase==Phase.Finished){Broadcast();return;}
                 var before=phase;rounds.Tick(Time.time,id=>players.TryGetValue(id,out var p)&&p.Alive);phase=rounds.Phase;
                 if(before!=phase)
                 {
-                    if(phase==Phase.Finished)Finish(HeistTimeout());
+                    if((phase==Phase.Regroup||phase==Phase.Finished)&&!string.IsNullOrEmpty(pendingOutcome))Finish(pendingOutcome);
+                    else if(phase==Phase.Finished)Finish(HeistTimeout());
                     else if(phase==Phase.Turns){PositionEveryone(false);AddEvent("Room assignments locked. One action each.");}
-                    else if(phase==Phase.Regroup){ResolveEscapes();if(phase!=Phase.Finished){PositionEveryone(true);AddEvent("Regrouping at the table.");}}
+                    else if(phase==Phase.Aftermath){ResolveEscapes();}
+                    else if(phase==Phase.Regroup){PositionEveryone(true);AddEvent("Regrouping at the table.");}
                     else if(phase==Phase.Choosing)AddEvent("Choose a room and invite a companion. Invitations must be mutual.");
                     else AddEvent("Round "+rounds.Round+": seated discussion.");
                 }
@@ -283,13 +290,15 @@ namespace Saloon
                 p.yaw=facing;p.pitch=0;p.poseVersion++;p.drawn=false;p.busyAction="";p.busyUntil=0;
                 if(gather){p.chosenRoom=0;p.companion=null;}
             }
+            SetupDuels(gather);
         }
 
         public void ChooseRoom(int room,string companion)=>Connection.Send(new Command{kind="room",x=room,name=companion});
 
         bool SpendAction(Participant p,float duration=0)
         {
-            if((phase==Phase.Discussion||phase==Phase.Turns)&&rounds.TrySpend(p.id,Time.time,duration))return true;
+            if(phase==Phase.Turns&&!DuelAllows(p)){p.notice=roomTurns.ContainsKey(p.room)?"Wait for your turn at this table.":"Wait for the coin and the opening action.";return false;}
+            if((phase==Phase.Discussion||phase==Phase.Turns)&&rounds.TrySpend(p.id,Time.time,duration)){AdvanceRoomTurn(p.room);return true;}
             p.notice=phase==Phase.Discussion?"Discussion: talk and position; actions start after the timer.":"Actions are locked or your action is spent. One action per round.";
             return false;
         }
@@ -305,12 +314,13 @@ namespace Saloon
             }
             if(cmd.kind=="room")
             {
-                if(phase!=Phase.Choosing||!p.Alive||Time.time>=rounds.Deadline)return;
+                if((phase!=Phase.Choosing&&phase!=Phase.Discussion)||!p.Alive||Time.time>=rounds.Deadline)return;
                 int room=(int)cmd.x;if(room<0||room>2)return;
                 ulong? companion=null;
                 if(!string.IsNullOrEmpty(cmd.name)&&ulong.TryParse(cmd.name,out var companionId)&&companionId!=p.id&&players.TryGetValue(companionId,out var other)&&other.Alive)companion=companionId;
                 p.chosenRoom=room;p.companion=companion;p.notice="Room preference saved.";return;
             }
+            if(cmd.kind=="coin"){ClaimCoin(p,(int)cmd.x);return;}
             if(!p.Alive||phase==Phase.Finished||Time.time-p.lastAction<.09f)return;
             p.lastAction=Time.time;
             if(cmd.kind=="interact"&&p.seat>=0&&!MatchActive){Stand(p);return;}
@@ -319,10 +329,12 @@ namespace Saloon
             {
                 case "draw":
                     if(phase!=Phase.Discussion&&phase!=Phase.Turns)break;
+                    if(phase==Phase.Turns&&!DuelAllows(p)){p.notice="Wait for your opening.";break;}
                     p.drawn=!p.drawn;p.busyUntil=Time.time+tuning.drawSeconds;p.busyAction="draw";break;
                 case "fire":Fire(p);break;
                 case "rob":BeginRobbery(p);break;
                 case "escape":DeclareEscape(p);break;
+                case "inspect":InspectSafe(p);break;
                 case "reload":
                     if(!p.drawn||p.ammo>=tuning.cylinder)break;
                     if(!SpendAction(p,tuning.reloadSeconds))break;
@@ -381,7 +393,7 @@ namespace Saloon
                         victim.bag=false;victim.escapeRound=0;victim.drawn=false;victim.move=Vector2.zero;victim.controller.enabled=false;victim.hitbox.enabled=false;
                         AddEvent(victim.name+" was eliminated.");
                         string result=SaloonRules.Winner(players.Values.Where(x=>x.Alive).Select(x=>x.role));
-                        if(!string.IsNullOrEmpty(result))Finish(result);
+                        if(!string.IsNullOrEmpty(result))QueueFinish(result);
                     }
                 }
             }
@@ -439,8 +451,15 @@ namespace Saloon
 
         void Finish(string result)
         {
+            pendingOutcome="";
             phase=Phase.Finished;outcome=result;Connection.Accepting=true;AddEvent(result);Broadcast();
             Debug.Log("SALOON_RESULT "+result);
+        }
+
+        void QueueFinish(string result)
+        {
+            if(!string.IsNullOrEmpty(pendingOutcome))return;
+            pendingOutcome=result;rounds.BeginAftermath(Time.time);phase=Phase.Aftermath;Broadcast();
         }
 
         public Snapshot PrivateSnapshot(ulong recipient)
@@ -448,23 +467,23 @@ namespace Saloon
             if(!players.TryGetValue(recipient,out var own))return null;
             return new Snapshot
             {
-                players=players.Values.Select(p=>new PlayerView{id=p.id.ToString(),name=p.name,x=p.body.transform.position.x,y=p.body.transform.position.y,z=p.body.transform.position.z,yaw=p.yaw,pitch=p.pitch,alive=p.Alive,drawn=p.drawn,seated=p.seat>=0,sheriff=p.role==Role.Sheriff,busy=p.busyUntil>Time.time,shots=p.shots,health=p.hp,maxHealth=tuning.health,carriedBeer=p.beer,drinking=(p.busyAction=="drink"||(p.busyAction=="giftDrink"&&Time.time>=p.drinkReady))&&p.busyUntil>Time.time,
+                players=players.Values.Select(p=>new PlayerView{id=p.id.ToString(),name=p.name,x=p.body.transform.position.x,y=p.body.transform.position.y,z=p.body.transform.position.z,yaw=p.yaw,pitch=p.pitch,alive=p.Alive,drawn=p.drawn,seated=p.seat>=0,sheriff=p.role==Role.Sheriff,busy=p.busyUntil>Time.time&&(p.busyAction!="rob"||own.id==p.id),shots=p.shots,health=p.hp,maxHealth=tuning.health,carriedBeer=p.beer,drinking=(p.busyAction=="drink"||(p.busyAction=="giftDrink"&&Time.time>=p.drinkReady))&&p.busyUntil>Time.time,
                     drinkRemaining=(p.busyAction=="drink"||p.busyAction=="giftDrink")?Mathf.Max(0,p.busyUntil-Time.time):0,
                     drinkDuration=tuning.drinkSeconds,giftRemaining=Mathf.Max(0,p.giftUntil-Time.time),
                     giftSequence=phase==Phase.Turns&&own.room==p.room&&p.giftUntil>Time.time?p.giftSequence:0,
                     giftTarget=phase==Phase.Turns&&own.room==p.room&&p.giftUntil>Time.time?p.giftTarget.ToString():"",
-                    robbing=CanObserveHeist(own,p)&&p.busyAction=="rob"&&p.busyUntil>Time.time,
-                    moneyBag=CanObserveHeist(own,p)&&p.bag,escaping=CanObserveHeist(own,p)&&p.escapeRound>0,room=p.room,chosenRoom=p.chosenRoom,companion=p.companion?.ToString()??"",poseVersion=p.poseVersion,revealedRole=phase==Phase.Finished?p.role.ToString():""}).ToArray(),
+                    robbing=own.id==p.id&&p.busyAction=="rob"&&p.busyUntil>Time.time,
+                    moneyBag=own.id==p.id&&p.bag,escaping=own.id==p.id&&p.escapeRound>0,room=p.room,chosenRoom=p.chosenRoom,companion=p.companion?.ToString()??"",poseVersion=p.poseVersion,revealedRole=phase==Phase.Finished?p.role.ToString():""}).ToArray(),
                 phase=phase,remaining=MatchActive?Mathf.Max(0,rounds.Deadline-Time.time):0,
                 round=rounds.Round,roundLimit=rounds.Limit,
                 activePlayerId=phase==Phase.Turns?rounds.Active?.ToString():"",
                 activePlayerName=phase==Phase.Turns&&rounds.Active.HasValue?players[rounds.Active.Value].name:"",
                 turnOrder=rounds.Order.Select(id=>id.ToString()).ToArray(),
-                actionAvailable=phase==Phase.Turns&&rounds.CanAct(recipient,Time.time),outcome=outcome,ownRole=own.role.ToString(),
+                actionAvailable=phase==Phase.Turns&&rounds.CanAct(recipient,Time.time)&&DuelAllows(own),outcome=outcome,ownRole=own.role.ToString(),duel=PrivateDuel(own),roomTurn=PrivateRoomTurn(own),
                 ally="",
                 health=own.hp,ammo=own.ammo,beers=beers,carriedBeer=own.beer,notice=own.notice,
                 sandbox=Sandbox,moneyBag=own.bag,escapePending=own.escapeRound>0,
-                safeProgress=phase==Phase.Turns&&own.room==0?safeProgress:-1,
+                safeProgress=own.role==Role.Sheriff?own.inspectedProgress:-1,safeReport=own.role==Role.Sheriff?own.safeReport:"",
                 objectiveNotice=own.bag?(own.escapeRound>0?"Escape pending — hold the money at the bar.":"Money secured — escape available."):"",
                 busyRemaining=Mathf.Max(0,own.busyUntil-Time.time),voiceRoom=voiceRoom
             };
@@ -481,12 +500,14 @@ namespace Saloon
             if(snapshot==null||snapshot.players==null)return;
             View=snapshot;
             var self=snapshot.players.FirstOrDefault(p=>p.id==LocalId);
+            ApplyImpactFeedback(self);
             if(self!=null&&self.poseVersion!=shownPose){shownPose=self.poseVersion;yaw=self.yaw;pitch=self.pitch;}
             if(snapshot.phase!=shownPhase)
             {
                 shownPhase=snapshot.phase;
-                if(shownPhase==Phase.Choosing)UnlockCursor();else if(!MenuOpen)LockCursor();
+                if(shownPhase!=Phase.Discussion)RoomPlannerOpen=false;
             }
+            SyncPointer();
             foreach(var p in snapshot.players)
             {
                 if(!avatars.TryGetValue(p.id,out var avatar))
@@ -505,7 +526,7 @@ namespace Saloon
             var target=new Vector3(self.x,self.y+(self.seated?1.35f:1.65f),self.z);
             if((ViewCamera.transform.position-target).sqrMagnitude>9)ViewCamera.transform.position=target;
             else ViewCamera.transform.position=Vector3.SmoothDamp(ViewCamera.transform.position,target,ref cameraVelocity,.045f);
-            ViewCamera.transform.rotation=Quaternion.Euler(pitch,yaw,0);
+            ViewCamera.transform.rotation=Quaternion.Euler(pitch,yaw,0)*CameraImpact();
             ViewCamera.fieldOfView=Mathf.Lerp(ViewCamera.fieldOfView,!MenuOpen&&Input.GetMouseButton(1)?60:78,Time.deltaTime*12);
         }
 
@@ -532,6 +553,7 @@ namespace Saloon
             if(this==null)return;
             foreach(var p in players.Values)Destroy(p.body);players.Clear();
             foreach(var a in avatars.Values)Destroy(a.gameObject);avatars.Clear();
+            previousHp=previousShots=-1;shotKick=hitKick=HitFlash=0;RoomPlannerOpen=false;duels.Clear();roomTurns.Clear();pendingOutcome="";
             View=null;phase=Phase.Lobby;Sandbox=false;helloSent=false;outcome="";MenuOpen=true;UnlockCursor();leaving=false;
         }
 
@@ -556,18 +578,22 @@ namespace Saloon
             OnCommand(host.id,new Command{kind="room",x=1,name=other.id.ToString()});OnCommand(other.id,new Command{kind="room",x=1,name=host.id.ToString()});
             Check(host.chosenRoom==1&&host.companion==other.id,"room nomination accepted by host");
             yield return new WaitForSeconds(1.15f);Check(phase==Phase.Turns&&host.room==1&&other.room==1,"mutual companions occupy the same side room");
+            duels.Clear(); // Legacy shared-action fixture; coin authorization is exercised separately below.
             var view=PrivateSnapshot(host.id);Check(view.players.First(p=>p.id==other.id.ToString()).room==1,"room roster replicated");
             Check(rounds.CanAct(host.id,Time.time)&&rounds.CanAct(other.id,Time.time),"all living players have a simultaneous action");
             OnCommand(host.id,new Command{kind="room",x=2});Check(host.chosenRoom==1,"room changes locked during actions");
             host.drawn=true;host.yaw=90;Do(host,"fire");Check(host.ammo==ammo-1,"one shot spends ammunition and action");host.nextShot=0;Do(host,"fire");Check(host.ammo==ammo-1,"second action denied");
             foreach(var p in players.Values)rounds.TrySpend(p.id,Time.time);
-            TickServer();Check(phase==Phase.Regroup&&players.Values.All(p=>p.room==0&&p.seat>=100),"completed actions regroup everyone at the common table");
+            TickServer();Check(phase==Phase.Aftermath&&host.room==1,"completed actions keep everyone in their room for aftermath");
+            yield return new WaitForSeconds(3.15f);Check(phase==Phase.Regroup&&players.Values.All(p=>p.room==0&&p.seat>=100),"aftermath then regroups everyone at the common table");
             yield return new WaitForSeconds(1.15f);Check(phase==Phase.Discussion&&rounds.Round==2,"regroup begins the next discussion");
             Check(host.ammo==ammo-1&&host.hp==tuning.health,"round boundaries preserve resources");
             Check(GameObject.Find("Saloon World").GetComponentsInChildren<TextMesh>().Length==0,"no floating environment labels");
             yield return VerifyHeist();
             yield return VerifyBeerGift();
             yield return VerifyReleaseChanges();
+            yield return VerifySocialChanges();
+            yield return VerifyPolishChanges();
             VerificationPassed=true;VerificationFinished=true;Debug.Log("SALOON_GAMEPLAY PASS");if(!Application.isEditor)Application.Quit(0);
         }
 

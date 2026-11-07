@@ -8,7 +8,7 @@ namespace Saloon
     {
         SaloonGame game;
         PlayerView state;
-        GameObject model,gun,firstPersonGun,mug,firstPersonMug,robberyHands,moneyBag;
+        GameObject model,gun,firstPersonGun,mug,firstPersonMug;
         TextMesh label,healthDots;
         AudioSource audioSource,drinkAudio;
         bool wasDrinking;int lastGift;GameObject handoffMug;
@@ -16,7 +16,8 @@ namespace Saloon
         bool local;
         Vector3 target;
         float recoil,snapshotAt,shotAt=-10;
-        Light flash;
+        Light flash,thirdFlash;
+        float muzzleUntil;
         Animation locomotion;
         Transform rightArm,rightForearm,rightHand;
         int shownHealth=-1,shownMaxHealth=-1;
@@ -49,14 +50,6 @@ namespace Saloon
             }
             gun=MakeGun(transform);gun.transform.localPosition=new Vector3(.27f,1.1f,.36f);
             mug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));mug.transform.SetParent(transform,false);mug.transform.localPosition=new Vector3(.28f,1.02f,.33f);mug.SetActive(false);
-            robberyHands=new GameObject("Safe work hands");robberyHands.transform.SetParent(transform,false);
-            var hands=SaloonWorld.Material("Safe work gloves",new Color(.45f,.27f,.14f));
-            foreach(float x in new[]{-.17f,.17f})
-            {
-                var arm=GameObject.CreatePrimitive(PrimitiveType.Cube);arm.transform.SetParent(robberyHands.transform,false);arm.transform.localPosition=new Vector3(x,0,.12f);arm.transform.localScale=new Vector3(.065f,.07f,.3f);arm.GetComponent<Renderer>().sharedMaterial=hands;arm.GetComponent<Collider>().enabled=false;Destroy(arm.GetComponent<Collider>());
-            }
-            moneyBag=GameObject.CreatePrimitive(PrimitiveType.Sphere);moneyBag.name="Money pouch";moneyBag.transform.SetParent(transform,false);moneyBag.transform.localPosition=new Vector3(.25f,1.05f,.4f);moneyBag.transform.localScale=new Vector3(.18f,.24f,.16f);moneyBag.GetComponent<Renderer>().sharedMaterial=SaloonWorld.Material("Money pouch leather",new Color(.26f,.12f,.035f));moneyBag.GetComponent<Collider>().enabled=false;Destroy(moneyBag.GetComponent<Collider>());
-            robberyHands.SetActive(false);moneyBag.SetActive(false);
             var nameObject=new GameObject("Name");nameObject.transform.SetParent(transform);nameObject.transform.localPosition=new Vector3(0,2.05f,0);
             label=nameObject.AddComponent<TextMesh>();label.characterSize=.022f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;
             var healthObject=new GameObject("Health dots");healthObject.transform.SetParent(transform,false);healthObject.transform.localPosition=new Vector3(0,1.85f,0);
@@ -68,6 +61,7 @@ namespace Saloon
             }
             audioSource=gameObject.AddComponent<AudioSource>();audioSource.spatialBlend=1;audioSource.minDistance=2;audioSource.maxDistance=45;
             drinkAudio=gameObject.AddComponent<AudioSource>();drinkAudio.clip=SaloonBeerAudio.Drinking;drinkAudio.minDistance=.8f;drinkAudio.maxDistance=7;drinkAudio.rolloffMode=AudioRolloffMode.Linear;
+            thirdFlash=MakeMuzzle(gun.transform);
             lastGift=initial.giftSequence;lastShot=initial.shots;
         }
 
@@ -98,23 +92,19 @@ namespace Saloon
                 }
                 healthDots.text=dots.ToString();
             }
-            robberyHands.SetActive(!local&&next.alive&&next.robbing);
-            moneyBag.SetActive(!local&&next.alive&&(next.moneyBag||next.robbing));
-            gun.SetActive(!local&&next.alive&&next.drawn);
             bool holdingBeer=next.alive&&!next.drawn&&(next.carriedBeer>0||next.drinking);
             mug.SetActive(!local&&holdingBeer);
             if(local&&firstPersonGun==null)
             {
                 firstPersonGun=MakeGun(game.ViewCamera.transform);
                 firstPersonMug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));firstPersonMug.transform.SetParent(game.ViewCamera.transform,false);
-                flash=firstPersonGun.AddComponent<Light>();flash.type=LightType.Point;flash.range=3;flash.color=new Color(1,.6f,.2f);flash.intensity=0;
+                flash=MakeMuzzle(firstPersonGun.transform);
             }
-            if(firstPersonGun!=null)firstPersonGun.SetActive(local&&next.alive&&next.drawn);
             if(firstPersonMug!=null)firstPersonMug.SetActive(local&&holdingBeer);
             if(next.shots>lastShot)
             {
                 audioSource.spatialBlend=local?0:1;audioSource.pitch=1+(next.shots%3-1)*.015f;
-                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);recoil=1;shotAt=Time.time;
+                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);recoil=1;shotAt=Time.time;muzzleUntil=Time.time+.075f;
                 var tracer=new GameObject("Shot trail");var line=tracer.AddComponent<LineRenderer>();
                 line.sharedMaterial=SaloonWorld.Material("Shot trail",new Color(1,.7f,.3f));line.startWidth=.018f;line.endWidth=.003f;line.positionCount=2;
                 var eye=target+Vector3.up*(next.seated?1.35f:1.65f);var dir=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
@@ -134,9 +124,7 @@ namespace Saloon
             }
             transform.position=Vector3.Lerp(transform.position,target,1-Mathf.Exp(-Time.deltaTime*22));
             transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,state.yaw,0),Time.deltaTime*18);
-            model.transform.localRotation=Quaternion.Euler(state.alive?(state.robbing?12:state.drinking?-5:0):12,0,0);
-            robberyHands.transform.localPosition=new Vector3(0,1.12f,.30f+Mathf.Sin(Time.time*8)*.07f);
-            if(state.robbing)moneyBag.transform.localPosition=new Vector3(.25f,1.05f+Mathf.Sin(Time.time*8)*.035f,.4f);
+            model.transform.localRotation=Quaternion.Euler(state.alive?(state.drinking?-5:0):12,0,0);
             model.transform.localScale=new Vector3(1,state.seated?.78f:1,1);
             if(label!=null)label.transform.rotation=game.ViewCamera.transform.rotation;
             if(healthDots!=null)healthDots.transform.rotation=game.ViewCamera.transform.rotation;
@@ -146,7 +134,8 @@ namespace Saloon
             float progress=1-Mathf.Clamp01((state.drinkRemaining-(Time.time-snapshotAt))/Mathf.Max(.01f,state.drinkDuration));
             float lift=state.drinking?Mathf.SmoothStep(0,1,Mathf.Min(progress/.2f,(1-progress)/.2f)):0;
             mug.transform.localPosition=Vector3.Lerp(new Vector3(.28f,state.seated?.80f:1.02f,.33f),new Vector3(.06f,state.seated?.96f:1.30f,.38f),lift);
-            mug.transform.localRotation=Quaternion.Euler(65*lift,0,-10*lift);
+            // +Y is the mug's rim. Negative pitch brings the rim toward the drinker (-Z).
+            mug.transform.localRotation=Quaternion.Euler(-65*lift,0,-10*lift);
             if(mug.activeInHierarchy&&rightArm!=null&&rightForearm!=null&&rightHand!=null)
             {
                 var grip=mug.transform.TransformPoint(new Vector3(.09f,.05f,0));
@@ -160,13 +149,17 @@ namespace Saloon
             if(firstPersonMug!=null)
             {
                 firstPersonMug.transform.localPosition=Vector3.Lerp(new Vector3(.23f,-.30f,.43f),new Vector3(.08f,-.16f,.30f),lift);
-                firstPersonMug.transform.localRotation=Quaternion.Euler(65*lift,0,-10*lift);
+                firstPersonMug.transform.localRotation=Quaternion.Euler(-65*lift,0,-10*lift);
             }
+            bool weaponVisible=(state.alive&&state.drawn)||(state.shots>0&&Time.time-shotAt<.95f);
+            gun.SetActive(!local&&weaponVisible);
+            thirdFlash.gameObject.SetActive(!local&&weaponVisible&&Time.time<muzzleUntil);
             if(firstPersonGun!=null)
             {
+                firstPersonGun.SetActive(local&&weaponVisible);
                 firstPersonGun.transform.localPosition=new Vector3(.23f,-.24f,.43f-recoil*.13f);
                 firstPersonGun.transform.localRotation=Quaternion.Euler(-recoil*28+spin,0,-recoil*8);
-                flash.intensity=recoil>.75f?2:0;
+                flash.gameObject.SetActive(local&&weaponVisible&&Time.time<muzzleUntil);
                 if(game.View!=null&&game.View.busyRemaining>0)
                     firstPersonGun.transform.localRotation*=Quaternion.Euler(25,0,25);
             }
@@ -187,6 +180,23 @@ namespace Saloon
                 yield return null;
             }
             if(offered!=null)Destroy(offered);handoffMug=null;
+        }
+
+        static Light MakeMuzzle(Transform parent)
+        {
+            var go=new GameObject("Muzzle flash");go.transform.SetParent(parent,false);go.transform.localPosition=new Vector3(0,.14f,.21f);
+            var mesh=new Mesh{name="Low-poly muzzle burst"};var vertices=new Vector3[9];var triangles=new int[24];
+            for(int i=0;i<8;i++)
+            {
+                float angle=i*Mathf.PI/4;float radius=i%2==0?.075f:.025f;
+                vertices[i+1]=new Vector3(Mathf.Cos(angle)*radius,Mathf.Sin(angle)*radius,0);
+                triangles[i*3]=0;triangles[i*3+1]=i+1;triangles[i*3+2]=(i+1)%8+1;
+            }
+            mesh.vertices=vertices;mesh.triangles=triangles;mesh.RecalculateNormals();go.AddComponent<MeshFilter>().sharedMesh=mesh;
+            var renderer=go.AddComponent<MeshRenderer>();renderer.sharedMaterial=new Material(Shader.Find("Sprites/Default")){color=new Color(1,.76f,.27f)};
+            renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
+            var light=go.AddComponent<Light>();light.type=LightType.Point;light.range=2.5f;light.color=new Color(1,.65f,.2f);light.intensity=3;
+            go.SetActive(false);return light;
         }
 
         public static GameObject MakeGun(Transform parent)
