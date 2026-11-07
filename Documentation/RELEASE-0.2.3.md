@@ -21,5 +21,11 @@ mutual invitations, coin choices, both players' actions, and connected Vivox voi
 microphones. Five-player smoke results are recorded in VERIFICATION.md.
 
 Windows x64 and universal macOS (Intel + Apple Silicon) builds were produced from the same
-source. Windows was cross-built on macOS; native Windows execution and the reported kick-out
-on the other computer still require a device retest. No separate native crash was reproduced.
+source. The published Windows ZIP has now also been executed on Windows Server 2022:
+full gameplay, five-player matches, rendered room/coin/voice-connected flows, and simulated
+packet-loss/five-second-outage recovery all passed. The rendered tests use a software GPU
+at low quality; actual laptop hardware and Wi-Fi still require their own retest.
+
+[Windows room/voice results](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42403329360)
+· [Windows impaired-LAN results](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42403332812)
+· [Full verification details](https://github.com/kiskalloakos/last-call-saloon/blob/main/Documentation/VERIFICATION.md).

@@ -297,3 +297,45 @@ Test logs: `/tmp/saloon-wire-before.log`, `/tmp/saloon-023-build.log`,
 The LAN harness sends choices through production commands and confirms host acknowledgement;
 it does not claim automated physical button-click coverage. Windows native execution and the
 reported kick-out on the remote laptop were not reproduced/tested on this Mac.
+
+
+## Native Windows 0.2.3 release checks — 2026-11-07
+
+Executed the published Windows ZIP on GitHub-hosted Windows Server 2022, using the
+unchanged released EXE and data directory. The ZIP SHA-256 was checked against the release
+checksum before execution: `01b3c17188c13d23742440cc564676e48f0589551c2b142cada625b4e9255ac7`.
+No new player build or gameplay change was needed for these tests.
+
+- Full built-player functional suite passed (`SALOON_GAMEPLAY PASS`, exit 0).
+- Five independent Windows players completed a match, all exit 0, with private roles,
+  synchronized results, and locked seated movement.
+- Rendered separate-room and mutual-pair checks passed on both host and client: discussion
+  planner, host-acknowledged room/companion selection, room assignments, coin ownership and
+  authorized actions through aftermath. Voice-connected paired-room checks also passed;
+  microphones stayed muted. This verifies voice connection, not physical audio capture.
+- Impaired LAN tests passed in separate and paired rooms: 80ms delay in each direction,
+  +/-25ms jitter, 2% random packet loss, and a five-second bidirectional packet outage during
+  room selection. Both players recovered and spent their actions. Actual relay counters:
+  separate 2,328 forwarded / 490 dropped; pair 2,090 forwarded / 520 dropped, including the
+  intentional outage. No unexpected disconnect occurred before successful completion.
+- The CI machine uses Microsoft's software Direct3D renderer. Initial rendered runs at
+  higher quality exceeded the test deadline before completing the round and failed. Those
+  are not counted as passes. After explicitly setting 640x360 and the project's `Very Low`
+  quality, all rendered checks passed without changing the released game. Disconnect
+  messages following intentional process shutdown are expected test cleanup.
+- The tests render the HUD but submit choices through production commands; they do not
+  simulate physical mouse clicks. These results do not guarantee every laptop/driver or
+  real Wi-Fi environment. Supplied laptop logs came from earlier 0.2.1/0.2.2 sessions and
+  do not establish a 0.2.3 failure; the hardware retest remains separate.
+
+Evidence and full logs:
+
+- [Windows gameplay and five-player pass results](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42402360230)
+  (this initial run failed overall because of the rendered-test deadline described above).
+- [All Windows rendered room and voice checks passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42403329360).
+- [All Windows impaired-LAN checks passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42403332812).
+
+Re-run from GitHub Actions → **Test published Windows game**, selecting release `v0.2.3`
+and suite `standard` or `stress`; `rooms` runs only the rendered cases. Logs are retained
+as workflow artifacts for 14 days. Test tooling lives in `Tools/windows_release_test.py`,
+`Tools/lan_room_test.py` and `Tools/udp_test_link.py`.
