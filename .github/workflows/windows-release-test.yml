@@ -1,0 +1,56 @@
+name: Test published Windows game
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Published release tag to execute
+        required: true
+        default: v0.2.3
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify published Windows ZIP
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release }}
+        run: |
+          $version = $env:RELEASE_TAG -replace '^v', ''
+          New-Item -ItemType Directory -Force TestResults, DownloadedGame | Out-Null
+          gh release download $env:RELEASE_TAG --repo $env:GITHUB_REPOSITORY --pattern "LastCall-Windows-$version.zip" --pattern "SHA256SUMS-$version.txt" --dir DownloadedGame
+          if ($LASTEXITCODE -ne 0) { throw 'Release download failed' }
+          $zip = "DownloadedGame/LastCall-Windows-$version.zip"
+          $expected = ((Get-Content "DownloadedGame/SHA256SUMS-$version.txt" | Where-Object { $_ -match "LastCall-Windows-" }) -split '\s+')[0]
+          $actual = (Get-FileHash $zip -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $expected) { throw 'Published ZIP checksum mismatch' }
+          "Release=$env:RELEASE_TAG`nSHA256=$actual" | Out-File TestResults/release.txt
+          Expand-Archive $zip DownloadedGame/Windows
+          Get-CimInstance Win32_OperatingSystem | Select-Object Caption, Version, OSArchitecture | Format-List | Out-File TestResults/windows.txt
+          Get-CimInstance Win32_VideoController | Select-Object Name, DriverVersion | Format-List | Out-File -Append TestResults/windows.txt
+      - name: Execute actual Windows gameplay and multiplayer tests
+        shell: pwsh
+        run: python Tools/windows_release_test.py --app "DownloadedGame/Windows/Last Call.exe" --logs TestResults
+      - name: Collect Windows application errors
+        if: always()
+        shell: pwsh
+        run: |
+          Get-WinEvent -FilterHashtable @{LogName='Application'; StartTime=(Get-Date).AddMinutes(-20); Level=2} -ErrorAction SilentlyContinue | Select-Object TimeCreated, ProviderName, Message | Format-List | Out-File TestResults/windows-application-errors.txt
+          exit 0
+      - name: Save full test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-release-test-${{ inputs.release }}
+          path: TestResults/
+          retention-days: 14
