@@ -19,6 +19,7 @@ on:
           - rooms
           - stress
           - limited
+          - smoke
 
 permissions:
   contents: read
