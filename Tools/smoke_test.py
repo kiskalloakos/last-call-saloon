@@ -11,7 +11,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('--app', type=Path, default=Path(__file__).resolve().parents[1] / 'Builds/macOS/Last Call.app/Contents/MacOS/Last Call - Saloon Prototype')
 parser.add_argument('--logs', type=Path, default=Path(tempfile.mkdtemp(prefix='saloon-smoke-')))
 parser.add_argument('--port', default='17877')
-parser.add_argument('--practice', action='store_true', help='Use two real clients and three inert practice targets')
+parser.add_argument('--practice', action='store_true', help='Use two real clients and three active practice opponents')
 args = parser.parse_args()
 args.logs.mkdir(parents=True, exist_ok=True)
 processes = []

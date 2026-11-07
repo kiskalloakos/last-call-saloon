@@ -16,6 +16,7 @@ namespace Saloon
         string preview;
         Vector3 initial;
         bool haveInitial,moved;
+        int trackedPose=-1;
         void Start()
         {
             var args=Environment.GetCommandLineArgs();
@@ -24,7 +25,7 @@ namespace Saloon
             preview=Arg(args,"-saloonPreview");
             Game.Port=Arg(args,"-saloonPort")??"17877";
             Game.PlayerName=Arg(args,"-saloonName")??("Test-"+mode);
-            Game.tuning.openingSeconds=1;Game.tuning.matchSeconds=mode=="functional"?120:mode.StartsWith("preview")?480:5;
+            Game.tuning.discussionSeconds=1;Game.tuning.turnSeconds=mode.StartsWith("preview")?8:1;Game.tuning.roundLimit=mode=="functional"?6:1;
             started=Time.unscaledTime;
             if(mode=="preview")return;
             Game.AutomatedInput=!mode.StartsWith("preview");
@@ -54,23 +55,23 @@ namespace Saloon
             var self=Game.Self;
             if(self!=null)
             {
-                if(!privacyChecked&&Game.View.phase==Phase.Introductions)
+                if(!privacyChecked&&Game.View.phase==Phase.Discussion)
                 {
                     privacyChecked=true;
                     bool secret=Game.View.players.All(p=>string.IsNullOrEmpty(p.revealedRole))&&Game.View.players.Count(p=>p.sheriff)==1&&
-                        ((Game.View.ownRole=="Outlaw")==!string.IsNullOrEmpty(Game.View.ally));
+                        string.IsNullOrEmpty(Game.View.ally);
                     Debug.Log("SALOON_PRIVACY "+(secret?"PASS":"FAIL")+" mode="+mode);
                     if(!secret)Application.Quit(5);
                 }
-                if(!haveInitial){initial=new Vector3(self.x,self.y,self.z);haveInitial=true;}
+                if(!haveInitial||trackedPose!=self.poseVersion){initial=new Vector3(self.x,self.y,self.z);haveInitial=true;trackedPose=self.poseVersion;}
                 if(Vector3.Distance(initial,new Vector3(self.x,self.y,self.z))>.15f)moved=true;
-                if(Time.unscaledTime>=nextCommand&&Game.View.phase==Phase.Live)
+                if(Time.unscaledTime>=nextCommand&&Game.View.phase==Phase.Turns)
                 {
                     // Through the same wire protocol as human controls.
                     if(!self.drawn)Game.Act("draw");else Game.Act("fire");
                     nextCommand=Time.unscaledTime+.7f;
                 }
-                if(Game.View.phase==Phase.Live&&Time.unscaledTime>=nextMove)
+                if(Game.View.phase==Phase.Turns&&Time.unscaledTime>=nextMove)
                 {
                     if(liveStarted<0)liveStarted=Time.unscaledTime;
                     Game.Connection.Send(new Command{kind="input",x=0,z=Time.unscaledTime-liveStarted<1?-1:0,yaw=0,pitch=0});
@@ -79,7 +80,7 @@ namespace Saloon
                 if(Game.View.phase==Phase.Finished&&!reported)
                 {
                     reported=true;
-                    bool valid=moved&&privacyChecked&&Game.View.players.Length==5&&Game.View.ownRole!="Unknown"&&Game.View.players.All(p=>!string.IsNullOrEmpty(p.revealedRole));
+                    bool valid=!moved&&privacyChecked&&Game.View.players.Length==5&&Game.View.ownRole!="Unknown"&&Game.View.players.All(p=>!string.IsNullOrEmpty(p.revealedRole));
                     Debug.Log("SALOON_SMOKE "+(valid?"PASS":"FAIL")+" mode="+mode+" players="+Game.View.players.Length+" role="+Game.View.ownRole+" outcome="+Game.View.outcome+" movement="+moved);
                     // Let the host's final reliable snapshot leave the transport before shutdown.
                     resultCode=valid?0:3;quitAfter=Time.unscaledTime+(Game.Hosting?1f:.25f);

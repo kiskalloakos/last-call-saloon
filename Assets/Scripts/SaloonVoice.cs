@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Unity.Services.Vivox;
+using Unity.Services.Core;
 using UnityEngine;
 
 namespace Saloon
@@ -194,9 +195,15 @@ namespace Saloon
         {
             ++generation;Enabled=false;echoCancellation?.Cancel();
             try{await operation;}catch(Exception e){Debug.LogWarning(e.Message);}
-            if(VivoxService.Instance.InitializationState==VivoxInitializationState.Initialized&&VivoxService.Instance.IsLoggedIn)
+            // LAN/Editor tests may never initialize cloud services; don't resolve Vivox in that case.
+            if(UnityServices.State==ServicesInitializationState.Initialized)
             {
-                try{VivoxService.Instance.MuteInputDevice();await VivoxService.Instance.LeaveAllChannelsAsync();}
+                try
+                {
+                    var vivox=VivoxService.Instance;
+                    if(vivox!=null&&vivox.InitializationState==VivoxInitializationState.Initialized&&vivox.IsLoggedIn)
+                    {vivox.MuteInputDevice();await vivox.LeaveAllChannelsAsync();}
+                }
                 catch(Exception e){Debug.LogWarning("Voice cleanup: "+e.Message);}
             }
             Connected=false;channel="";transmitting=false;Busy=false;autoAttempted=false;verificationMode=false;MicrophoneAllowed=false;

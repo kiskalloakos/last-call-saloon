@@ -1,0 +1,84 @@
+{
+  "Mug": {
+    "triangles": 624,
+    "materials": [
+      "Beer foam",
+      "Dark iron",
+      "Dark wood",
+      "Wood"
+    ]
+  },
+  "Safe": {
+    "triangles": 3724,
+    "materials": [
+      "office-safe_body_pbr",
+      "office-safe_door_pbr"
+    ]
+  },
+  "Revolver": {
+    "triangles": 816,
+    "materials": [
+      "Colt_Pistol"
+    ]
+  },
+  "Arms": {
+    "triangles": 1196,
+    "materials": [
+      "arm_mat_pale"
+    ]
+  },
+  "Bar": {
+    "triangles": 287,
+    "materials": [
+      "bar_texture",
+      "bar_texture_color"
+    ]
+  },
+  "Table": {
+    "triangles": 320,
+    "materials": [
+      "tabel_norm"
+    ]
+  },
+  "Chair": {
+    "triangles": 394,
+    "materials": [
+      "chair.001",
+      "chair_seat"
+    ]
+  },
+  "Shelf": {
+    "triangles": 164,
+    "materials": [
+      "sideboard_texture",
+      "\u041c\u0430\u0442\u0435\u0440\u0438\u0430\u043b"
+    ]
+  },
+  "Door": {
+    "triangles": 524,
+    "materials": [
+      "door_texture",
+      "wood_color",
+      "wood_texture"
+    ]
+  },
+  "Window": {
+    "triangles": 210,
+    "materials": [
+      "glass",
+      "window_texture"
+    ]
+  },
+  "Cup": {
+    "triangles": 236,
+    "materials": [
+      "cup_texture"
+    ]
+  },
+  "Plate": {
+    "triangles": 94,
+    "materials": [
+      "plate_texture"
+    ]
+  }
+}

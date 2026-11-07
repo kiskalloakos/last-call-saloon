@@ -1,0 +1,10 @@
+Colt lowpoly revolver by TimDev
+https://opengameart.org/content/colt-lowpoly-revolver
+Licensed under Creative Commons Attribution 4.0 International
+https://creativecommons.org/licenses/by/4.0/
+Adapted for Last Call: FBX export, texture resolution and material changes, Unity placement.
+
+Other artwork is CC0: Kenney furniture and characters; Donnee tavern furniture;
+Frakassets/Pixor ale mug; Grab3D Office Safe; wriks WRAD ARMS;
+Amal Kumar / Poly Haven Wood Planks; James Ray Cock / Poly Haven Wine Barrel.
+Source links and full provenance are recorded in Documentation/ASSET-SOURCES.md.

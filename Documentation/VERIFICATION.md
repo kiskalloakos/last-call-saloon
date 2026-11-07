@@ -1,4 +1,49 @@
-# Current update — 0.1.2, 2026-11-07
+# Release 0.2.0 — 2026-11-07
+
+- `SALOON_RELEASE PASS`: no ally/hidden-role payload, stable dead seats and common-table
+  identities, no living/corpse overlap, free beer pickup with duplicate protection,
+  same-round self-drink healing/action spending, accepted-shot spin/audio, finite unclipped
+  gunshot samples, contextual hints. Round clock also reserves corpse seats in side rooms.
+- `SALOON_HEIST PASS`, `SALOON_BEER PASS`, `SALOON_GAMEPLAY PASS`,
+  `SALOON_EDITOR_ROUNDS PASS` and asset/rule checks passed in the Editor.
+- Windows x64 Mono development build succeeded: 212,934,288 bytes before packaging.
+- Universal macOS development build succeeded: 354,173,216 bytes before packaging.
+- Two real 0.2.0 Mac game processes passed LAN practice on localhost with three active bots:
+  both reported `SALOON_PRIVACY PASS` and `SALOON_SMOKE PASS`, five players, no walking,
+  identical `LAW WINS — MONEY DEFENDED` result and clean exit. Logs: `/tmp/saloon-020-lan`.
+- Windows executable confirmed as PE32+ x86-64; Windows runtime/physical microphones require
+  the user's Windows laptop test. No claim of Windows runtime validation on this Mac.
+- Both ZIP archives passed complete CRC checks. SHA-256 checksums included with the release.
+  Debug-only `DoNotShip` folders excluded. Asset attribution and quick-start instructions included.
+- Authored source/documentation whitespace checks passed; imported Unity metadata and original
+  third-party license line endings were preserved. Current rules are in README.md; older evidence
+  below is historical.
+
+# Earlier source update — robbery, active opponents and beer, 2026-11-07
+
+No standalone build or release was created. Historical checks below describe older
+versions; README.md describes the current rules.
+
+- Unity 6000.5.10f1 compiled runtime and Editor scripts.
+- `SALOON_HEIST PASS`: bar-only timed work, one-action spending, actual-shot interruption,
+  persistent safe progress, third-step collection, no global event, private room-filtered
+  work/bag/progress, delayed escape victory, leaving-bar cancellation, revised faction wins,
+  and real bot shooting/robbery commands.
+- `SALOON_BEER PASS`: giver action/inventory spending, recipient action preserved, travel
+  before drinking, delayed healing, actual-shot interruption without revival, valid finite
+  procedural sound samples, travelling mug created through snapshot delivery, third-person
+  raised mug with positional audio, and first-person recipient mug/audio followed by healing.
+- `SALOON_GAMEPLAY PASS`, `SALOON_ROUND_CLOCK PASS`, `SALOON_EDITOR_ROUNDS PASS`: seated
+  round flow, shared actions, legal host commands and test shutdown remain functional.
+- Rendered handoff, third-person drinking and first-person receiving captures saved as
+  `BeerHandoffPreview.png`, `BeerThirdPersonPreview.png`, `BeerFirstPersonPreview.png`.
+  Visual inspection corrected mug height/tilt and added the existing character's arm reach.
+- Minimal match HUD retained; contextual key instructions remain in Esc/README.
+- No new cross-device session or physical-speaker listening test was performed. Audio clips
+  and active AudioSources were checked in the Editor; the sounds are procedural alpha cues.
+  Detailed finger grips and first-person arms remain unfinished.
+
+## Earlier release — 0.1.2, 2026-11-07
 
 - Separate Last Call Saloon Unity cloud project created and bound to this project.
 - Vivox, Relay, and Lobby enabled; anonymous UAS sign-in used for players.
@@ -79,3 +124,65 @@ The network smoke test uses five processes on the same Mac, not five remote comp
 - macOS build succeeded with the same two-player practice feature.
 - Two-process practice test passed with three inert targets: movement, role privacy, and synchronized result on both real clients.
 - Windows executable was cross-built on macOS; execution on the second Windows laptop is the next manual test.
+
+## Local round-system source — 2026-11-07
+
+No standalone player was built or published for this change. Unity 6000.5.10f1 compiled
+both runtime and Editor assemblies, and the final Editor verification returned to Edit
+mode with zero Console warnings or errors.
+
+- `SALOON_ROUND_CLOCK PASS`: discussion lock, active-player authorization, single action,
+  late timed-action completion, deadline rejection, timeout/pass advancement, skipped
+  dead players (including first/final slots and death at expiry), and round cap.
+- `SALOON_GAMEPLAY PASS`: real host commands and physics reject discussion/inactive shots,
+  enforce one bullet even after cooldown reset, spend misses, block a second major
+  action, complete timed reload/healing, budget beer pickup/transfer, allow free seating,
+  and preserve health/items/supply/private roles across round transitions.
+- `SALOON_EDITOR_ROUNDS PASS`: complete Play-mode test and LAN shutdown without accessing
+  an uninitialized Vivox service. Tests do not capture or transmit microphone input.
+- The round/turn timer and spent-action HUD were visually inspected in Play mode.
+- `git diff --check` passed.
+
+Run from the Editor's **Saloon → Verify rounds in Play mode** menu while in Edit mode.
+Remote-device replication of the new round fields has not been tested; the existing
+0.1.2 downloads still contain the old continuous-combat rules and should not be mixed
+with this source version. Room allocation, robbery, downing, and replacement victory
+conditions are design proposals recorded in README.md, not verified gameplay features.
+
+## Low-poly beta visual pass — 2026-11-07
+
+- Installed Blender converted twelve source models with script auto-execution disabled.
+  Export report records triangle counts; safe reduced from 12,414 to 3,724 triangles.
+- Unity imported models/textures and compiled the runtime and Editor assemblies.
+- `SALOON_LOW_POLY_ART PASS` checks all twelve imported model renderers/materials and wood texture.
+- `SALOON_ROUND_CLOCK PASS`, `SALOON_GAMEPLAY PASS`, and `SALOON_EDITOR_ROUNDS PASS` passed
+  with the saved art overlay, including actual shots, beer transfer/healing and seating.
+- Added checks confirm no active floating environment TextMesh labels and that carried
+  beer is replicated for other players' mug visuals.
+- Scene and compact HUD visually inspected in Unity Play mode; imported weapon orientation
+  adjusted after inspection. The final active revolver is TimDev's 816-triangle model.
+  Original seat/interaction colliders were retained.
+- Scene assets saved without generating a standalone player. This is a local beta art pass;
+  first-person arms are staged for grip/action animation, and robbery remains unimplemented.
+
+Final art export completed with the active 816-triangle TimDev revolver, including its
+required attribution. Final manual Play preview connected Vivox and confirmed the new
+weapon and compact HUD. Stopping the Editor preview produced an SDK-uninitialization
+cleanup warning; the automated LAN gameplay checks do not initialize cloud voice.
+No new cross-device or standalone-build validation was performed for the visual pass.
+
+## Seated-room cycle and furniture repair — 2026-11-07
+
+- `SALOON_ROUND_CLOCK PASS`: Discussion → Choosing → shared Actions → Regroup → next round/cap;
+  late timed actions finish; mutual pair requests, capacity and fallback rules checked.
+- `SALOON_GAMEPLAY PASS` / `SALOON_EDITOR_ROUNDS PASS`: real host commands reject movement,
+  standing and discussion shots; assign mutual companions to the same room; replicate room
+  roster; permit simultaneous actions; reject second actions and late room changes; regroup
+  everyone and preserve health/ammunition. Tests run in the existing Unity Editor, no build.
+- Rebuilt saved scene with two screened conversation rooms, a shared discussion table,
+  inward-facing chairs and closer seating stations. Removed bench and decorative wall slabs.
+- Fixed model fitting: retain the FBX import rotation and scale an identity parent instead
+  of overwriting/scaling the rotated imported root. Tables/chairs/shelves/cups now stand upright.
+- Beer supply collider remains functional with its cube renderer hidden and a mug in its place.
+- Manual inspection from the discussion player's seated camera confirms inward-facing players,
+  upright furniture and a visible mug. Cross-device replication not run for this source update.

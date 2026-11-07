@@ -30,7 +30,7 @@ public static class SaloonProject
             }
         }
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-        SaloonWorld.Build();
+        SaloonWorld.Build();SaloonArt.Apply();
         foreach(var mat in SaloonWorld.GeneratedMaterials)
         {
             string path="Assets/Generated/Materials/"+mat.name.Replace('/','-')+".mat";
@@ -56,7 +56,7 @@ public static class SaloonProject
         EditorSceneManager.SaveScene(SceneManager.GetActiveScene(),ScenePath);
         EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(ScenePath,true)};
         PlayerSettings.companyName="Saloon Prototype";PlayerSettings.productName="Last Call - Saloon Prototype";
-        PlayerSettings.bundleVersion="0.1.2";PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone,"com.saloonprototype.lastcall");
+        PlayerSettings.bundleVersion="0.2.0";PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone,"com.saloonprototype.lastcall");
         PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone,ScriptingImplementation.Mono2x);
         PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=720;
         PlayerSettings.defaultIsNativeResolution=false;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;
@@ -75,9 +75,9 @@ public static class SaloonProject
     {
         Assert(SaloonRules.Winner(new[]{Role.Sheriff,Role.Deputy})=="LAW WINS","Law victory");
         Assert(SaloonRules.Winner(new[]{Role.Sheriff,Role.Renegade})=="","Renegade prevents premature law victory");
-        Assert(SaloonRules.Winner(new[]{Role.Renegade})=="RENEGADE WINS","Renegade last survivor precedence");
-        Assert(SaloonRules.Winner(new[]{Role.Outlaw,Role.Renegade})=="OUTLAWS WIN","Sheriff killed too early");
-        Assert(SaloonRules.Winner(new[]{Role.Deputy,Role.Renegade})=="OUTLAWS WIN","Dead Outlaws still win their faction's condition");
+        Assert(SaloonRules.Winner(new[]{Role.Renegade})=="","Renegade still needs the money");
+        Assert(SaloonRules.Winner(new[]{Role.Outlaw,Role.Renegade})=="","Sheriff death does not resolve the heist");
+        Assert(SaloonRules.Winner(new[]{Role.Deputy,Role.Renegade})=="","Deputy can continue defending");
         Assert(SaloonRules.Winner(SaloonRules.Deck)=="","Full deck does not finish immediately");
         Assert(SaloonRules.Deck.Count(r=>r==Role.Outlaw)==2&&SaloonRules.Deck.Length==5,"Role deck");
         foreach(string model in new[]{"Art/tableRound","Art/chair","Art/stoolBar","Art/bookcaseOpen","Art/WineBarrel","Art/Character/characterMedium"})
@@ -117,6 +117,22 @@ public static class SaloonProject
         Debug.Log("SALOON_WINDOWS_BUILD PASS "+report.summary.totalSize+" bytes");
     }
 
+    public static void OpenForEditing(){EditorSceneManager.OpenScene(ScenePath);}
+    [MenuItem("Saloon/Build 0.2.0 Windows and Mac release")]
+    public static void BuildPlaytestRelease()
+    {
+        if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
+        Verify();EditorSceneManager.SaveOpenScenes();PlayerSettings.bundleVersion="0.2.0";AssetDatabase.SaveAssets();
+        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
+        {
+            bool mac=target==BuildTarget.StandaloneOSX;
+            string path=mac?"Builds/0.2.0/macOS/Last Call.app":"Builds/0.2.0/Windows/Last Call.exe";
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
+            if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Release build failed: "+target+" "+report.summary.result);
+            Debug.Log("SALOON_RELEASE_BUILD PASS "+target+" "+report.summary.totalSize+" bytes");
+        }
+    }
     public static void SetupAndVerify(){Setup();Verify();}
     static void LinkCloudProject()
     {

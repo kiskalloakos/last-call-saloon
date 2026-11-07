@@ -1,0 +1,106 @@
+{
+  "slug": "office-safe",
+  "name": {
+    "en": "Office Safe",
+    "de": "Bürotresor",
+    "es": "Caja fuerte de oficina"
+  },
+  "summary": "Sage green office safe with a thick door, a combination dial without numbers and a spoked handle wheel, hiding documents, a cash box and two gold bars.",
+  "category": "props",
+  "categoryName": "Props & Items",
+  "tier": "lightweight",
+  "style": "stylized",
+  "kit": {
+    "slug": "cozy-office",
+    "name": "Cozy Office Kit",
+    "page": "https://grab3d.com/kits/cozy-office/"
+  },
+  "tags": [
+    "office safe",
+    "safe",
+    "strongbox",
+    "vault",
+    "treasure",
+    "office",
+    "interior",
+    "stylized"
+  ],
+  "license": "CC0-1.0",
+  "origin": {
+    "method": "procedural",
+    "aiContent": false,
+    "aiAssistedCode": true,
+    "detail": "Built procedurally with Blender scripts. The scripts were written with the help of an AI coding assistant. No generative AI model produced the geometry or textures directly.",
+    "licenseUrl": "https://grab3d.com/dl/office-safe/LICENSE.txt",
+    "manifestUrl": "https://grab3d.com/dl/office-safe/manifest.json"
+  },
+  "created": "2026-10-06",
+  "specs": {
+    "triangles": 12414,
+    "trianglesLight": null,
+    "texturePx": 2048,
+    "texturePxLight": null,
+    "maps": [
+      "baseColor",
+      "roughness",
+      "metallic",
+      "normal"
+    ],
+    "dimensionsMeters": [
+      0.465,
+      0.506,
+      0.62
+    ],
+    "movingParts": [
+      "office-safe_door"
+    ]
+  },
+  "media": {
+    "thumbnail": "https://grab3d.com/m/office-safe/office-safe-3d-model.webp",
+    "thumbnailSmall": "https://grab3d.com/m/office-safe/thumb-400.webp",
+    "og": "https://grab3d.com/m/office-safe/og.jpg",
+    "previewGlb": "https://grab3d.com/m/office-safe/preview.glb",
+    "turntableWebm": "https://grab3d.com/m/office-safe/turntable.webm",
+    "turntableMp4": "https://grab3d.com/m/office-safe/turntable.mp4"
+  },
+  "files": [
+    {
+      "format": "glb",
+      "variant": "full",
+      "file": "office-safe.glb",
+      "bytes": 1198340,
+      "url": "https://grab3d.com/dl/office-safe/office-safe.glb"
+    },
+    {
+      "format": "fbx",
+      "variant": "full",
+      "file": "office-safe.fbx",
+      "bytes": 2039004,
+      "url": "https://grab3d.com/dl/office-safe/office-safe.fbx"
+    },
+    {
+      "format": "blend",
+      "variant": "full",
+      "file": "office-safe.blend",
+      "bytes": 898573,
+      "url": "https://grab3d.com/dl/office-safe/office-safe.blend"
+    },
+    {
+      "format": "usdz",
+      "variant": "full",
+      "file": "office-safe.usdz",
+      "bytes": 1881779,
+      "url": "https://grab3d.com/dl/office-safe/office-safe.usdz"
+    },
+    {
+      "format": "obj-zip",
+      "variant": "full",
+      "file": "office-safe-obj.zip",
+      "bytes": 977516,
+      "url": "https://grab3d.com/dl/office-safe/office-safe-obj.zip"
+    }
+  ],
+  "rigged": null,
+  "relatedVariant": null,
+  "page": "https://grab3d.com/models/props/office-safe/"
+}

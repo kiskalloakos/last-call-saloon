@@ -62,10 +62,15 @@ namespace Saloon
             Box("Porch",new Vector3(0,-.06f,-8.5f),new Vector3(8,.15f,3),wood);
             Box("Porch roof",new Vector3(0,3.3f,-8.5f),new Vector3(8,.15f,3),dark);
             foreach(float x in new[]{-3.7f,3.7f}) Box("Porch post",new Vector3(x,1.6f,-9.7f),new Vector3(.18f,3.2f,.18f),wood);
-            // Short partition with an actual doorway; no invisible full wall.
-            Box("Back room partition",new Vector3(5,1.9f,5.2f),new Vector3(.18f,3.8f,3.6f),dark);
-            Box("Back room partition short",new Vector3(5,1.9f,1.05f),new Vector3(.18f,3.8f,.8f),dark);
-            Box("Back room doorway lintel",new Vector3(5,3.35f,2.45f),new Vector3(.18f,1.0f,2),wood);
+            // Two conversation rooms, each open toward the saloon and screened from the bar.
+            foreach(float center in new[]{-5f,5f})
+            {
+                Box("Room back",new Vector3(center,1.8f,-5.7f),new Vector3(4,3.6f,.18f),dark);
+                Box("Room side",new Vector3(center-2,1.8f,-3.7f),new Vector3(.18f,3.6f,4),dark);
+                Box("Room side",new Vector3(center+2,1.8f,-3.7f),new Vector3(.18f,3.6f,4),dark);
+                Box("Room screen",new Vector3(center-.6f,1.8f,-1.7f),new Vector3(2.8f,3.6f,.18f),dark);
+                Box("Room doorway lintel",new Vector3(center+1.4f,3.25f,-1.7f),new Vector3(1.2f,.7f,.18f),dark);
+            }
 
             Box("Bar front",new Vector3(-1.8f,.65f,3.8f),new Vector3(8.5f,1.3f,1),dark);
             Box("Bar top",new Vector3(-1.8f,1.35f,3.8f),new Vector3(9,.16f,1.4f),wood);
@@ -75,26 +80,18 @@ namespace Saloon
             Prop("Art/bookcaseOpen", new Vector3(-1.3f,0,6.65f),1.95f,180,wood,true);
             for(int shelf=0;shelf<3;shelf++) for(int i=0;i<13;i++)
                 Bottle(new Vector3(-5.5f+i*.38f,.55f+shelf*.57f,6.22f));
-            Sign("LAST CALL",new Vector3(-2,2.95f,6.75f),.23f,0);
-            Sign("SALOON",new Vector3(0,3.25f,-7.16f),.28f,180);
-            Sign("BACK ROOM",new Vector3(5.15f,2.9f,2.4f),.11f,90);
-            Sign("BEER  /  E TO TAKE",new Vector3(1.6f,1.75f,4.05f),.075f,0);
             var tap = Box("Shared beer supply",new Vector3(1.6f,1.6f,3.7f),new Vector3(.32f,.4f,.32f),brass);
             var beer = tap.AddComponent<InteractionPoint>(); beer.kind=InteractionKind.Beer;
             for(int i=0;i<5;i++) Seat(new Vector3(-5+i*1.5f,0,2.05f),0,i,true);
-            var tables = new[]{ new Vector3(-4,0,-2.3f),new Vector3(2.3f,0,-2.8f),new Vector3(6.6f,0,5.2f) };
-            int seatIndex=5;
-            foreach(var pos in tables)
+            Prop("Art/tableRound",new Vector3(0,0,-.5f),.75f,0,wood,true);
+            for(int i=0;i<5;i++)Seat(SaloonStations.Position(true,0,i)-Vector3.up*.08f,SaloonStations.Facing(true,0,i),5+i,false);
+            foreach(int room in new[]{1,2})
             {
-                Prop("Art/tableRound",pos,.9f,0,wood,true);
-                Bottle(pos+new Vector3(.15f,.92f,0));
-                Seat(pos+new Vector3(0,0,-1.1f),0,seatIndex++,false);
-                Seat(pos+new Vector3(0,0,1.1f),180,seatIndex++,false);
-                Seat(pos+new Vector3(-1.15f,0,0),90,seatIndex++,false);
+                var center=new Vector3(room==1?-5:5,0,-3.8f);Prop("Art/tableRound",center,.70f,0,wood,true);
+                for(int slot=0;slot<2;slot++)Seat(SaloonStations.Position(false,room,slot)-Vector3.up*.08f,SaloonStations.Facing(false,room,slot),10+room*2+slot,false);
             }
             Prop("Art/WineBarrel",new Vector3(-6.8f,.06f,5.5f),1.15f,0,BarrelMaterial(),true);
             Prop("Art/WineBarrel",new Vector3(6.7f,.06f,-5.8f),1.15f,25,BarrelMaterial(),true);
-            Prop("Art/bench",new Vector3(-6.9f,.06f,-5),.9f,90,wood,true);
             foreach(var pos in new[]{new Vector3(-3,3.1f,0),new Vector3(3,3.1f,-3),new Vector3(-2,3.1f,5),new Vector3(6.5f,3.1f,4)})
             {
                 Box("Hanging lantern",pos,new Vector3(.4f,.25f,.4f),brass);
