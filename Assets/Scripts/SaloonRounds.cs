@@ -51,11 +51,12 @@ namespace Saloon
             {
                 var other=companion(id);int choice=room(id);
                 if(used.Contains(id)||choice<1||choice>2||!other.HasValue||other==id||!result.ContainsKey(other.Value))continue;
-                if(companion(other.Value)!=id||room(other.Value)!=choice||capacity[choice]+2>limits[choice])continue;
+                if(companion(other.Value)!=id||room(other.Value)!=choice)continue;
+                if(capacity[choice]+2>limits[choice]){used.Add(id);used.Add(other.Value);continue;}
                 result[id]=result[other.Value]=choice;used.Add(id);used.Add(other.Value);capacity[choice]=2;
             }
             foreach(var id in all)
-            {int choice=room(id);if(used.Contains(id)||companion(id).HasValue||choice<1||choice>2||capacity[choice]>=limits[choice])continue;result[id]=choice;capacity[choice]++;}
+            {int choice=room(id);if(used.Contains(id)||choice<1||choice>2||capacity[choice]>=limits[choice])continue;result[id]=choice;capacity[choice]++;}
             return result;
         }
     }

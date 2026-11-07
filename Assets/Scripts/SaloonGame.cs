@@ -25,6 +25,7 @@ namespace Saloon
         public bool ShowRole;
         [NonSerialized] public bool AutomatedInput;
         public string InteractionHint = "";
+        [NonSerialized] public int RoomChooserRenderFrames;
         public string VoiceRoom => View?.voiceRoom ?? "";
         readonly Dictionary<ulong, Participant> players = new Dictionary<ulong, Participant>();
         readonly Dictionary<string, SaloonAvatar> avatars = new Dictionary<string, SaloonAvatar>();
@@ -84,7 +85,7 @@ namespace Saloon
             if(ViewCamera.GetComponent<AudioListener>()==null)ViewCamera.gameObject.AddComponent<AudioListener>();
             Connection=gameObject.AddComponent<SaloonConnection>();Connection.Initialize();
             Connection.Joined+=OnJoined;Connection.Left+=OnLeft;Connection.CommandReceived+=OnCommand;Connection.SnapshotReceived+=ApplySnapshot;
-            Connection.LostConnection+=()=>{if(!leaving&&this!=null&&Application.isPlaying)Leave();};
+            Connection.LostConnection+=()=>{if(!leaving&&this!=null&&Application.isPlaying)LeaveWithReason(Connection.Status);};
             Voice=gameObject.AddComponent<SaloonVoice>();Voice.Game=this;
             gameObject.AddComponent<SaloonHUD>().Game=this;
             gameObject.AddComponent<SaloonAutomation>().Game=this;
@@ -267,7 +268,7 @@ namespace Saloon
                 }
 
             }
-            if(Time.unscaledTime>=nextBroadcast){Broadcast();nextBroadcast=Time.unscaledTime+.05f;}
+            if(Time.unscaledTime>=nextBroadcast){Broadcast();nextBroadcast=Time.unscaledTime+.1f;}
         }
 
         void PositionEveryone(bool gather)
@@ -285,7 +286,7 @@ namespace Saloon
                 int slot=gather?homeSlot:slots[p.room]++;p.gatherStation=gather;
                 Vector3 position=SaloonStations.Position(gather,p.room,slot);float facing=SaloonStations.Facing(gather,p.room,slot);
                 p.controller.enabled=false;p.body.transform.position=position;p.seat=100+slot;p.move=Vector2.zero;
-                p.notice=gather?"":("Assigned to "+SaloonStations.Name(p.room)+(p.room==0&&p.chosenRoom!=0?" — invitation unmatched or room full.":"."));
+                p.notice=gather?"":(p.room==0&&p.chosenRoom!=0?SaloonStations.Name(p.chosenRoom)+" was full. Assigned to Bar.":"Assigned to "+SaloonStations.Name(p.room)+".");
                 p.botThink=gather?0:Time.time+1.2f+(p.id%5)*.4f;
                 p.yaw=facing;p.pitch=0;p.poseVersion++;p.drawn=false;p.busyAction="";p.busyUntil=0;
                 if(gather){p.chosenRoom=0;p.companion=null;}
@@ -505,7 +506,9 @@ namespace Saloon
             if(snapshot.phase!=shownPhase)
             {
                 shownPhase=snapshot.phase;
+                if(shownPhase==Phase.Choosing)MenuOpen=false;
                 if(shownPhase!=Phase.Discussion)RoomPlannerOpen=false;
+                Debug.Log("SALOON_PHASE "+shownPhase+" host="+Hosting+" round="+snapshot.round);
             }
             SyncPointer();
             foreach(var p in snapshot.players)
@@ -544,7 +547,8 @@ namespace Saloon
             }
         }
 
-        public async void Leave()
+        public async void Leave()=>await LeaveAsync();
+        async System.Threading.Tasks.Task LeaveAsync()
         {
             if(leaving)return;leaving=true;
             if(Voice!=null)await Voice.Leave();
@@ -555,6 +559,13 @@ namespace Saloon
             foreach(var a in avatars.Values)Destroy(a.gameObject);avatars.Clear();
             previousHp=previousShots=-1;shotKick=hitKick=HitFlash=0;RoomPlannerOpen=false;duels.Clear();roomTurns.Clear();pendingOutcome="";
             View=null;phase=Phase.Lobby;Sandbox=false;helloSent=false;outcome="";MenuOpen=true;UnlockCursor();leaving=false;
+        }
+
+        async void LeaveWithReason(string reason)
+        {
+            Debug.LogWarning("SALOON_DISCONNECTED "+reason);
+            await LeaveAsync();
+            if(this!=null)Connection.Status=reason;
         }
 
         public void SaveName(){PlayerPrefs.SetString("SaloonName",PlayerName);PlayerPrefs.Save();}
@@ -599,8 +610,8 @@ namespace Saloon
 
 #endif
         void AddEvent(string message){events.Add(message);if(events.Count>12)events.RemoveAt(0);Debug.Log("SALOON "+message);}
-        void LockCursor(){Cursor.lockState=CursorLockMode.Locked;Cursor.visible=false;}
-        void UnlockCursor(){Cursor.lockState=CursorLockMode.None;Cursor.visible=true;}
+        void LockCursor(){if(AutomatedInput)return;if(Cursor.lockState!=CursorLockMode.Locked)Cursor.lockState=CursorLockMode.Locked;if(Cursor.visible)Cursor.visible=false;}
+        void UnlockCursor(){if(Cursor.lockState!=CursorLockMode.None)Cursor.lockState=CursorLockMode.None;if(!Cursor.visible)Cursor.visible=true;}
         void OnApplicationQuit(){leaving=true;if(Connection!=null&&Connection.Manager!=null)Connection.Manager.Shutdown();}
     }
 }

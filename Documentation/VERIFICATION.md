@@ -1,3 +1,21 @@
+# Release 0.2.2 — LAN room-selection regression, 2026-11-07
+
+- Existing 0.2.1 rendered Mac host/client smoke reproduction exited successfully; the
+  reported Windows stall was not reproduced on this Mac.
+- Fixed a confirmed rule/UI issue: unaccepted companion requests formerly forced Bar;
+  the chosen room now survives when capacity permits. Pure room/clock checks pass.
+- New 0.2.2 Mac and Windows builds succeeded; saved cloud-project settings validated in
+  command-line Unity. Strict version/payload approval, conditional cursor changes, forced
+  chooser visibility, lower snapshot frequency and persistent disconnect reasons included.
+- `SALOON_ROOMS PASS` on two rendered real Mac processes using the full 30-second discussion
+  with actual Vivox sessions and muted microphones: host East (2), client West (1), both
+  host acknowledgements true, chooserFrames=1808 each, voice=True. Logs:
+  `/tmp/saloon-022-rooms-voice`. Test shutdown produces a transport-shutdown message after PASS.
+- Windows hardware remains untested: the original stall's exact cause is not confirmed.
+- Packaged rendered `-saloonTest functional` completed with `SALOON_HEIST PASS`,
+  `SALOON_BEER PASS`, `SALOON_RELEASE PASS`, `SALOON_SOCIAL PASS`, `SALOON_POLISH PASS`
+  and `SALOON_GAMEPLAY PASS`; exit 0. Log: `/tmp/saloon-022-functional.log`.
+
 # Release 0.2.1 — 2026-11-07
 
 - Mac and Windows builds succeeded: 354,205,448 and 212,966,516 bytes before packaging.

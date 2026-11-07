@@ -42,15 +42,17 @@ namespace Saloon
                 NetworkTransport = transport,
                 EnableSceneManagement = false,
                 ConnectionApproval = true,
+                ConnectionData=Encoding.UTF8.GetBytes("LastCall/rooms-2/"+Application.version),
                 TickRate = 30,
                 ClientConnectionBufferTimeout = 15
             };
             Manager.ConnectionApprovalCallback = (request, response) =>
             {
-                response.Approved = Accepting && Manager.ConnectedClientsIds.Count < 5;
+                bool matching=Encoding.UTF8.GetString(request.Payload)=="LastCall/rooms-2/"+Application.version;
+                response.Approved = matching && Accepting && Manager.ConnectedClientsIds.Count < 5;
                 response.CreatePlayerObject = false;
                 response.Pending = false;
-                response.Reason = Accepting ? "The saloon already has five players." : "A match is in progress; join after it ends.";
+                response.Reason = !matching?"Different game version. Use "+Application.version+" on both devices.":Accepting ? "The saloon already has five players." : "A match is in progress; join after it ends.";
             };
             Manager.OnClientConnectedCallback += id =>
             {
@@ -63,7 +65,7 @@ namespace Saloon
                 Left?.Invoke(id);
                 if (id == LocalId || !Manager.IsListening)
                 {
-                    Status = string.IsNullOrEmpty(Manager.DisconnectReason) ? "Disconnected. Return to menu to reconnect." : Manager.DisconnectReason;
+                    Status = string.IsNullOrEmpty(Manager.DisconnectReason) ? "LAN connection lost or timed out. Check Wi-Fi/firewall and matching versions, then rejoin." : Manager.DisconnectReason;
                     registered=false;
                     LostConnection?.Invoke();
                 }

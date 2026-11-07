@@ -56,7 +56,7 @@ public static class SaloonProject
         EditorSceneManager.SaveScene(SceneManager.GetActiveScene(),ScenePath);
         EditorBuildSettings.scenes=new[]{new EditorBuildSettingsScene(ScenePath,true)};
         PlayerSettings.companyName="Saloon Prototype";PlayerSettings.productName="Last Call - Saloon Prototype";
-        PlayerSettings.bundleVersion="0.2.1";PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone,"com.saloonprototype.lastcall");
+        PlayerSettings.bundleVersion="0.2.2";PlayerSettings.SetApplicationIdentifier(UnityEditor.Build.NamedBuildTarget.Standalone,"com.saloonprototype.lastcall");
         PlayerSettings.SetScriptingBackend(UnityEditor.Build.NamedBuildTarget.Standalone,ScriptingImplementation.Mono2x);
         PlayerSettings.defaultScreenWidth=1280;PlayerSettings.defaultScreenHeight=720;
         PlayerSettings.defaultIsNativeResolution=false;PlayerSettings.fullScreenMode=FullScreenMode.Windowed;
@@ -87,7 +87,8 @@ public static class SaloonProject
         string json=JsonUtility.ToJson(publicPlayer);
         Assert(!json.Contains("Outlaw")&&!json.Contains("Deputy")&&!json.Contains("Renegade"),"Public player payload excludes hidden allegiance");
         Assert(AssetDatabase.LoadAssetAtPath<SceneAsset>(ScenePath)!=null,"Playable scene saved");
-        Assert(CloudProjectSettings.projectId=="df9e82b7-ec21-4418-bf3e-8e50cdecf800","Saloon cloud project linked");
+        var projectSettings=new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/ProjectSettings.asset")[0]);
+        Assert(projectSettings.FindProperty("cloudProjectId").stringValue=="df9e82b7-ec21-4418-bf3e-8e50cdecf800","Saloon cloud project linked in saved settings");
         Debug.Log("SALOON_VERIFY PASS: victory precedence, deck, imported models, texture, public payload, saved scene");
     }
 
@@ -118,15 +119,15 @@ public static class SaloonProject
     }
 
     public static void OpenForEditing(){EditorSceneManager.OpenScene(ScenePath);}
-    [MenuItem("Saloon/Build 0.2.1 Windows and Mac release")]
+    [MenuItem("Saloon/Build 0.2.2 Windows and Mac release")]
     public static void BuildPlaytestRelease()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
-        Verify();EditorSceneManager.SaveOpenScenes();PlayerSettings.bundleVersion="0.2.1";AssetDatabase.SaveAssets();
+        Verify();SaloonRoundVerification.VerifyClock();EditorSceneManager.SaveOpenScenes();PlayerSettings.bundleVersion="0.2.2";AssetDatabase.SaveAssets();
         foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
         {
             bool mac=target==BuildTarget.StandaloneOSX;
-            string path=mac?"Builds/0.2.1/macOS/Last Call.app":"Builds/0.2.1/Windows/Last Call.exe";
+            string path=mac?"Builds/0.2.2/macOS/Last Call.app":"Builds/0.2.2/Windows/Last Call.exe";
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
             if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Release build failed: "+target+" "+report.summary.result);

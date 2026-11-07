@@ -50,7 +50,7 @@ namespace Saloon
             Panel(new Rect(0,0,630,720),new Color(.045f,.036f,.029f,.94f));
             Panel(new Rect(64,69,50,3),gold);
             Text(64,94,500,68,"LAST CALL",title);
-            Text(67,157,500,26,"FIVE PLAYERS  /  PRIVATE BETA",subtitle);
+            Text(67,157,500,26,"FIVE PLAYERS  /  BETA "+Application.version,subtitle);
             Text(67,199,485,55,"Everyone has a revolver.\nOnly one badge tells the truth.");
             Text(67,271,120,25,"YOUR NAME",subtitle);
             Game.PlayerName=GUI.TextField(new Rect(67,300,480,40),Game.PlayerName,20,field);
@@ -139,13 +139,14 @@ namespace Saloon
 
         void RoomChoices()
         {
+            Game.RoomChooserRenderFrames++;
             var self=Game.Self;Panel(new Rect(280,140,720,500),new Color(.045f,.035f,.028f,.97f));
             var invitations=Game.View.players.Where(p=>p.alive&&p.companion==self.id).ToArray();
             string invitationText=invitations.Length==0?"Plan a conversation":string.Join("\n",invitations.Select(p=>p.name+" wants to talk to you · "+SaloonStations.Name(p.chosenRoom)));
             Text(305,155,670,65,invitationText,invitations.Length==0?body:subtitle);
             for(int room=0;room<3;room++)
                 if(Button(305+room*225,230,210,40,(self.chosenRoom==room?"✓ ":"")+SaloonStations.Name(room)))Game.ChooseRoom(room,self.companion);
-            Text(305,280,660,30,"Companion — invitations are mutual; click an invitation to join that room",small);
+            Text(305,280,660,30,"Companion is optional. A pending invitation will not cancel your room choice.",small);
             int row=0;
             if(Button(305,315,660,33,string.IsNullOrEmpty(self.companion)?"✓ No requested companion":"No requested companion"))Game.ChooseRoom(self.chosenRoom,"");
             foreach(var player in Game.View.players.Where(p=>p.id!=self.id&&p.alive))
@@ -154,7 +155,7 @@ namespace Saloon
                 string invite=invited?"  ·  wants to talk to you":"";
                 if(Button(305,357+row++*43,660,35,(self.companion==player.id?"✓ ":"")+player.name+"  /  "+SaloonStations.Name(player.chosenRoom)+invite))Game.ChooseRoom(invited?player.chosenRoom:self.chosenRoom,player.id);
             }
-            Text(305,540,660,45,"Each side room seats two. Unmatched invitations or full rooms fall back to the bar.",small);
+            Text(305,540,660,45,"Each side room seats two. Pending invitations go alone; full rooms fall back to the bar.",small);
             if(Game.View.phase==Phase.Discussion&&Button(305,590,660,32,"BACK TO THE TABLE"))Game.ToggleRoomPlanner();
         }
 

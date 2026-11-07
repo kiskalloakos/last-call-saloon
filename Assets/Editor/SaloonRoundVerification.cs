@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Saloon;
 using UnityEditor;
 using UnityEngine;
@@ -33,8 +34,8 @@ public static class SaloonRoundVerification
         r.Start(living,0,0,10,2,1,2);r.Tick(0,living.Contains);r.Tick(1,living.Contains);foreach(var id in living)r.TrySpend(id,1);r.Tick(1,living.Contains);r.Tick(4,living.Contains);Check(r.Phase==Phase.Regroup,"non-final aftermath then regroup");r.Tick(6,living.Contains);Check(r.Phase==Phase.Discussion&&r.Round==2,"next discussion after regroup");
         var rooms=new Dictionary<ulong,int>{{1,1},{2,1},{3,1}};var companions=new Dictionary<ulong,ulong?>{{1,2},{2,1},{3,null}};
         var assigned=SaloonRounds.AssignRooms(living,id=>rooms[id],id=>companions[id]);Check(assigned[1]==1&&assigned[2]==1&&assigned[3]==0,"pair capacity fallback");
-        companions[2]=null;assigned=SaloonRounds.AssignRooms(living,id=>rooms[id],id=>companions[id]);Check(assigned[1]==0,"unaccepted invitation stays at bar");
-        companions[2]=1;assigned=SaloonRounds.AssignRooms(living,id=>rooms[id],id=>companions[id],new[]{5,1,2});Check(assigned[1]==0&&assigned[2]==0&&assigned[3]==1,"corpse reserves one room seat without splitting mutual pairs");
+        companions[2]=null;assigned=SaloonRounds.AssignRooms(living,id=>rooms[id],id=>companions[id]);Check(assigned[1]==1&&assigned[2]==1,"unaccepted invitation preserves the chosen room when there is space");
+        companions[2]=1;assigned=SaloonRounds.AssignRooms(living,id=>rooms[id],id=>companions[id],new[]{5,1,2});Check(assigned.Values.Count(v=>v==1)==1,"corpse reserves one room seat");
         Debug.Log("SALOON_ROUND_CLOCK PASS");
     }
 

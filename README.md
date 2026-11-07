@@ -1,13 +1,13 @@
 # Last Call — current alpha
 
-Release **0.2.1**, 2026-11-07: room invitations, coin-flip openings, ordered bar turns,
+Release **0.2.2**, 2026-11-07: LAN room-selection repair, room invitations, coin-flip openings, ordered bar turns,
 concealed robbery and Sheriff inspection, corrected drinking, muzzle flashes, and a
-three-second aftermath before regroup/results. Use **0.2.1 on both devices**; older builds
+three-second aftermath before regroup/results. Use **0.2.2 on both devices**; older builds
 have different rules.
 
-[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.1).
+[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.2).
 Extract the entire Windows ZIP and run `Last Call.exe`. The local Mac copy is in
-`Builds/Playtest-0.2.1/Last Call.app` inside this project.
+`Builds/Playtest-0.2.2/Last Call.app` inside this project.
 
 Five players: one public Sheriff, one hidden Deputy, two Outlaws and one Renegade.
 
@@ -20,7 +20,8 @@ They still obey the host's one-action budget, ammunition, health, rooms and rayc
 
 A real match needs five people. Host LAN and join using the host's local IP and matching
 UDP port (7777 by default), or create/join an online room code. All devices must use the
-same source/build version: use matching 0.2.1 clients.
+same source/build version: use matching 0.2.2 clients. Mixed versions are rejected with a
+clear message. A disconnect reason stays on the menu instead of being silently replaced.
 
 ## What happens in a round
 
@@ -42,7 +43,9 @@ animation stays visible briefly, and the elimination overlay waits for the effec
 
 Each side room has two places. A requested pair must nominate **each other and the same
 room**. Mutual pairs receive priority; solo requests fill remaining places. Unaccepted
-invitations and full-room requests fall back to the bar. The bar can hold everyone.
+invitations go to their chosen room alone when space remains. Only capacity shortages
+fall back to the bar, with an explicit message. Confirmed pairs retain priority and stay
+together. The bar can hold everyone.
 The assignment is locked during actions; the HUD/pause roster shows the actual room.
 
 Press **P during discussion** to plan a room and companion early. Incoming invitations
