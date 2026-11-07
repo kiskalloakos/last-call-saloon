@@ -11,7 +11,7 @@ import sys
 p = argparse.ArgumentParser()
 p.add_argument('--app', type=Path, required=True)
 p.add_argument('--logs', type=Path, required=True)
-p.add_argument('--suite', choices=['standard', 'stress'], default='standard')
+p.add_argument('--suite', choices=['standard', 'rooms', 'stress'], default='standard')
 args = p.parse_args()
 if sys.platform != 'win32':
     p.error('This test must execute on Windows, not a cross-build host')
@@ -54,6 +54,7 @@ if args.suite == 'standard':
                        '-saloonPort', '17987', '-logFile', str(logs / 'functional.log')], 120)
     run('five-player', [sys.executable, str(tools / 'smoke_test.py'), '--app', str(app),
                         '--logs', str(logs / 'five-player'), '--port', '17992'], 100)
+if args.suite in ('standard', 'rooms'):
     for name, options in [('separate-rooms', []), ('paired-room', ['--pair']),
                           ('paired-room-voice', ['--pair', '--voice'])]:
         run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),

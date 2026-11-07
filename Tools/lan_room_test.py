@@ -24,7 +24,7 @@ try:
         command = [args.app, '-saloonTest', mode, '-saloonName', 'Room-' + side,
                    '-saloonPort', '17997' if link and side == 'client' else '17996', '-logFile', str(args.logs / (side + '.log'))]
         if args.software_gpu:
-            command += ['-screen-width', '640', '-screen-height', '360', '-screen-fullscreen', '0', '-quality', 'Very Low']
+            command += ['-screen-width', '640', '-screen-height', '360', '-screen-fullscreen', '0', '-screen-quality', 'Very Low']
         processes.append(subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))
         if side == 'host':
             time.sleep(2)
