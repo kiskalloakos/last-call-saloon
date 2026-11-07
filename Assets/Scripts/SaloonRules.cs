@@ -113,11 +113,30 @@ namespace Saloon
         public bool actionAvailable;
         public DuelView duel;
         public RoomTurnView roomTurn;
+        public bool hasDuel,hasRoomTurn;
         public string safeReport;
         public int health, ammo, beers, carriedBeer;
         public bool sandbox, moneyBag, escapePending;
         public int safeProgress=-1;
         public string objectiveNotice;
         public float busyRemaining;
+
+        public string ToWireJson()
+        {
+            // JsonUtility serializes null inline classes as empty objects. Presence must
+            // travel separately, or clients invent coin/turn panels that the host lacks.
+            hasDuel=phase==Phase.Turns&&duel!=null;
+            hasRoomTurn=phase==Phase.Turns&&roomTurn!=null;
+            return UnityEngine.JsonUtility.ToJson(this);
+        }
+
+        public static Snapshot FromWireJson(string json)
+        {
+            var snapshot=UnityEngine.JsonUtility.FromJson<Snapshot>(json);
+            if(snapshot==null)return null;
+            if(!snapshot.hasDuel||snapshot.phase!=Phase.Turns)snapshot.duel=null;
+            if(!snapshot.hasRoomTurn||snapshot.phase!=Phase.Turns)snapshot.roomTurn=null;
+            return snapshot;
+        }
     }
 }

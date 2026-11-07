@@ -116,8 +116,8 @@ namespace Saloon
             {
                 if(view.phase==Phase.Discussion||view.phase==Phase.Choosing)Invitations();
                 if(view.phase==Phase.Choosing||(view.phase==Phase.Discussion&&Game.RoomPlannerOpen))RoomChoices();
-                if(view.duel!=null)DuelCard();
-                if(view.roomTurn!=null)RoomTurnCard();
+                if(view.phase==Phase.Turns&&view.duel!=null)DuelCard();
+                if(view.phase==Phase.Turns&&view.roomTurn!=null)RoomTurnCard();
             }
             if(Game.Self!=null&&!Game.Self.alive&&view.phase!=Phase.Finished&&Game.ShowEliminationOverlay)
             {Panel(new Rect(390,280,500,100),new Color(.05f,.035f,.03f,.95f));Text(420,298,440,70,"ELIMINATED\nYour voice is separated from living players.",roleStyle);}

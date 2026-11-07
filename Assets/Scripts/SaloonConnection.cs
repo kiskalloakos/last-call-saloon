@@ -42,13 +42,13 @@ namespace Saloon
                 NetworkTransport = transport,
                 EnableSceneManagement = false,
                 ConnectionApproval = true,
-                ConnectionData=Encoding.UTF8.GetBytes("LastCall/rooms-2/"+Application.version),
+                ConnectionData=Encoding.UTF8.GetBytes("LastCall/rooms-3/"+Application.version),
                 TickRate = 30,
                 ClientConnectionBufferTimeout = 15
             };
             Manager.ConnectionApprovalCallback = (request, response) =>
             {
-                bool matching=Encoding.UTF8.GetString(request.Payload)=="LastCall/rooms-2/"+Application.version;
+                bool matching=Encoding.UTF8.GetString(request.Payload)=="LastCall/rooms-3/"+Application.version;
                 response.Approved = matching && Accepting && Manager.ConnectedClientsIds.Count < 5;
                 response.CreatePlayerObject = false;
                 response.Pending = false;
@@ -97,7 +97,7 @@ namespace Saloon
                 try
                 {
                     reader.ReadValueSafe(out string json);
-                    SnapshotReceived?.Invoke(JsonUtility.FromJson<Snapshot>(json));
+                    SnapshotReceived?.Invoke(Snapshot.FromWireJson(json));
                 }
                 catch (Exception e) { Debug.LogWarning("Ignored malformed snapshot: " + e.Message); }
             });
@@ -181,8 +181,10 @@ namespace Saloon
 
         public void SendSnapshot(ulong target, Snapshot snapshot)
         {
-            if (target == LocalId) { SnapshotReceived?.Invoke(snapshot); return; }
-            Write(target, "saloon.snapshot", JsonUtility.ToJson(snapshot), NetworkDelivery.ReliableFragmentedSequenced);
+            string json=snapshot.ToWireJson();
+            // Exercise the same serialization path for the host's own HUD as every peer.
+            if (target == LocalId) { SnapshotReceived?.Invoke(Snapshot.FromWireJson(json)); return; }
+            Write(target, "saloon.snapshot", json, NetworkDelivery.ReliableFragmentedSequenced);
         }
 
         void Write(ulong target, string type, string json, NetworkDelivery delivery)

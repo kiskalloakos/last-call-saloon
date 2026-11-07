@@ -42,7 +42,7 @@ namespace Saloon
         readonly Dictionary<int,RoomTurn> roomTurns=new Dictionary<int,RoomTurn>();
         public bool RoomPlannerOpen;
         public bool NeedsPointer=>View!=null&&(View.phase==Phase.Choosing||
-            (View.phase==Phase.Discussion&&RoomPlannerOpen)||View.duel?.stage=="choosing");
+            (View.phase==Phase.Discussion&&RoomPlannerOpen)||(View.phase==Phase.Turns&&View.duel?.stage=="choosing"));
         public float HitFlash { get; private set; }
         float eliminatedAt=-10;
         public bool ShowEliminationOverlay=>View?.phase!=Phase.Aftermath&&Time.unscaledTime-eliminatedAt>=1.2f;

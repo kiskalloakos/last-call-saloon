@@ -17,7 +17,9 @@ namespace Saloon
         Vector3 initial;
         bool haveInitial,moved;
         int trackedPose=-1;
-        bool roomRequested,roomAcknowledged,voiceStarted;
+        bool roomRequested,roomAcknowledged,voiceStarted,plannerChecked,actionRequested,actionAcknowledged,coinChecked;
+        float roomActionAt;
+        bool PairTest=>mode!=null&&mode.Contains("pair");
         bool RoomTest=>mode!=null&&mode.StartsWith("rooms-");
         void Start()
         {
@@ -28,7 +30,7 @@ namespace Saloon
             Game.Port=Arg(args,"-saloonPort")??"17877";
             Game.PlayerName=Arg(args,"-saloonName")??("Test-"+mode);
             Game.tuning.discussionSeconds=1;Game.tuning.turnSeconds=mode.StartsWith("preview")?8:1;Game.tuning.roundLimit=mode=="functional"?6:1;
-            if(RoomTest){Game.tuning.discussionSeconds=30;Game.tuning.turnSeconds=5;}
+            if(RoomTest){Game.tuning.discussionSeconds=30;Game.tuning.turnSeconds=15;}
             started=Time.unscaledTime;
             if(mode=="preview")return;
             Game.AutomatedInput=!mode.StartsWith("preview");
@@ -38,6 +40,11 @@ namespace Saloon
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if(mode=="functional")StartCoroutine(Game.VerifyGameplay());
 #endif
+        }
+        void ReportRooms(bool ok,string detail)
+        {
+            Debug.Log("SALOON_ROOMS "+(ok?"PASS":"FAIL")+" mode="+mode+" "+detail);
+            reported=true;resultCode=ok?0:8;quitAfter=Time.unscaledTime+(Game.Hosting?1:.5f);
         }
         static string Arg(string[] args,string key){int i=Array.IndexOf(args,key);return i>=0&&i+1<args.Length?args[i+1]:null;}
         void Update()
@@ -61,18 +68,40 @@ namespace Saloon
                 if(RoomTest)
                 {
                     if(mode.Contains("voice")&&!voiceStarted){voiceStarted=true;_ = Game.Voice.ConnectForVerification();}
-                    int desired=Game.Hosting?2:1;
+                    int desired=PairTest?1:Game.Hosting?2:1;
+                    if(Game.View.phase!=Phase.Turns&&(Game.View.duel!=null||Game.View.roomTurn!=null))
+                    {ReportRooms(false,"phantom panels in "+Game.View.phase);return;}
+                    if(Game.View.phase==Phase.Discussion&&!plannerChecked)
+                    {
+                        Game.ToggleRoomPlanner();
+                        plannerChecked=Game.RoomPlannerOpen&&Game.NeedsPointer;
+                        if(!plannerChecked){ReportRooms(false,"discussion planner unavailable");return;}
+                    }
                     if(Game.View.phase==Phase.Choosing&&!roomRequested)
                     {
                         var peer=Game.View.players.First(p=>p.id!=self.id&&!p.name.StartsWith("Practice"));
                         Game.ChooseRoom(desired,peer.id);roomRequested=true;
                     }
-                    if(roomRequested&&self.chosenRoom==desired)roomAcknowledged=true;
+                    if(roomRequested&&self.chosenRoom==desired&&!string.IsNullOrEmpty(self.companion))roomAcknowledged=true;
                     if(Game.View.phase==Phase.Turns)
                     {
-                        bool ok=roomAcknowledged&&Game.RoomChooserRenderFrames>0&&self.room==desired&&(!mode.Contains("voice")||Game.Voice.Connected);
-                        Debug.Log("SALOON_ROOMS "+(ok?"PASS":"FAIL")+" mode="+mode+" room="+self.room+" acknowledged="+roomAcknowledged+" chooserFrames="+Game.RoomChooserRenderFrames+" voice="+Game.Voice.Connected);
-                        reported=true;resultCode=ok?0:8;quitAfter=Time.unscaledTime+(Game.Hosting?1:.5f);
+                        if(roomActionAt==0)roomActionAt=Time.unscaledTime;
+                        if(!roomAcknowledged||!plannerChecked||Game.RoomChooserRenderFrames==0||self.room!=desired||Game.View.roomTurn!=null||(!PairTest&&Game.View.duel!=null))
+                        {ReportRooms(false,"wrong room or phantom action panels");return;}
+                        if(PairTest&&Game.View.duel?.stage=="choosing")
+                        {
+                            coinChecked=Game.NeedsPointer;
+                            Game.ChooseCoin(Game.Hosting?0:1);
+                        }
+                        // Keep the real action HUD visible briefly before exercising a major command.
+                        if(Game.View.actionAvailable&&!actionRequested&&Time.unscaledTime-roomActionAt>2)
+                        {Game.Act("pass");actionRequested=true;}
+                    }
+                    if(actionRequested&&Game.View.notice.StartsWith("Passed."))actionAcknowledged=true;
+                    if(Game.View.phase==Phase.Aftermath)
+                    {
+                        bool ok=actionAcknowledged&&(!PairTest||coinChecked)&&(!mode.Contains("voice")||Game.Voice.Connected);
+                        ReportRooms(ok,"room="+self.room+" planner="+plannerChecked+" acknowledged="+roomAcknowledged+" chooserFrames="+Game.RoomChooserRenderFrames+" action="+actionAcknowledged+" coin="+coinChecked+" voice="+Game.Voice.Connected);
                     }
                     if(Time.unscaledTime-started>90){Debug.LogError("SALOON_ROOMS FAIL timeout "+mode);Application.Quit(9);}
                     return;

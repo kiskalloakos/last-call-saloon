@@ -24,6 +24,7 @@ public static class SaloonRoundVerification
     [MenuItem("Saloon/Verify round clock")]
     public static void VerifyClock()
     {
+        VerifySnapshotWire();
         void Check(bool ok,string message){if(!ok)throw new Exception("Round clock: "+message);}
         Check(SaloonStations.Position(false,0,0).y+1.35f>1.6f,"bar eye clears counter");
         var r=new SaloonRounds();var living=new HashSet<ulong>{1,2,3};
@@ -37,6 +38,35 @@ public static class SaloonRoundVerification
         companions[2]=null;assigned=SaloonRounds.AssignRooms(living,id=>rooms[id],id=>companions[id]);Check(assigned[1]==1&&assigned[2]==1,"unaccepted invitation preserves the chosen room when there is space");
         companions[2]=1;assigned=SaloonRounds.AssignRooms(living,id=>rooms[id],id=>companions[id],new[]{5,1,2});Check(assigned.Values.Count(v=>v==1)==1,"corpse reserves one room seat");
         Debug.Log("SALOON_ROUND_CLOCK PASS");
+    }
+
+    public static void VerifySnapshotWire()
+    {
+        void Check(bool ok,string message){if(!ok)throw new Exception("Snapshot wire: "+message);}
+        Snapshot Wire(Snapshot snapshot)=>Snapshot.FromWireJson(snapshot.ToWireJson());
+        foreach(Phase phase in Enum.GetValues(typeof(Phase)))
+        {
+            var empty=Wire(new Snapshot{phase=phase,players=Array.Empty<PlayerView>()});
+            Check(empty.duel==null&&empty.roomTurn==null,"absent panels stay absent in "+phase);
+        }
+        var duel=new DuelView{stage="choosing",side="HEADS",opponent="Peer",remaining=3};
+        var queue=new RoomTurnView{currentId="0",currentName="Host",order=new[]{"Host","Peer","Third"},yourTurn=true};
+        var pair=Wire(new Snapshot{phase=Phase.Turns,duel=duel});
+        Check(pair.duel?.stage=="choosing"&&pair.duel.side=="HEADS"&&pair.roomTurn==null,"only real coin panel survives");
+        duel.stage="playing";duel.yourTurn=true;
+        pair=Wire(new Snapshot{phase=Phase.Turns,duel=duel,actionAvailable=true});
+        Check(pair.duel.yourTurn&&pair.actionAvailable&&pair.roomTurn==null,"coin winner retains action authorization");
+        var bar=Wire(new Snapshot{phase=Phase.Turns,roomTurn=queue});
+        Check(bar.duel==null&&bar.roomTurn.yourTurn&&bar.roomTurn.currentId=="0"&&bar.roomTurn.order.Length==3,"bar queue survives without a phantom coin");
+        queue.currentId="";queue.yourTurn=false;queue.spent=true;
+        bar=Wire(new Snapshot{phase=Phase.Turns,roomTurn=queue});
+        Check(bar.roomTurn.spent&&bar.roomTurn.currentId==""&&bar.duel==null,"completed queue retains its real spent state");
+        foreach(var phase in new[]{Phase.Discussion,Phase.Choosing,Phase.Aftermath,Phase.Regroup,Phase.Finished})
+        {
+            var stale=Wire(new Snapshot{phase=phase,duel=duel,roomTurn=queue});
+            Check(stale.duel==null&&stale.roomTurn==null,"phase change clears stale panels in "+phase);
+        }
+        Debug.Log("SALOON_SNAPSHOT_WIRE PASS");
     }
 
     static void Poll()

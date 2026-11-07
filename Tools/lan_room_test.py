@@ -8,13 +8,14 @@ import time
 p = argparse.ArgumentParser()
 p.add_argument('--app', required=True)
 p.add_argument('--logs', type=Path, default=Path('/tmp/saloon-room-test'))
+p.add_argument('--pair', action='store_true', help='Test mutual room invitation, coin choice and both actions')
 p.add_argument('--voice', action='store_true', help='Connect real Vivox sessions with microphones muted')
 args = p.parse_args()
 args.logs.mkdir(parents=True, exist_ok=True)
 processes = []
 try:
     for side in ('host', 'client'):
-        mode = 'rooms-' + ('voice-' if args.voice else '') + side
+        mode = 'rooms-' + ('pair-' if args.pair else '') + ('voice-' if args.voice else '') + side
         command = [args.app, '-saloonTest', mode, '-saloonName', 'Room-' + side,
                    '-saloonPort', '17996', '-logFile', str(args.logs / (side + '.log'))]
         processes.append(subprocess.Popen(command, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL))

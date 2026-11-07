@@ -1,13 +1,13 @@
 # Last Call — current alpha
 
-Release **0.2.2**, 2026-11-07: LAN room-selection repair, room invitations, coin-flip openings, ordered bar turns,
-concealed robbery and Sheriff inspection, corrected drinking, muzzle flashes, and a
-three-second aftermath before regroup/results. Use **0.2.2 on both devices**; older builds
-have different rules.
+Release **0.2.3**, 2026-11-07: fixes phantom “Room actions complete” / “Action spent” /
+“hear their response” panels on joining players, including panels appearing over the room
+planner. Host and peers now decode the same explicit coin/turn presence flags. Use
+**0.2.3 on both devices**; older builds use a different snapshot protocol.
 
-[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.2).
+[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.3).
 Extract the entire Windows ZIP and run `Last Call.exe`. The local Mac copy is in
-`Builds/Playtest-0.2.2/Last Call.app` inside this project.
+`Builds/Playtest-0.2.3/Last Call.app` inside this project.
 
 Five players: one public Sheriff, one hidden Deputy, two Outlaws and one Renegade.
 
@@ -20,7 +20,7 @@ They still obey the host's one-action budget, ammunition, health, rooms and rayc
 
 A real match needs five people. Host LAN and join using the host's local IP and matching
 UDP port (7777 by default), or create/join an online room code. All devices must use the
-same source/build version: use matching 0.2.2 clients. Mixed versions are rejected with a
+same source/build version: use matching 0.2.3 clients. Mixed versions are rejected with a
 clear message. A disconnect reason stays on the menu instead of being silently replaced.
 
 ## What happens in a round

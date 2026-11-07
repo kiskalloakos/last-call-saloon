@@ -261,3 +261,39 @@ No new cross-device or standalone-build validation was performed for the visual 
 - Beer supply collider remains functional with its cube renderer hidden and a mug in its place.
 - Manual inspection from the discussion player's seated camera confirms inward-facing players,
   upright furniture and a visible mug. Cross-device replication not run for this source update.
+
+
+## 0.2.3 joining-player snapshot repair — 2026-11-07
+
+Confirmed the failure before the fix using Unity 6000.5.10f1: a Choosing snapshot with null
+`duel` and `roomTurn` serialized both as empty nested objects; deserialization returned both
+as non-null. The regression failed with “Inactive room panels survive the snapshot wire round
+trip”. This is the exact discrepancy hidden by the old host-only direct-object view.
+
+- `SALOON_SNAPSHOT_WIRE PASS`: absent panels in all seven phases; real coin choosing/playing
+  authorization; bar order/current actor including host ID zero; completed/spent queue;
+  stale panels removed outside Turns. Uses the production snapshot encoder/decoder.
+- `SALOON_ROUND_CLOCK PASS` and rules/assets verification passed before building.
+- `SALOON_GAMEPLAY PASS` on the actual 0.2.3 macOS player, including heist, beer, release,
+  social/coin and polish/ordered-turn suites. Host rendering now uses the wire round trip too.
+- Rendered LAN separate-room regression: host East, client West; both opened the discussion
+  planner, rendered the chooser, received room/companion acknowledgements and spent a real
+  action before aftermath. No phantom coin/turn panels outside Turns or in solo rooms.
+- Rendered LAN mutual-pair regression with live Vivox and muted microphones: both reached
+  West, saw the coin choice, spent their authorized actions and reached aftermath while voice
+  remained connected. Host/client chooser render counts were 5,432 / 5,390.
+- Conversation planner was visually inspected without the phantom room-action panels;
+  the normal release menu was also checked to show version 0.2.3.
+- Five-process network smoke test: all five returned exit code zero with private roles
+  during play, synchronized results/role reveals, and seated movement locked.
+- Both release ZIPs passed archive CRC checks; Windows includes the EXE, UnityPlayer DLL,
+  data directory and Mono runtime.
+- Both platform builds succeeded: universal macOS 354,206,308 bytes, Windows x64
+  212,968,048 bytes before ZIP compression.
+
+Test logs: `/tmp/saloon-wire-before.log`, `/tmp/saloon-023-build.log`,
+`/tmp/saloon-023-functional.log`, `/tmp/saloon-023-split/`, `/tmp/saloon-023-pair-voice/`,
+`/tmp/saloon-023-five/`.
+The LAN harness sends choices through production commands and confirms host acknowledgement;
+it does not claim automated physical button-click coverage. Windows native execution and the
+reported kick-out on the remote laptop were not reproduced/tested on this Mac.
