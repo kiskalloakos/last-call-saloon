@@ -757,3 +757,23 @@ the sole survivor; Renegade has no money objective.
   this passed in release preparation. Both platforms were rebuilt with the correction.
 - Legacy rendered room fixtures now allow the legitimate coin caused by a bot joining
   the human's chosen side room. Their test logs use absolute paths on macOS.
+
+- Final packet-fixed Mac players passed four-process three-round LAN again, plus rendered
+  separate-room and paired-room host/client flows. Previously stalled paired clients now
+  receive aftermath and report success. New ZIPs passed CRC and contents checks.
+- Final native Windows LAN suite succeeded on Windows Server 2022:
+  https://github.com/kiskalloakos/last-call-saloon/actions/runs/42485842797
+  It downloaded/verified the final Windows ZIP and passed four-player and five-player
+  three-round matches, exact decks and impaired four-player links. Every process completed.
+- Final native Windows standard suite succeeded:
+  https://github.com/kiskalloakos/last-call-saloon/actions/runs/42485846945
+  Functional gameplay, five-player smoke, rendered separate/paired rooms and paired
+  Vivox voice all passed. Both workflows ran source d9be3a6 and the final published ZIP.
+  Full artifacts are retained under `Builds/0.2.9/TestResults/windows-final-*` locally.
+- Final archive hashes:
+  Windows `053777f32351273431125b058fdfa5c2038ce74fd81dad6942ee2012b5cfaa82`;
+  macOS `253503bcc7fabc142dee2f2e090e63014bfd0a67fdf1b0edf4e49341c3189868`.
+  GitHub's asset digests match these values. The candidate tag was advanced without
+  forcing, from this task's initial candidate to the tested packet-fix commit d9be3a6.
+  Version 0.2.9 is promoted to the latest release after validation. Four physical devices
+  were not available; the included LAN setup guide covers same-network/IP/firewall needs.
