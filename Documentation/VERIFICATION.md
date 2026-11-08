@@ -744,3 +744,16 @@ the sole survivor; Renegade has no money objective.
   four-player links. Platform results are recorded below after that workflow finishes.
 - Public source excludes the Asset Store pack and derived Gunman files; compiled players
   contain the licensed character. ZIPs include setup instructions, role README and credits.
+
+- Native candidate Windows testing passed functional gameplay, five-player smoke, a full
+  five-player three-round match and impaired four-player three-round play. The normal
+  four-player test exposed E/B test commands sent inside the 90 ms input debounce;
+  its driver now waits 250 ms and retries only while the drink remains unspent.
+- Rendered candidate tests also exposed a real state-stream bug: NGO's FastBufferReader
+  includes its consumed eight-byte named-message hash in Length. The old chunk-size
+  guard rejected full 1000-byte chunks (and therefore every multi-packet update).
+  The handler now bounds unread bytes (`Length - Position`). Added a regression through
+  the actual connection handler with a consumed hash prefix and several full-size chunks;
+  this passed in release preparation. Both platforms were rebuilt with the correction.
+- Legacy rendered room fixtures now allow the legitimate coin caused by a bot joining
+  the human's chosen side room. Their test logs use absolute paths on macOS.

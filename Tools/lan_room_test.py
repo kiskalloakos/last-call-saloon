@@ -16,6 +16,7 @@ p.add_argument('--software-gpu', action='store_true', help='Render at 640x360 on
 p.add_argument('--pair', action='store_true', help='Test mutual room invitation, coin choice and both actions')
 p.add_argument('--voice', action='store_true', help='Connect real Vivox sessions with microphones muted')
 args = p.parse_args()
+args.logs = args.logs.resolve()
 args.logs.mkdir(parents=True, exist_ok=True)
 processes = []
 link = ImpairedLink(args.port+1, args.port, bytes_per_second=8000 if args.limited else 0) if args.impaired or args.limited else None

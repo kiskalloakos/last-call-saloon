@@ -92,9 +92,11 @@ namespace Saloon
                 }
                 else if(round==3&&initialHealth<Game.tuning.health)
                 {
-                    if(view.actionAvailable&&!beerSent){Game.Act("interact");beerSent=true;}
-                    if(view.actionAvailable&&view.carriedBeer==1&&!actionSent&&Time.unscaledTime>=nextCommand){Game.Act("drink");actionSent=true;}
+                    if(view.actionAvailable&&!beerSent){Game.Act("interact");beerSent=true;nextCommand=Time.unscaledTime+.25f;}
+                    if(view.actionAvailable&&view.carriedBeer==1&&!actionSent&&Time.unscaledTime>=nextCommand){Game.Act("drink");actionSent=true;nextCommand=Time.unscaledTime+.4f;}
                     if(actionSent&&self.health==Mathf.Min(3,initialHealth+1))actionSeen=true;
+                    if(actionSent&&!actionSeen&&view.actionAvailable&&view.carriedBeer==1&&view.busyRemaining<=0&&Time.unscaledTime>=nextCommand)
+                    {Game.Act("drink");nextCommand=Time.unscaledTime+.4f;}
                 }
                 else
                 {
@@ -112,7 +114,7 @@ namespace Saloon
             if(view.phase==Phase.Aftermath&&(completedMask&(1<<round))==0)
             {
                 bool ok=actionSeen&&(round!=1||(stood&&moved))&&(round!=2||index>=4||self.health<3);
-                if(!ok){Report(false,"round "+round+" action/movement/health not acknowledged health="+self.health+" action="+actionSeen+" stood="+stood+" moved="+moved);return;}
+                if(!ok){Report(false,"round "+round+" action/movement/health not acknowledged health="+self.health+" action="+actionSeen+" stood="+stood+" moved="+moved+" sent="+actionSent+" beer="+view.carriedBeer+" notice="+view.notice);return;}
                 completedMask|=1<<round;Debug.Log("SALOON_LAN_MATCH_ROUND PASS index="+index+" round="+round+" health="+self.health);
             }
             if(view.phase==Phase.Finished)

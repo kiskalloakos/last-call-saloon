@@ -17,7 +17,7 @@ namespace Saloon
         Vector3 initial;
         bool haveInitial,moved;
         int trackedPose=-1;
-        bool roomRequested,roomAcknowledged,voiceStarted,plannerChecked,actionRequested,actionAcknowledged,coinChecked;
+        bool roomRequested,roomAcknowledged,voiceStarted,plannerChecked,actionRequested,actionAcknowledged,coinChecked,coinSeen;
         float roomActionAt;
         bool PairTest=>mode!=null&&mode.Contains("pair");
         bool RoomTest=>mode!=null&&mode.StartsWith("rooms-");
@@ -108,9 +108,10 @@ namespace Saloon
                     if(Game.View.phase==Phase.Turns)
                     {
                         if(roomActionAt==0)roomActionAt=Time.unscaledTime;
-                        if(!roomAcknowledged||!plannerChecked||Game.RoomChooserRenderFrames==0||self.room!=desired||Game.View.roomTurn!=null||(!PairTest&&Game.View.duel!=null))
+                        if(!roomAcknowledged||!plannerChecked||Game.RoomChooserRenderFrames==0||self.room!=desired||Game.View.roomTurn!=null)
                         {ReportRooms(false,"wrong room or phantom action panels");return;}
-                        if(PairTest&&Game.View.duel?.stage=="choosing")
+                        coinSeen|=Game.View.duel!=null;
+                        if(Game.View.duel?.stage=="choosing")
                         {
                             coinChecked=Game.NeedsPointer;
                             Game.ChooseCoin(Game.Hosting?0:1);
@@ -122,7 +123,7 @@ namespace Saloon
                     if(actionRequested&&Game.View.notice.StartsWith("Passed."))actionAcknowledged=true;
                     if(Game.View.phase==Phase.Aftermath)
                     {
-                        bool ok=actionAcknowledged&&(!PairTest||coinChecked)&&(!mode.Contains("voice")||Game.Voice.Connected);
+                        bool ok=actionAcknowledged&&(!coinSeen||coinChecked)&&(!mode.Contains("voice")||Game.Voice.Connected);
                         ReportRooms(ok,"room="+self.room+" planner="+plannerChecked+" acknowledged="+roomAcknowledged+" chooserFrames="+Game.RoomChooserRenderFrames+" action="+actionAcknowledged+" coin="+coinChecked+" voice="+Game.Voice.Connected);
                     }
                     if(Time.unscaledTime-started>90){Debug.LogError("SALOON_ROOMS FAIL timeout "+mode);Application.Quit(9);}

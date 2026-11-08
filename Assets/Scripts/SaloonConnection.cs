@@ -113,18 +113,23 @@ namespace Saloon
                 }
                 catch (Exception e) { Debug.LogWarning("Ignored malformed command: " + e.Message); }
             });
-            Manager.CustomMessagingManager.RegisterNamedMessageHandler("saloon.snapshot", (sender, reader) =>
-            {
-                if(sender!=NetworkManager.ServerClientId||Hosting||reader.Length<SaloonSnapshotWire.HeaderBytes||reader.Length>SaloonSnapshotWire.ChunkBytes+SaloonSnapshotWire.HeaderBytes)return;
-                try
-                {
-                    reader.ReadValueSafe(out uint sequence);reader.ReadValueSafe(out ushort part);reader.ReadValueSafe(out ushort count);reader.ReadValueSafe(out int total);
-                    var payload=new byte[reader.Length-reader.Position];reader.ReadBytesSafe(ref payload,payload.Length);
-                    ReceiveState(sequence,part,count,total,payload);
-                }
-                catch(Exception e){Debug.LogWarning("Ignored malformed snapshot: "+e.Message);}
-            });
+            Manager.CustomMessagingManager.RegisterNamedMessageHandler("saloon.snapshot",ReceiveSnapshotMessage);
             registered = true;
+        }
+
+        internal void ReceiveSnapshotMessage(ulong sender,FastBufferReader reader)
+        {
+            // NGO already read its named-message hash. Length includes that prefix;
+            // only the unread bytes are our header plus this chunk's payload.
+            int remaining=reader.Length-reader.Position;
+            if(sender!=NetworkManager.ServerClientId||Hosting||remaining<SaloonSnapshotWire.HeaderBytes||remaining>SaloonSnapshotWire.ChunkBytes+SaloonSnapshotWire.HeaderBytes)return;
+            try
+            {
+                reader.ReadValueSafe(out uint sequence);reader.ReadValueSafe(out ushort part);reader.ReadValueSafe(out ushort count);reader.ReadValueSafe(out int total);
+                var payload=new byte[reader.Length-reader.Position];reader.ReadBytesSafe(ref payload,payload.Length);
+                ReceiveState(sequence,part,count,total,payload);
+            }
+            catch(Exception e){Debug.LogWarning("Ignored malformed snapshot: "+e.Message);}
         }
 
         public void StartLan(bool host, string address, ushort port)

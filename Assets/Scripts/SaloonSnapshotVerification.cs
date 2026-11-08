@@ -3,6 +3,8 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using UnityEngine;
+using Unity.Collections;
+using Unity.Netcode;
 
 namespace Saloon
 {
@@ -45,6 +47,26 @@ namespace Saloon
             byte[] fixture=Convert.FromBase64String("q1YqyEmsTC0qVrKKjtVRKshILE5VsjLRUSrKL81LUbIy1FHKyy/JTAYKKhXkF5UkJuWkKtUCAA==");
             var json=SaloonSnapshotWire.Decode(fixture);
             Check(json.phase==Phase.Choosing&&json.round==1,"portable deflate fixture decodes");
+            // Real NGO readers retain an already-consumed eight-byte named-message hash.
+            // Exercise the connection handler as well as the deflate assembler: full chunks
+            // must not be rejected merely because Reader.Length includes that prefix.
+            var go=new GameObject("Snapshot reader regression");var connection=go.AddComponent<SaloonConnection>();Snapshot delivered=null;
+            connection.SnapshotReceived+=s=>delivered=s;
+            try
+            {
+                for(int part=0;part<count;part++)
+                {
+                    int offset=part*SaloonSnapshotWire.ChunkBytes,length=Math.Min(SaloonSnapshotWire.ChunkBytes,packed.Length-offset);
+                    using(var writer=new FastBufferWriter(length+SaloonSnapshotWire.HeaderBytes+8,Allocator.Temp))
+                    {
+                        writer.WriteValueSafe((ulong)123);writer.WriteValueSafe((uint)1);writer.WriteValueSafe((ushort)part);writer.WriteValueSafe((ushort)count);writer.WriteValueSafe(packed.Length);writer.WriteBytesSafe(packed,length,offset);
+                        using(var reader=new FastBufferReader(writer,Allocator.Temp))
+                        {reader.ReadValueSafe(out ulong hash);connection.ReceiveSnapshotMessage(NetworkManager.ServerClientId,reader);}
+                    }
+                }
+                Check(delivered!=null&&delivered.notice==source.notice,"full-size chunks pass the actual named-message reader with its consumed prefix");
+            }
+            finally{if(Application.isPlaying)UnityEngine.Object.Destroy(go);else UnityEngine.Object.DestroyImmediate(go);}
             Debug.Log("SALOON_SNAPSHOT_STREAM PASS lost/reordered/duplicate/stale updates, UTF-8, flags, bounds and sequence wrap");
         }
 #endif
