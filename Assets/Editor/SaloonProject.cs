@@ -154,13 +154,13 @@ public static class SaloonProject
             Debug.Log("SALOON_RELEASE_BUILD PASS "+target+" "+report.summary.totalSize+" bytes");
         }
     }
-    public const string ReleaseVersion="0.2.9";
+    public const string ReleaseVersion="0.2.10";
     [MenuItem("Saloon/Build current downloadable release")]
     public static void BuildCurrentRelease()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
         EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
-        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="9";AssetDatabase.SaveAssets();
+        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="10";AssetDatabase.SaveAssets();
         foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
         {
             bool mac=target==BuildTarget.StandaloneOSX;

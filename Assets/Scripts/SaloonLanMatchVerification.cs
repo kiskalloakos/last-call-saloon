@@ -11,12 +11,13 @@ namespace Saloon
         public SaloonGame Game;
         int count,index,round,completedMask,initialHealth;
         bool host,started,connected,planSent,stanceSent,stood,moved,actionSent,actionSeen,drawSent,beerSent,reported,privacy;
-        float began,roomAt,nextCommand,quitAt,drawAt;Vector3 origin;
+        float began,roomAt,nextCommand,quitAt,drawAt,discussionAt,outageSeconds;Vector3 origin;
         string Arg(string key,string fallback){var args=Environment.GetCommandLineArgs();int n=Array.IndexOf(args,key);return n>=0&&n+1<args.Length?args[n+1]:fallback;}
         void Start()
         {
             Application.logMessageReceived+=OnLog;
             host=Arg("-saloonTest","").EndsWith("host");count=int.Parse(Arg("-saloonPlayers","4"));index=int.Parse(Arg("-saloonIndex","0"));
+            outageSeconds=float.Parse(Arg("-saloonOutageSeconds","0"),System.Globalization.CultureInfo.InvariantCulture);
             Game.AutomatedInput=true;Game.PlayerName="LAN-"+index;Game.Port=Arg("-saloonPort","18130");Game.Address=Arg("-saloonAddress","127.0.0.1");
             Game.tuning.roundLimit=3;Game.tuning.turnSeconds=20;Game.tuning.regroupSeconds=1;began=Time.unscaledTime;
             if(host){Game.SetBotsEnabled(false);Game.HostLan(false);}else Game.JoinLan();
@@ -32,7 +33,7 @@ namespace Saloon
         void Update()
         {
             if(reported){if(Time.unscaledTime>=quitAt)Application.Quit(0);return;}
-            if(Time.unscaledTime-began>105){Report(false,"timeout phase="+Game.View?.phase);return;}
+            if(Time.unscaledTime-began>105+outageSeconds){Report(false,"timeout phase="+Game.View?.phase);return;}
             if(Game.InRoom)connected=true;
             if(connected&&!Game.InRoom){Report(false,"connection closed before match results");return;}
             Game.MenuOpen=false;
@@ -40,13 +41,14 @@ namespace Saloon
             {Game.StartMatch();started=true;}
             var view=Game.View;var self=Game.Self;if(view==null||self==null)return;
             if(view.phase==Phase.Lobby)return;
-            if(!Game.InRoom||(!host&&Game.Connection.SnapshotAge>8)){Report(false,"connection/state stream lost");return;}
+            if(!Game.InRoom||(!host&&Game.Connection.SnapshotAge>8+outageSeconds)){Report(false,"connection/state stream lost");return;}
             if(view.players.Length!=count||view.players.Any(p=>p.bot)||!self.alive){Report(false,"wrong roster or unexpected elimination");return;}
             if(view.phase==Phase.Discussion)
             {
                 if(round!=view.round)
                 {
                     round=view.round;planSent=stanceSent=stood=moved=actionSent=actionSeen=drawSent=beerSent=false;roomAt=0;nextCommand=0;
+                    discussionAt=Time.unscaledTime;
                     Debug.Log("SALOON_LAN_MATCH_PHASE index="+index+" round="+round+" Discussion");
                 }
                 if(!privacy)
@@ -58,7 +60,9 @@ namespace Saloon
                 string companion=room==0?"":view.players.FirstOrDefault(p=>p.name=="LAN-"+(index^1))?.id;
                 if(room>0&&companion==null)return;
                 if(!planSent){Game.ChooseRoom(room,companion);planSent=true;return;}
-                if(self.chosenRoom==room&&self.companion==(companion??"")&&!self.ready)Game.ToggleReady();
+                // Leave the discussion open while the external relay interrupts one peer.
+                if(index==1&&round==1&&outageSeconds>0&&Time.unscaledTime-discussionAt<outageSeconds+3)return;
+                if(self.chosenRoom==room&&self.companion==(companion??"")&&!self.ready&&!Game.PlanReady)Game.ToggleReady();
                 return;
             }
             if(view.phase==Phase.Turns)

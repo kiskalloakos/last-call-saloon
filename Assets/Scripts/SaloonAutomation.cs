@@ -104,7 +104,7 @@ namespace Saloon
                         Game.ChooseRoom(desired,peer.id);roomRequested=true;
                     }
                     if(roomRequested&&self.chosenRoom==desired&&!string.IsNullOrEmpty(self.companion))roomAcknowledged=true;
-                    if(roomAcknowledged&&Game.View.phase==Phase.Discussion&&!self.ready)Game.ToggleReady();
+                    if(roomAcknowledged&&Game.View.phase==Phase.Discussion&&!self.ready&&!Game.PlanReady)Game.ToggleReady();
                     if(Game.View.phase==Phase.Turns)
                     {
                         if(roomActionAt==0)roomActionAt=Time.unscaledTime;
@@ -137,7 +137,7 @@ namespace Saloon
                     Debug.Log("SALOON_PRIVACY "+(secret?"PASS":"FAIL")+" mode="+mode);
                     if(!secret)Application.Quit(5);
                 }
-                if(Game.View.phase==Phase.Discussion&&!self.ready)Game.ToggleReady();
+                if(Game.View.phase==Phase.Discussion&&!self.ready&&!Game.PlanReady)Game.ToggleReady();
                 if(!haveInitial||trackedPose!=self.poseVersion){initial=new Vector3(self.x,self.y,self.z);haveInitial=true;trackedPose=self.poseVersion;}
                 if(Vector3.Distance(initial,new Vector3(self.x,self.y,self.z))>.15f)moved=true;
                 if(Time.unscaledTime>=nextCommand&&Game.View.phase==Phase.Turns)

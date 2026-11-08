@@ -42,6 +42,15 @@ public static class SaloonEditorIteration
     [MenuItem("Saloon/Verify bot dodging movement in Play mode")]
     public static void RunBotMovement(){Begin("botmovement");}
 
+    [MenuItem("Saloon/Verify rapid room and companion choices in Play mode")]
+    public static void RunPlanning(){Begin("planning");}
+
+    [MenuItem("Saloon/Verify disconnect details in Play mode")]
+    public static void RunDisconnect(){Begin("disconnect");}
+
+    [MenuItem("Saloon/Verify four-player LAN recovery in Play mode")]
+    public static void RunRecovery(){Begin("recovery");}
+
     static void Begin(string mode)
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before verifying.");
@@ -56,8 +65,9 @@ public static class SaloonEditorIteration
         {
             running=true;started=EditorApplication.timeSinceStartup;game.AutomatedInput=true;game.Port="18112";
             string mode=SessionState.GetString(Mode,"");
-            if(mode=="lobby")game.SetBotsEnabled(false);
-            game.HostLan(mode!="lobby");game.StartCoroutine(mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
+            bool lobby=mode=="lobby"||mode=="disconnect"||mode=="recovery";
+            if(lobby)game.SetBotsEnabled(false);
+            game.HostLan(!lobby);game.StartCoroutine(mode=="recovery"?game.VerifyLanRecovery():mode=="disconnect"?game.VerifyDisconnectDetails():mode=="planning"?game.VerifyPlanningDraft():mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
         }
         bool timeout=EditorApplication.timeSinceStartup-started>60;
         if(!game.VerificationFinished&&!timeout)return;

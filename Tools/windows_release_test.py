@@ -61,9 +61,10 @@ if args.suite in ('standard', 'rooms'):
                    '--logs', str(logs / name), *options], 120)
 elif args.suite == 'lan':
     for name, options in [('four-player', ['--players', '4']), ('five-player', ['--players', '5']),
-                          ('four-player-impaired', ['--players', '4', '--impaired'])]:
+                          ('four-player-impaired', ['--players', '4', '--impaired']),
+                          ('four-player-blackout', ['--players', '4', '--impaired', '--blackout', '13'])]:
         run(name, [sys.executable, str(tools / 'lan_match_test.py'), '--app', str(app),
-                   '--logs', str(logs / name), *options], 130)
+                   '--logs', str(logs / name), *options], 150)
 elif args.suite == 'smoke':
     for i in range(3):
         run('five-player-' + str(i+1), [sys.executable, str(tools / 'smoke_test.py'), '--app', str(app),

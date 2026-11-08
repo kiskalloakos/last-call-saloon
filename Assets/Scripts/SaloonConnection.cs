@@ -20,6 +20,9 @@ namespace Saloon
         public ulong LocalId => Manager != null ? Manager.LocalClientId : 0;
         public string Status = "Choose solo practice, LAN, or an online room.";
         public string RoomCode = "";
+        public string LastDisconnectDetails { get; private set; }="";
+        bool disconnectRequested;
+        float lastFrameAt;
         public bool Busy { get; private set; }
         public bool Accepting = true;
         public event Action<ulong> Joined;
@@ -42,10 +45,11 @@ namespace Saloon
         {
             if (Manager != null) return;
             var go = new GameObject("Saloon Network");
+            lastFrameAt=Time.realtimeSinceStartup;
             Manager = go.AddComponent<NetworkManager>();
             var transport = go.AddComponent<UnityTransport>();
             transport.MaxPacketQueueSize=1024;
-            Debug.Log("SALOON_BUILD version="+Application.version+" platform="+Application.platform+" protocol=state-4 utc="+DateTime.UtcNow.ToString("O"));
+            Debug.Log("SALOON_BUILD version="+Application.version+" guid="+Application.buildGUID+" platform="+Application.platform+" protocol=state-4 utc="+DateTime.UtcNow.ToString("O"));
             Manager.NetworkConfig = new NetworkConfig
             {
                 NetworkTransport = transport,
@@ -77,19 +81,28 @@ namespace Saloon
                 string reason=Manager.DisconnectReason;
                 Debug.LogWarning("SALOON_NET disconnect utc="+DateTime.UtcNow.ToString("O")+" peer="+id+" host="+Hosting+" event="+Manager.DisconnectEvent+
                     " age="+SnapshotAge.ToString("F2")+" lastState="+snapshotReceiver.LastSequence+" reason="+reason);
-                Left?.Invoke(id);
-                if (id == LocalId || !Manager.IsListening)
+                bool localLost=id==LocalId||!Manager.IsListening;
+                if(localLost&&!disconnectRequested&&string.IsNullOrEmpty(LastDisconnectDetails))
                 {
-                    Status = string.IsNullOrEmpty(reason) ? "LAN connection lost or timed out. Check Wi-Fi/firewall and matching versions, then rejoin." : reason;
-                    registered=false;
-                    LostConnection?.Invoke();
+                    LastDisconnectDetails="Last Call "+Application.version+" / "+Application.platform+" / build "+Application.buildGUID+
+                        "\nUTC: "+DateTime.UtcNow.ToString("O")+"\nTransport: "+Manager.DisconnectEvent+"\nReason: "+reason+
+                        "\nLast state: "+snapshotReceiver.LastSequence+" / age "+SnapshotAge.ToString("F2")+"s"+
+                        "\nMain-thread gap: "+Mathf.Max(0,Time.realtimeSinceStartup-lastFrameAt).ToString("F2")+"s / focused "+Application.isFocused;
+                    Status=DisconnectSummary(Manager.DisconnectEvent,reason);
+                    Debug.LogWarning("SALOON_DISCONNECT_DETAILS "+LastDisconnectDetails);
                 }
+                Left?.Invoke(id);
+                if(localLost){registered=false;LostConnection?.Invoke();}
             };
             Manager.OnTransportFailure+=()=>Debug.LogError("SALOON_NET transport failure host="+Hosting+" reason="+Manager.DisconnectReason);
         }
 
         void Update()
         {
+            float now=Time.realtimeSinceStartup;
+            if(Manager!=null&&Manager.IsListening&&now-lastFrameAt>2)
+                Debug.LogWarning("SALOON_FRAME_GAP seconds="+(now-lastFrameAt).ToString("F2")+" host="+Hosting+" focused="+Application.isFocused+" stateAge="+SnapshotAge.ToString("F2"));
+            lastFrameAt=now;
             if (Manager != null && Manager.IsListening && !registered) RegisterMessages();
             if(Manager!=null&&Manager.IsListening&&Time.unscaledTime>=nextStats)
             {
@@ -97,6 +110,15 @@ namespace Saloon
                 Debug.Log("SALOON_NET stats host="+Hosting+" sent="+sentSnapshots+" bytes="+sentBytes+" legacyBytes="+legacyBytes+
                     " received="+receivedSnapshots+" rxBytes="+receivedBytes+" stateAge="+SnapshotAge.ToString("F2")+" lastState="+snapshotReceiver.LastSequence);
             }
+        }
+
+        internal static string DisconnectSummary(NetworkTransport.DisconnectEvents cause,string reason)
+        {
+            if(!string.IsNullOrEmpty(reason)&&!reason.StartsWith("[Disconnect Event]"))return reason;
+            if(cause==NetworkTransport.DisconnectEvents.ProtocolTimeout)return "Disconnected: the host stopped responding.";
+            if(cause==NetworkTransport.DisconnectEvents.ClosedByRemote)return "Disconnected: the host closed this connection.";
+            if(cause==NetworkTransport.DisconnectEvents.MaxConnectionAttempts)return "Could not reach the host. Check its address and port.";
+            return "The connection ended. Copy disconnect details below for the exact reason.";
         }
 
         void RegisterMessages()
@@ -245,6 +267,7 @@ namespace Saloon
         {
             // The first state can arrive before OnClientConnectedCallback. Reset before
             // starting the transport, so that callback cannot forget an already applied state.
+            disconnectRequested=false;LastDisconnectDetails="";lastFrameAt=Time.realtimeSinceStartup;
             snapshotReceiver.Reset();snapshotSequence=0;lastSnapshotAt=-1;
             sentBytes=legacyBytes=receivedBytes=0;sentSnapshots=receivedSnapshots=0;nextStats=Time.unscaledTime+10;
         }
@@ -261,6 +284,7 @@ namespace Saloon
 
         public async Task Disconnect()
         {
+            disconnectRequested=true;
             try { if (session != null) await session.LeaveAsync(); }
             catch (Exception e) { Debug.LogWarning(e.Message); }
             session = null;

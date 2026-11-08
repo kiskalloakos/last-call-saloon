@@ -12,6 +12,7 @@ namespace Saloon
         readonly Color ink=new Color(.94f,.88f,.76f), gold=new Color(.90f,.65f,.30f), muted=new Color(.65f,.62f,.55f);
         Vector2 scroll;
         bool online;
+        float disconnectCopiedUntil;
         Texture2D coinTexture;
 
         void Styles()
@@ -79,7 +80,10 @@ namespace Saloon
                 GUI.enabled=true;
                 Text(67,589,480,32,"Private room codes work across different networks.",small);
             }
-            Text(67,641,480,65,Game.Connection.Status,small);
+            bool details=!string.IsNullOrEmpty(Game.Connection.LastDisconnectDetails);
+            Text(67,641,480,details?42:65,Game.Connection.Status,small);
+            if(details&&GUI.Button(new Rect(67,686,480,28),Time.unscaledTime<disconnectCopiedUntil?"DISCONNECT DETAILS COPIED":"COPY DISCONNECT DETAILS",new GUIStyle(button){fontSize=12,padding=new RectOffset(4,4,2,2)}))
+            {GUIUtility.systemCopyBuffer=Game.Connection.LastDisconnectDetails;disconnectCopiedUntil=Time.unscaledTime+2;}
             Text(727,547,440,30,"TALK FIRST. DRAW CAREFULLY.",subtitle);
             Text(727,583,420,65,"4: Sheriff, Deputy, Outlaw, Renegade.\n5: one extra Outlaw. Lobbies hold up to 8; larger match rules come later.",body);
         }
@@ -179,17 +183,17 @@ namespace Saloon
             Text(890,183,344,44,"Pick your room and optional companion. The round starts when everyone is ready.",small);
             var roomStyle=new GUIStyle(button){fontSize=14,padding=new RectOffset(4,4,6,6)};
             for(int room=0;room<3;room++)
-                if(GUI.Button(new Rect(890+room*116,238,112,36),(self.chosenRoom==room?"✓ ":"")+SaloonStations.Name(room),roomStyle))Game.ChooseRoom(room,self.companion);
-            if(Button(890,286,344,30,string.IsNullOrEmpty(self.companion)?"✓ Go alone":"Go alone"))Game.ChooseRoom(self.chosenRoom,"");
+                if(GUI.Button(new Rect(890+room*116,238,112,36),(Game.PlannedRoom==room?"✓ ":"")+SaloonStations.Name(room),roomStyle))Game.ChooseRoom(room,Game.PlannedCompanion);
+            if(Button(890,286,344,30,string.IsNullOrEmpty(Game.PlannedCompanion)?"✓ Go alone":"Go alone"))Game.ChooseRoom(Game.PlannedRoom,"");
             int row=0;
             foreach(var player in Game.View.players.Where(p=>p.id!=self.id&&p.alive))
             {
                 bool invited=player.companion==self.id;
-                string label=(self.companion==player.id?"✓ ":"")+player.name+(invited?" · invites you":" · "+SaloonStations.Name(player.chosenRoom));
-                if(Button(890,328+row++*37,344,31,label))Game.ChooseRoom(invited?player.chosenRoom:self.chosenRoom,player.id);
+                string label=(Game.PlannedCompanion==player.id?"✓ ":"")+player.name+(invited?" · invites you":" · "+SaloonStations.Name(player.chosenRoom));
+                if(Button(890,328+row++*37,344,31,label))Game.ChooseRoom(invited?player.chosenRoom:Game.PlannedRoom,player.id);
             }
-            Text(890,484,344,42,"Changing your plan clears Ready. Hold right mouse to look around.",small);
-            if(Button(890,548,344,42,self.ready?"✓ READY · CLICK TO UNREADY":"READY · START WHEN ALL READY"))Game.ToggleReady();
+            Text(890,484,344,42,Game.PlanPending?"Saving your plan with the host… You can keep choosing.":"Changing your plan clears Ready. Hold right mouse to look around.",small);
+            if(Button(890,548,344,42,Game.PlanReady?"✓ READY · CLICK TO UNREADY":"READY · START WHEN ALL READY"))Game.ToggleReady();
         }
 
         void Invitations()

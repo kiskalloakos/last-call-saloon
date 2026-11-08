@@ -2,10 +2,10 @@
 
 New player? Start with [Your role, in simple words](#your-role-in-simple-words).
 
-Release **0.2.9**, 2026-11-08, packages the current game for Windows x64 and macOS
-(Intel + Apple Silicon). All players must use **0.2.9** together.
+Test release **0.2.10**, 2026-11-08, packages the current game for Windows x64 and macOS
+(Intel + Apple Silicon). All players must use **0.2.10** together.
 
-[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.9).
+[Download Windows and Mac](https://github.com/kiskalloakos/last-call-saloon/releases/tag/v0.2.10).
 Extract the whole ZIP. Windows: open `Last Call.exe` beside its data folder.
 Mac: open `Last Call.app`. The Mac app is not notarized; use the system's Open option
 if macOS asks to approve the downloaded app.
@@ -15,10 +15,16 @@ optional bots, the shared Western character, headshots-only combat, free room mo
 bots that stand and dodge, beer healing through non-lethal hits, ragdolls, spectator POVs,
 updated Tab role guides, smoother revolver motion and the rebuilt bar.
 
+Room and companion choices now update immediately and keep your latest clicks while
+waiting for the host. A delayed companion click no longer resends an older room choice.
+If a connection ends, the main menu offers **COPY DISCONNECT DETAILS** with the transport
+reason and build ID. The reported Windows return-to-menu has not been reproduced or
+confirmed fixed; this is a test release for the repaired planner and improved diagnostics.
+
 ## Four devices on LAN
 
 1. Put all four computers on the same home/local network. Avoid guest Wi-Fi that isolates devices.
-2. Run **0.2.9 on every computer** and choose **LOCAL / LAN**.
+2. Run **0.2.10 on every computer** and choose **LOCAL / LAN**.
 3. On one computer choose **NO BOTS**, keep port **7777**, then click **HOST LAN**.
 4. On the other three, enter the host computer's local IPv4 address (often `192.168.x.x`),
    use the same port **7777**, and click **JOIN LAN**. Do not use `127.0.0.1` on another computer.
@@ -194,7 +200,7 @@ They still obey the host's one-action budget, ammunition, health, rooms and rayc
 A real match needs four or five people with **No bots**, or at least one human with
 **Bots**. Host LAN and join using the host's local IP and matching
 UDP port (7777 by default), or create/join an online room code. All devices must use the
-same source/build version: use matching 0.2.9 clients for this playtest. Mixed versions are rejected with a
+same source/build version: use matching 0.2.10 clients for this playtest. Mixed versions are rejected with a
 clear message. A disconnect reason stays on the menu instead of being silently replaced.
 
 ## What happens in a round

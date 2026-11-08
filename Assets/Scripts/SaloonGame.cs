@@ -361,8 +361,8 @@ namespace Saloon
             SetupDuels(gather);
         }
 
-        public void ToggleReady()=>Connection.Send(new Command{kind="ready",x=Self?.ready==true?0:1});
-        public void ChooseRoom(int room,string companion)=>Connection.Send(new Command{kind="room",x=room,name=companion});
+        public void ToggleReady()=>EditReady();
+        public void ChooseRoom(int room,string companion)=>EditRoom(room,companion);
 
         bool SpendAction(Participant p,float duration=0)
         {
@@ -600,6 +600,7 @@ namespace Saloon
             if(snapshot==null||snapshot.players==null)return;
             View=snapshot;
             var self=snapshot.players.FirstOrDefault(p=>p.id==LocalId);
+            SyncPlanDraft(snapshot,self);
             ApplyImpactFeedback(self);
             if(self!=null&&self.poseVersion!=shownPose){shownPose=self.poseVersion;yaw=self.yaw;pitch=self.pitch;}
             if(snapshot.phase!=shownPhase)
@@ -661,7 +662,7 @@ namespace Saloon
             if(this==null)return;
             foreach(var p in players.Values)Destroy(p.body);players.Clear();
             foreach(var a in avatars.Values)Destroy(a.gameObject);avatars.Clear();
-            previousHp=previousShots=-1;shotKick=hitKick=HitFlash=0;RoomPlannerOpen=false;duels.Clear();roomTurns.Clear();pendingOutcome="";
+            previousHp=previousShots=-1;shotKick=hitKick=HitFlash=0;ResetPlanDraft();RoomPlannerOpen=false;duels.Clear();roomTurns.Clear();pendingOutcome="";
             spectateId=null;shownViewpoint=null;View=null;phase=Phase.Lobby;Sandbox=false;helloSent=false;outcome="";MenuOpen=true;UnlockCursor();leaving=false;
         }
 
