@@ -849,3 +849,34 @@ the sole survivor; Renegade has no money objective.
   and holds Ready until recovery. Production timeouts and disconnect behavior are unchanged.
 - Preparing uniquely versioned 0.2.10 test downloads, retaining 0.2.9 as the stable release.
   The previous notes saying no new builds describe the earlier local repair stage.
+
+- Built both targets successfully (`SALOON_CURRENT_RELEASE PASS`) from source commit
+  `34ac11ed9637e5ca139d226adc837903320187d8`. Mac executable contains x86_64 + arm64.
+  Published 0.2.10 as a prerelease with fixed ZIPs (no replacing binaries under one version).
+  Windows SHA256: `02fca0fc62d80a9d43e82049541eaa8da4045cedf4e1ff29dc85cbd317ebf9ea`;
+  Mac SHA256: `817a657a49c71a17cc8c20b0d08a1c5d25c39d2fd872db904f7360431367b8b0`.
+- Packaged Mac checks in `Builds/0.2.10/TestResults`: `mac-four-direct` passed all four
+  processes and all three rounds; `mac-four-blackout-retry` passed all four, queued
+  transport recovery, exact role deck, movement, coin/headshots, beer healing and results
+  after an actual 13-second packet outage. `mac-pair-voice` passed rendered room planning,
+  mutual invitations, coin choice and room actions with Vivox connected and a 5-second
+  outage; phase lag after recovery was at most 0.26 seconds. `mac-functional.log` passed
+  `SALOON_GAMEPLAY PASS` and the included gameplay regressions.
+- Preserve the first failed run: `mac-four-blackout` stayed in Lobby because one of three
+  joined processes never completed its initial transport handshake (`MaxConnectionAttempts`);
+  the other two joined normally, the relays reported no errors. No blackout was injected
+  because Discussion never began. Direct joining and the same impaired test on fresh ports
+  then passed. This intermittent join failure has not been diagnosed; do not report every
+  test run as passing or claim the user's original connection issue is fully resolved.
+
+- Actual published Windows ZIP passed both Windows Server 2022 native jobs:
+  [LAN run 42494738932](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42494738932)
+  and [standard run 42494741800](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42494741800).
+  Inspected downloaded artifacts: every results.json item passed, exit 0, no timeout;
+  both release.txt files match the Windows SHA256 above; no runtime exceptions in saved
+  game logs. LAN: four players, five players, four with delay/loss, four with delay/loss
+  plus a confirmed 13-second blackout. Standard: functional gameplay, five-player smoke,
+  separate rooms, mutual-pair rooms and mutual-pair rooms with real Vivox sessions.
+- Kept the 0.2.10 release marked prerelease. The exact reported Windows disconnect and
+  the single intermittent impaired initial join remain unconfirmed/unresolved. These tests
+  use multiple processes on one machine per platform, not four separate physical devices.
