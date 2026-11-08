@@ -13,14 +13,19 @@ namespace Saloon
         public IReadOnlyList<ulong> Order => order;
         ulong[] order=Array.Empty<ulong>();
         readonly Dictionary<ulong,float> spent=new Dictionary<ulong,float>();
-        float discussion,actions,choosing,regroup;
+        readonly HashSet<ulong> ready=new HashSet<ulong>();
+        float actions,regroup;
+        public bool IsReady(ulong id)=>ready.Contains(id);
+        public bool HasSpent(ulong id)=>spent.ContainsKey(id);
+        public void SetReady(ulong id,bool value){if(Phase!=Phase.Discussion||!order.Contains(id))return;if(value)ready.Add(id);else ready.Remove(id);}
+        // Legacy duration arguments remain compatible with saved tuning; discussion is Ready-driven.
         public void Start(IEnumerable<ulong> ids,float now,float discussion,float actions,int limit,float choosing=15,float regroup=3)
         {
             order=ids.Distinct().ToArray();if(order.Length==0)throw new ArgumentException("Players required");
-            this.discussion=Math.Max(0,discussion);this.actions=Math.Max(1,actions);this.choosing=Math.Max(1,choosing);this.regroup=Math.Max(1,regroup);
-            Limit=Math.Max(1,limit);Round=1;spent.Clear();Phase=Phase.Discussion;Deadline=now+this.discussion;
+            this.actions=Math.Max(1,actions);this.regroup=Math.Max(1,regroup);
+            Limit=Math.Max(1,limit);Round=1;spent.Clear();ready.Clear();Phase=Phase.Discussion;Deadline=0;
         }
-        public bool CanAct(ulong id,float now)=>Phase==Phase.Turns&&order.Contains(id)&&!spent.ContainsKey(id)&&now<Deadline;
+        public bool CanAct(ulong id,float now)=>Phase==Phase.Turns&&order.Contains(id)&&!HasSpent(id)&&now<Deadline;
         public void DelayDeadline(float seconds){if(Phase==Phase.Turns)Deadline+=Math.Max(0,seconds);}
         public void EnsureDeadline(float until){if(Phase==Phase.Turns)Deadline=Math.Max(Deadline,until);}
         public void BeginAftermath(float now){Phase=Phase.Aftermath;Deadline=now+3;}
@@ -28,6 +33,12 @@ namespace Saloon
         {if(!CanAct(id,now))return false;spent[id]=now+Math.Max(0,duration);return true;}
         public void Tick(float now,Func<ulong,bool> alive)
         {
+            if(Phase==Phase.Discussion)
+            {
+                var living=order.Where(alive).ToArray();
+                if(living.Length==0||living.Any(id=>!ready.Contains(id)))return;
+                spent.Clear();Phase=Phase.Turns;Deadline=now+actions;return;
+            }
             if(Phase==Phase.Turns)
             {
                 var living=order.Where(alive).ToArray();
@@ -36,12 +47,11 @@ namespace Saloon
                 BeginAftermath(now);return;
             }
             if(now<Deadline)return;
-            if(Phase==Phase.Discussion){Phase=Phase.Choosing;Deadline=now+choosing;}
-            else if(Phase==Phase.Choosing){spent.Clear();Phase=Phase.Turns;Deadline=now+actions;}
+            if(Phase==Phase.Choosing){spent.Clear();Phase=Phase.Turns;Deadline=now+actions;}
             else if(Phase==Phase.Aftermath)
             {if(Round>=Limit){Phase=Phase.Finished;return;}Phase=Phase.Regroup;Deadline=now+regroup;}
             else if(Phase==Phase.Regroup)
-            {if(Round>=Limit){Phase=Phase.Finished;return;}Round++;Phase=Phase.Discussion;Deadline=now+discussion;}
+            {if(Round>=Limit){Phase=Phase.Finished;return;}Round++;ready.Clear();Phase=Phase.Discussion;Deadline=0;}
         }
         public static Dictionary<ulong,int> AssignRooms(IEnumerable<ulong> ids,Func<ulong,int> room,Func<ulong,ulong?> companion,int[] limits=null)
         {

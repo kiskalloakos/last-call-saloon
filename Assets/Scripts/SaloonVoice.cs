@@ -1,5 +1,6 @@
 using System;
 using System.Collections;
+using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -23,9 +24,43 @@ namespace Saloon
         string channel="";
         bool deadChannel,transmitting,autoAttempted,verificationMode;
         float nextPosition;
+        float nextActivity,nextIdentity;
+        readonly Dictionary<string,float> speech=new Dictionary<string,float>();
+#if UNITY_EDITOR
+        internal Dictionary<string,float> PreviewSpeech;
+#endif
         int generation;
         Task operation=Task.CompletedTask;
         CancellationTokenSource echoCancellation;
+
+        public float SpeechLevel(string voiceId)
+        {
+            if(string.IsNullOrEmpty(voiceId))return 0;
+#if UNITY_EDITOR
+            if(PreviewSpeech!=null)return PreviewSpeech.TryGetValue(voiceId,out var preview)?preview:0;
+#endif
+            return Connected&&!Busy&&speech.TryGetValue(voiceId,out var level)?level:0;
+        }
+
+        internal static float SpeechStrength(bool detected,double energy,bool muted)
+        {
+            if(!detected||muted||double.IsNaN(energy)||double.IsInfinity(energy))return 0;
+            // Speech detection supplies the fallback when a platform reports no energy.
+            return Mathf.Clamp(Mathf.Sqrt(Mathf.Max(0,(float)energy)*12),.22f,1);
+        }
+
+        void UpdateSpeechActivity()
+        {
+            if(Time.unscaledTime<nextActivity)return;nextActivity=Time.unscaledTime+.05f;
+            speech.Clear();var service=VivoxService.Instance;
+            if(service.ActiveChannels.TryGetValue(channel,out var participants))
+                foreach(var p in participants)
+                    speech[p.PlayerId]=SpeechStrength(p.SpeechDetected,p.AudioEnergy,p.IsMuted||(p.IsSelf&&(!transmitting||Muted||!Enabled)));
+            // Associate a voice participant with their game avatar by ID, never display name.
+            string id=service.SignedInPlayerId;
+            if(Game.Self!=null&&Game.Self.voiceId!=id&&!string.IsNullOrEmpty(id)&&Time.unscaledTime>=nextIdentity)
+            {Game.Connection.Send(new Command{kind="voice",name=id});nextIdentity=Time.unscaledTime+1;}
+        }
 
         public void Connect()
         {
@@ -118,6 +153,7 @@ namespace Saloon
                 }
             }
             if(Time.unscaledTime>=nextPosition){UpdatePosition();nextPosition=Time.unscaledTime+.1f;}
+            UpdateSpeechActivity();
         }
 
         void UpdatePosition()
@@ -207,6 +243,7 @@ namespace Saloon
                 catch(Exception e){Debug.LogWarning("Voice cleanup: "+e.Message);}
             }
             Connected=false;channel="";transmitting=false;Busy=false;autoAttempted=false;verificationMode=false;MicrophoneAllowed=false;
+            speech.Clear();nextActivity=nextIdentity=0;
             Status="Voice connects when you enter the saloon. Hold V to speak.";
         }
     }

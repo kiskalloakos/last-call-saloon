@@ -75,11 +75,15 @@ public static class SaloonProject
     {
         Assert(SaloonRules.Winner(new[]{Role.Sheriff,Role.Deputy})=="LAW WINS","Law victory");
         Assert(SaloonRules.Winner(new[]{Role.Sheriff,Role.Renegade})=="","Renegade prevents premature law victory");
-        Assert(SaloonRules.Winner(new[]{Role.Renegade})=="","Renegade still needs the money");
+        Assert(SaloonRules.Winner(new[]{Role.Renegade})=="RENEGADE WINS — LAST STANDING","Renegade wins as last survivor");
         Assert(SaloonRules.Winner(new[]{Role.Outlaw,Role.Renegade})=="","Sheriff death does not resolve the heist");
         Assert(SaloonRules.Winner(new[]{Role.Deputy,Role.Renegade})=="","Deputy can continue defending");
         Assert(SaloonRules.Winner(SaloonRules.Deck)=="","Full deck does not finish immediately");
         Assert(SaloonRules.Deck.Count(r=>r==Role.Outlaw)==2&&SaloonRules.Deck.Length==5,"Role deck");
+        Assert(SaloonRules.DeckFor(4).Length==4&&Enum.GetValues(typeof(Role)).Cast<Role>().Where(r=>r!=Role.Unknown).All(r=>SaloonRules.DeckFor(4).Count(v=>v==r)==1),"Four-player deck has one of each role");
+        Assert(SaloonRules.DeckFor(5).Count(r=>r==Role.Outlaw)==2,"Five-player deck has two Outlaws");
+        Assert(SaloonRules.LobbyCapacity==8&&SaloonRules.SupportedMatchSize(4)&&SaloonRules.SupportedMatchSize(5)&&!SaloonRules.SupportedMatchSize(3)&&!SaloonRules.SupportedMatchSize(6)&&!SaloonRules.SupportedMatchSize(8),"Eight lobby places; four/five-player starts only");
+        Assert(!SaloonRules.Guide(Role.Outlaw,4).Goal.Contains("other Outlaw")&&SaloonRules.Guide(Role.Outlaw,4).Warning.Contains("no teammate"),"Four-player Outlaw guide has no teammate");
         foreach(string model in new[]{"Art/tableRound","Art/chair","Art/stoolBar","Art/bookcaseOpen","Art/WineBarrel","Art/Character/characterMedium"})
             Assert(Resources.Load<GameObject>(model)!=null,"Imported model "+model);
         Assert(Resources.Load<Texture2D>("Art/BarrelDiffuse")!=null,"Poly Haven barrel texture");
@@ -118,6 +122,22 @@ public static class SaloonProject
         Debug.Log("SALOON_WINDOWS_BUILD PASS "+report.summary.totalSize+" bytes");
     }
 
+    [MenuItem("Saloon/Build local playtest (Mac and Windows)")]
+    public static void BuildLocal()
+    {
+        if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
+        PlayerSettings.bundleVersion="0.2.8";AssetDatabase.SaveAssets();
+        Verify();SaloonRoundVerification.VerifyClock();
+        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
+        {
+            string path=target==BuildTarget.StandaloneOSX?"Builds/Local/macOS/Last Call.app":"Builds/Local/Windows/Last Call.exe";
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
+            if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Local build failed: "+target+" "+report.summary.result);
+            Debug.Log("SALOON_LOCAL_BUILD PASS "+target);
+        }
+    }
+
     public static void OpenForEditing(){EditorSceneManager.OpenScene(ScenePath);}
     [MenuItem("Saloon/Build 0.2.4 Windows and Mac release")]
     public static void BuildPlaytestRelease()
@@ -134,6 +154,37 @@ public static class SaloonProject
             Debug.Log("SALOON_RELEASE_BUILD PASS "+target+" "+report.summary.totalSize+" bytes");
         }
     }
+    public const string ReleaseVersion="0.2.9";
+    [MenuItem("Saloon/Build current downloadable release")]
+    public static void BuildCurrentRelease()
+    {
+        if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
+        EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
+        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="9";AssetDatabase.SaveAssets();
+        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
+        {
+            bool mac=target==BuildTarget.StandaloneOSX;
+            string path="Builds/"+ReleaseVersion+(mac?"/macOS/Last Call.app":"/Windows/Last Call.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
+            if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Release build failed: "+target+" "+report.summary.result);
+            Debug.Log("SALOON_CURRENT_RELEASE PASS version="+ReleaseVersion+" target="+target+" size="+report.summary.totalSize);
+        }
+    }
+
+    static void EnsureRuntimeShaders()
+    {
+        var settings=new SerializedObject(AssetDatabase.LoadAllAssetsAtPath("ProjectSettings/GraphicsSettings.asset")[0]);
+        var shaders=settings.FindProperty("m_AlwaysIncludedShaders");
+        foreach(string name in new[]{"Sprites/Default","Unlit/Color"})
+        {
+            var shader=Shader.Find(name);if(shader==null)throw new InvalidOperationException("Missing runtime shader: "+name);
+            bool present=false;for(int i=0;i<shaders.arraySize;i++)if(shaders.GetArrayElementAtIndex(i).objectReferenceValue==shader)present=true;
+            if(!present){int index=shaders.arraySize;shaders.InsertArrayElementAtIndex(index);shaders.GetArrayElementAtIndex(index).objectReferenceValue=shader;}
+        }
+        settings.ApplyModifiedPropertiesWithoutUndo();
+    }
+
     public static void SetupAndVerify(){Setup();Verify();}
     static void LinkCloudProject()
     {

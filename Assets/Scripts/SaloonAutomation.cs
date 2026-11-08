@@ -26,6 +26,9 @@ namespace Saloon
             var args=Environment.GetCommandLineArgs();
             mode=Arg(args,"-saloonTest");
             if(string.IsNullOrEmpty(mode))return;
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if(mode.StartsWith("lan-match-")){var test=gameObject.AddComponent<SaloonLanMatchVerification>();test.Game=Game;enabled=false;return;}
+#endif
             preview=Arg(args,"-saloonPreview");
             Game.Port=Arg(args,"-saloonPort")??"17877";
             Game.PlayerName=Arg(args,"-saloonName")??("Test-"+mode);
@@ -34,6 +37,11 @@ namespace Saloon
             started=Time.unscaledTime;
             if(mode=="preview")return;
             Game.AutomatedInput=!mode.StartsWith("preview");
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if(mode=="presentation"){Game.HostLan(true);StartCoroutine(Game.VerifyPresentation());return;}
+            if(mode=="roles"){Game.HostLan(true);StartCoroutine(Game.VerifyRoleDeals());return;}
+            if(mode=="tab-input"){Game.AutomatedInput=false;Game.HostLan(true);return;}
+#endif
             if(mode=="host"||mode=="practice-host"||(RoomTest&&mode.EndsWith("host")))Game.HostLan(false);
             else if(mode=="solo"||mode=="preview-solo"||mode=="functional")Game.HostLan(true);
             else Game.JoinLan();
@@ -50,8 +58,19 @@ namespace Saloon
         void Update()
         {
             if(string.IsNullOrEmpty(mode))return;
-            if(mode=="functional")return;
+            if(mode=="functional"||mode=="presentation"||mode=="roles")return;
             if(reported){if(Time.unscaledTime>=quitAfter)Application.Quit(resultCode);return;}
+            if(mode=="tab-input")
+            {
+                if(Game.ShowRole&&Game.View?.phase==Phase.Discussion&&Game.NeedsPointer&&Cursor.lockState==CursorLockMode.None)
+                {
+                    if(!string.IsNullOrEmpty(preview))ScreenCapture.CaptureScreenshot(preview);
+                    Debug.Log("SALOON_TAB_INPUT PASS real Tab input displays role while discussion pointer is free");
+                    reported=true;resultCode=0;quitAfter=Time.unscaledTime+1;
+                }
+                if(Time.unscaledTime-started>90){Debug.LogError("SALOON_TAB_INPUT FAIL timeout");Application.Quit(9);}
+                return;
+            }
             if(mode.StartsWith("preview"))
             {
                 if(mode=="preview-solo"&&Time.unscaledTime-started>2&&Game.Self!=null&&!Game.Self.drawn)Game.Act("draw");
@@ -79,12 +98,13 @@ namespace Saloon
                         plannerChecked=Game.RoomPlannerOpen&&Game.NeedsPointer;
                         if(!plannerChecked){ReportRooms(false,"discussion planner unavailable");return;}
                     }
-                    if(Game.View.phase==Phase.Choosing&&!roomRequested)
+                    if(Game.View.phase==Phase.Discussion&&!roomRequested)
                     {
                         var peer=Game.View.players.First(p=>p.id!=self.id&&!p.name.StartsWith("Practice"));
                         Game.ChooseRoom(desired,peer.id);roomRequested=true;
                     }
                     if(roomRequested&&self.chosenRoom==desired&&!string.IsNullOrEmpty(self.companion))roomAcknowledged=true;
+                    if(roomAcknowledged&&Game.View.phase==Phase.Discussion&&!self.ready)Game.ToggleReady();
                     if(Game.View.phase==Phase.Turns)
                     {
                         if(roomActionAt==0)roomActionAt=Time.unscaledTime;
@@ -116,6 +136,7 @@ namespace Saloon
                     Debug.Log("SALOON_PRIVACY "+(secret?"PASS":"FAIL")+" mode="+mode);
                     if(!secret)Application.Quit(5);
                 }
+                if(Game.View.phase==Phase.Discussion&&!self.ready)Game.ToggleReady();
                 if(!haveInitial||trackedPose!=self.poseVersion){initial=new Vector3(self.x,self.y,self.z);haveInitial=true;trackedPose=self.poseVersion;}
                 if(Vector3.Distance(initial,new Vector3(self.x,self.y,self.z))>.15f)moved=true;
                 if(Time.unscaledTime>=nextCommand&&Game.View.phase==Phase.Turns)
@@ -127,7 +148,7 @@ namespace Saloon
                 if(Game.View.phase==Phase.Turns&&Time.unscaledTime>=nextMove)
                 {
                     if(liveStarted<0)liveStarted=Time.unscaledTime;
-                    Game.Connection.Send(new Command{kind="input",x=0,z=Time.unscaledTime-liveStarted<1?-1:0,yaw=0,pitch=0});
+                    Game.Connection.Send(new Command{kind="input",x=0,z=Time.unscaledTime-liveStarted<1?-1:0,yaw=0,pitch=0,poseVersion=self.poseVersion});
                     nextMove=Time.unscaledTime+.04f;
                 }
                 if(Game.View.phase==Phase.Finished&&!reported)

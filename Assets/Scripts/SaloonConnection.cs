@@ -58,10 +58,10 @@ namespace Saloon
             Manager.ConnectionApprovalCallback = (request, response) =>
             {
                 bool matching=Encoding.UTF8.GetString(request.Payload)=="LastCall/state-4/"+Application.version;
-                response.Approved = matching && Accepting && Manager.ConnectedClientsIds.Count < 5;
+                response.Approved = matching && Accepting && Manager.ConnectedClientsIds.Count < SaloonRules.LobbyCapacity;
                 response.CreatePlayerObject = false;
                 response.Pending = false;
-                response.Reason = !matching?"Different game version. Use "+Application.version+" on both devices.":Accepting ? "The saloon already has five players." : "A match is in progress; join after it ends.";
+                response.Reason = !matching?"Different game version. Use "+Application.version+" on both devices.":Accepting ? "The saloon lobby is full (8 players)." : "A match is in progress; join after it ends.";
             };
             Manager.OnClientConnectedCallback += id =>
             {
@@ -154,7 +154,7 @@ namespace Saloon
                 await EnsureServices();
                 if (host)
                 {
-                    var options = new SessionOptions { MaxPlayers = 5, IsPrivate = true, Name = "Saloon playtest" }.WithRelayNetwork();
+                    var options = new SessionOptions { MaxPlayers = SaloonRules.LobbyCapacity, IsPrivate = true, Name = "Saloon playtest" }.WithRelayNetwork();
                     session = await MultiplayerService.Instance.CreateSessionAsync(options);
                 }
                 else session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant());

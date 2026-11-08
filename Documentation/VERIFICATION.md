@@ -409,3 +409,338 @@ Final 0.2.4 validation and remaining limitation:
 - The first two Windows candidate attempts failed at download because a read-only Actions
   token cannot access a draft release. No game test ran in those attempts. The candidate
   was then explicitly published as a prerelease for validation, with 0.2.3 remaining latest.
+
+
+## Local 0.2.5 presentation, spectator and Ready iteration — 2026-11-08
+
+This iteration is local only; no GitHub release, push or cloud CI was performed.
+Both players were built to `Builds/Local/` with version 0.2.5. Windows was cross-built
+on this Mac and was not executed natively in this iteration.
+
+- Ready-driven round clock passes: elapsed time cannot end discussion, all living players
+  must confirm, unready revokes confirmation, eliminated players do not block, each new
+  discussion clears Ready, and all-ready enters actions directly. Timed actions/aftermath
+  and the round cap retain their existing checks.
+- Runtime presentation checks pass: room edits clear Ready; both players at a two-player
+  bar face each other; pre-assignment look packets are rejected using pose versions;
+  first-person view has a skinned hand; the revolver rolls backward while the hand remains
+  planted; eliminated players enter and cycle through living POVs without revealing roles.
+- The existing full built-player gameplay/heist/beer/social/polish suite passed after its
+  fixtures were changed to confirm Ready through the production readiness path.
+- A rendered two-process Mac LAN pair passed discussion/planning, mutual invitations,
+  Ready, room assignment, coin choice and action acknowledgements on both host and client.
+- A second rendered LAN run passed both sides with an 8,000-byte/s cap, packet loss,
+  jitter and a five-second blackout during discussion/planning. Both processes exited 0;
+  the client stayed connected through recovery and the largest observed phase lag was 0.26s.
+- Rendered captures are in `Builds/Local/Preview/`: discussion/Ready, coin-facing, first-
+  and third-person grips, recoil/roll frames, and two spectator POVs. Visual inspection
+  corrected wrist/palm alignment and clipped spectator button labels.
+- Local controls: Space or the Ready button confirms discussion; right mouse lets you look
+  around the planning panel; Left/Right arrows or spectator buttons cycle living POVs.
+- These are procedural grip/arm poses, not authored character animations. Voice isolation,
+  hidden-role privacy and the one-action rule remain in place.
+
+## Local 0.2.6 practice rooms, fair turns and friendly fire — 2026-11-08
+
+Local only, with Mac and Windows builds in `Builds/Local/`. Windows was cross-built on
+the Mac; native Windows execution was not performed for this iteration.
+
+- Bots now choose stable plans across all three rooms, rotate those plans each round,
+  accept human invitations and return to their own plan if an invitation is withdrawn.
+  A money carrier stays at the bar. Actual Ready-driven room assignment is checked.
+- Bar turns have a ten-second minimum. A delayed host frame past the shared deadline
+  can time out only the current actor; waiting actors receive fresh full windows.
+  The regression puts the human last after four bots and confirms their final action works.
+- Shooting a faction ally removes one HP from the shooter in addition to the target's
+  normal one HP damage: Sheriff/Deputy in both directions, and Outlaw/Outlaw. Enemy hits
+  are exempt. Built-player checks cover both factions, Renegade/enemy shots, denied repeat
+  shots, ammunition/action consumption, and a lethal shot that eliminates both allies.
+- The complete built-player gameplay, heist, beer, release, social, polish and new practice
+  regression suite passed and exited 0. Both platform builds and rule/clock checks passed.
+- The rebuilt rendered host/joined-client pair passed planning, Ready, mutual room
+  assignment, coin choice and both action acknowledgements; both exited 0.
+
+## Local 0.2.7 public Sheriff visibility — 2026-11-08
+
+- Added a persistent top-left public Sheriff panel, with `(YOU)` for the local Sheriff
+  and an explicit eliminated status. Other roles remain private.
+- A built-player regression passed 100 production shuffles/deals, checking the full deck,
+  exactly one Sheriff, and the compressed private snapshot for all five recipients on
+  every deal. Both local-Sheriff and remote-Sheriff panels were captured and inspected.
+- Rule/clock checks and both local platform builds passed. Windows was cross-built,
+  its ZIP verified, and was not executed natively. No GitHub push or release was performed.
+
+## Local 0.2.8 planning role shortcut and revolver motion — 2026-11-08
+
+- Tab is read independently of mouse lock and clears on release, menu opening or death.
+  A native keyboard test pressed Tab with discussion/planning open and the pointer free,
+  captured the visible private role card, passed and exited 0. No right mouse input was used.
+- Removed the first-person arm. Recoil now has a short eased attack/recovery; the backward
+  revolver roll lasts 0.95 seconds with zero endpoint velocity/acceleration, subtle movement
+  during the flourish, and a full return to rest. Draw/reload tilt blends gradually.
+- Built-player presentation checks passed: recoil recovery, backward/full-circle roll,
+  angular step bounds sampled at 60 Hz, no first-person arm, and spectator POV switching.
+  Rest, recoil and roll frames were rendered and visually inspected.
+- The full gameplay/heist/beer/release/social/polish/practice suite passed and exited 0.
+  Both local platform builds passed; Windows was cross-built and its ZIP integrity checked,
+  without native Windows execution. The normal local Mac build was opened at version 0.2.8.
+- This iteration remains unpublished; no GitHub push or release was performed.
+
+## Unity Editor iteration: simple role cards and straight revolver draw — 2026-11-08
+
+- Source/Editor changes only. No player build, version change, GitHub push or release.
+- Holding Tab shows a larger private card for the player's role: plain-language goal,
+  exact action keys, shared H/X robbery and escape steps, win conditions and friendly-fire rule.
+  All four cards were rendered and visually inspected in the Unity Game view without clipping.
+- Removed the generic busy roll that tilted the revolver sideways while drawing. Draw and
+  holster now use an eased vertical motion with a fixed horizontal position and no yaw/roll.
+  Shot recoil and the backward flip curves are unchanged.
+- The Editor-only check passed three draw/holster cycles, sampling horizontal position,
+  rotation, monotonic vertical movement, settled visibility and accepted draw commands.
+- Re-run using `Saloon > Verify role cards and revolver draw in Play mode`.
+  Results: `SALOON_EDITOR_PRESENTATION PASS` and `SALOON_EDITOR_ITERATION PASS`.
+  Preview PNGs are stored in the OS temporary directory under `SaloonPrototype-EditorPreview`.
+- Verification stopped Play mode and left `Assets/Scenes/Saloon.unity` open in Unity for testing.
+
+## Unity Editor iteration: ragdoll deaths and observer cleanup — 2026-11-08
+
+- Lethal shots now pass their impact direction into an eleven-body, jointed cosmetic
+  ragdoll. The body is thrown from its seat, collides with the room/floor, then holds its
+  resting pose. The dying player's camera briefly follows it from outside the body.
+- The host publishes death direction, age and observer state in snapshots. About 3.2
+  seconds after death, the corpse, nameplate and cosmetic collisions disappear as the
+  dead player changes to a living player's POV. Later assignments can use the freed seat.
+- Ragdoll collisions are excluded from weapon/interaction raycasts and cannot move living
+  players. New matches remove the added physics components and restore living models.
+- Editor checks passed real lethal-shot launch, floor landing/rest, shared observer-state
+  snapshot serialization, corpse/collider cleanup, local death camera, spectator handoff,
+  freed-seat reuse, a side-room wall/landing case and new-match restoration.
+- The full Editor gameplay, robbery, beer, release, social, polish and practice regression
+  suite passed. Historical documentation screenshots generated by that suite were restored;
+  ragdoll previews remain in the OS temporary `SaloonPrototype-EditorPreview` directory.
+- Re-run via `Saloon > Verify ragdoll deaths in Play mode`. No new builds or version change;
+  no GitHub push or publication. Unity remains open for manual testing.
+
+## Unity role-guide correction — 2026-11-08
+
+The Tab card's right column is now role-specific. Sheriff receives an inspection and
+protection plan; Deputy receives a support/protection plan with shooting, beer and asking
+the Sheriff for their report. Only Outlaw and Renegade receive the H/X robbery walkthrough.
+The Deputy action text no longer leads with H/X, and the common footer no longer lists
+Sheriff-only inspection as an action for every role. Gameplay permissions are unchanged.
+The Editor check passed all four cards and confirmed Law plans contain no H/X robbery
+walkthrough. Sheriff and Deputy captures were inspected for readability and clipping.
+Unity was left open; no build was created.
+
+## Role rules corrected to the user's design — 2026-11-08
+
+This replaces the earlier generalized money objectives, including the earlier Law/Renegade
+money-escape paths. Only Outlaws may rob, collect money or escape with it. Sheriff and
+Deputy protect the money. Renegade fights the Outlaws first, then the Law, and wins as
+the sole survivor; Renegade has no money objective.
+
+- Host checks now reject non-Outlaws at robbery start, completion/collection, escape
+  declaration and escape resolution. Denied H/X commands leave the action available.
+  Injected bag/escape state cannot give a non-Outlaw an escape win or money HUD prompt.
+- Outlaw tests still complete safe work, collect money and win after the full escape
+  response round. Empty-safe probing remains an Outlaw action with private feedback.
+- Renegade bot tests verify attacks on Outlaws while they live, followed by attacks on
+  the Law once all Outlaws are dead. A real final shot queues and completes the Renegade's
+  last-survivor victory without robbery or money escape.
+- The complete Editor clock, wire, gameplay, heist, beer, release, social, polish and
+  practice suites passed. Role guides, contextual hints, menu rules and README were updated.
+- Editor/source only; no new builds, version change, GitHub push or publication.
+
+
+## Four/five-player matches and optional LAN bots — 2026-11-08
+
+- LAN creation and the host's lobby offer **No bots / With bots**. With bots, the host
+  chooses a four- or five-player fill target. Bots are created only on Start; turning
+  bots off removes existing bots without silently replacing them on Start.
+- Four players receive exactly Sheriff, Deputy, Outlaw and Renegade. Five players receive
+  one extra Outlaw. The four-player Outlaw Tab guide explains that there is no teammate.
+- Network admission allows eight humans including the host; a ninth is rejected with
+  a full-lobby reason. Rules for six through eight players remain undefined, so those
+  lobby sizes cannot start. A joining human can replace a bot after a match ends.
+- `Saloon > Verify LAN lobby and four-player matches in Play mode` passed with real
+  Unity Transport/Netcode UDP clients in the Editor process: four- and five-human role
+  deals, private role snapshots, room/Ready commands, distinct bar seats, every player's
+  queued turn and reliable pass commands. All clients remained connected through each round.
+- The same test passed eight-human roster replication, rejection of a ninth connection
+  without dropping the original eight, rejection of undefined match sizes, bot fill to
+  four/five, disabling bots, replacing a bot with a human and shrinking the bot target.
+- Results: `SALOON_LOBBY PASS` and `SALOON_EDITOR_ITERATION PASS` in
+  `/tmp/saloon-editor-roles-corrected.log`. Lobby captures in the temporary
+  `SaloonPrototype-EditorPreview` directory were visually checked.
+- The full Editor snapshot/clock, gameplay, heist, beer, release, social, polish and
+  practice regression suite also passed (`SALOON_EDITOR_ROUNDS PASS`). Historical
+  documentation screenshots generated by that suite were restored.
+- These are same-machine Editor network tests, not a native Windows or cross-device LAN
+  retest. No builds were made, no version was changed and nothing was published.
+
+
+## Western Gunman character and joint motion — 2026-11-08
+
+- Acquired and imported **Low Poly Western Starter Pack 1.0** by tt-3D through the Unity
+  Asset Store after explicit approval of Unity's Terms of Service and Asset Store EULA.
+  Original pack files remain in `Assets/tt-3d/Low-PolyWesternStarterPack`.
+- Every player now uses the same Gunman, original textures and shared materials. The
+  runtime prefab is `Assets/Resources/Art/Western/Gunman.prefab`, normalized uniformly
+  to 1.78 metres including the hat. Character colours no longer vary by player.
+- Added game-driven joint motion on the imported Humanoid skeleton: breathing idle,
+  direction-aware walking, eased sitting/standing with bent knees, aim/recoil on shots,
+  and drinking with the mug's rim at the mouth. These movements are implemented by the
+  game, not animation clips supplied by the pack. Weapon and mug grips use this rig's
+  hand, forearm and finger bones. Existing first-person revolver motion is preserved.
+- The Editor character verification passed identical model/material checks, real host
+  movement with leg motion, bent-knee seating without scale compression, a real draw
+  and shot, recoil/flip previews, a real drink with mouth contact and health recovery.
+  All seven captured poses were inspected in `SaloonPrototype-EditorPreview`.
+- The new skeleton also passed the complete ragdoll/death-camera/observer regression:
+  eleven connected bodies, shot launch, floor landing and rest, corpse removal,
+  spectator POV handoff, side-room landing and restoration for a new match.
+- The full Editor snapshot/clock, gameplay, heist, beer, release, social, polish and
+  practice suites passed with the new character (`SALOON_EDITOR_ROUNDS PASS`).
+  Historical documentation screenshots generated by that suite were restored.
+- Re-run via `Saloon > Verify Western character animations in Play mode` and
+  `Saloon > Verify ragdoll deaths in Play mode`. Results: `SALOON_WESTERN PASS`,
+  `SALOON_RAGDOLL PASS` and `SALOON_EDITOR_ITERATION PASS` in
+  `/tmp/saloon-editor-roles-corrected.log`.
+- Editor/source only. No player builds, version bump, GitHub push or publication.
+
+
+## Wonky speech-driven mouths — 2026-11-08
+
+- Added `SaloonTalk`, a lower-face blend shape affecting 54 vertices on a derived copy
+  of the Gunman body mesh. The original pack model is unchanged. A small dark mouth
+  opening follows the head and changes height/width with an uneven chatter rhythm.
+- Vivox speech detection gates animation; AudioEnergy adjusts its strength, with a
+  fallback for platforms reporting speech without energy. Silence/mute closes the
+  mouth promptly. Drinking and elimination immediately close it before other animation
+  or ragdoll takeover. No microphone recording or audio-sample capture was added.
+- Each client announces its signed-in Vivox player ID through a reliable game command;
+  the host includes that ID in player snapshots. Cached activity is matched by that ID,
+  so players sharing a display name do not animate one another's mouth. Voice activity
+  and audio still come directly from Vivox rather than adding game-network audio traffic.
+- `Saloon > Verify talking mouths in Play mode` passed simulated voice activity/energy,
+  changing jaw weights, duplicate-name identity isolation, silence/mute, drinking
+  priority, resuming speech, elimination and disconnected cleanup. Quiet, speaking and
+  stopped face captures were visually inspected. No live microphone session was used.
+- The real UDP LAN Editor suite also passed reliable identity announcement and correct
+  voice-to-avatar mapping on all clients in four- and five-player rounds. Existing
+  eight-place capacity, ninth-join rejection, bot choices and connection checks passed.
+- Results: `SALOON_SPEECH PASS`, `SALOON_LOBBY PASS` and `SALOON_EDITOR_ITERATION PASS`
+  in `/tmp/saloon-editor-roles-corrected.log`. Preview images remain in the temporary
+  `SaloonPrototype-EditorPreview` directory.
+- Editor/source changes only; no builds, version changes or publication. Unity remains
+  open on the Saloon scene with Play mode stopped.
+
+
+## Visible hit reactions and corrected revolver grip — 2026-11-08
+
+- Non-lethal damage now drives a directional pelvis/torso/head flinch with a short
+  warm-red material flash, followed by a 0.7-second recovery. Authoritative player
+  positions, seats, collision bodies and aim inputs are unchanged. Lethal hits continue
+  directly into the existing ragdoll.
+- Host snapshots carry a hit counter, direction and age. Each fresh hit triggers once;
+  repeated snapshots do not restart it, old events expire, and new matches clear it.
+  The material flash uses renderer property blocks and preserves shared materials.
+- Replaced the revolver's forced wrist orientation and per-finger world rotations with
+  an arm pose that keeps original wrist/finger joint rotations and bone lengths. The
+  gun attaches at the palm, with the barrel following the player's aim. First-person
+  draw, recoil and backward-roll curves remain unchanged.
+- Added a compact `SaloonGunHold` shape on the derived character mesh. The source's broad
+  mitten polygons fit around the handle instead of folding into long spikes. It blends
+  during draw/holster, releases for drinking and death, and coexists with `SaloonTalk`.
+- The final combat Editor test passed three aim pitches, seated/standing grips, native
+  wrist/finger rotations, unchanged arm lengths, palm attachment and barrel alignment.
+  Front/profile rendered close-ups of the final hand were inspected. A preview-only
+  light was used for hand inspection and removed at the end of the test.
+- A real legal shot passed damage, visible directional flinch/flash, compressed hit-data
+  round-trip, duplicate suppression, pose recovery, fixed collision positions, a second
+  directional hit and lethal ragdoll takeover. Result: `SALOON_COMBAT PASS` and
+  `SALOON_EDITOR_ITERATION PASS` in `/tmp/saloon-editor-combat.log`.
+- The real UDP LAN Editor suite passed hit-counter/direction delivery to every client in
+  four- and five-player matches, plus all existing turn, capacity and bot-setting checks.
+  The full snapshot/clock, gameplay, heist, beer, release, social, polish and practice
+  regression suite also passed (`SALOON_LOBBY PASS`, `SALOON_EDITOR_ROUNDS PASS`).
+  Historical documentation images written by that suite were restored; final combat
+  previews remain in the OS temporary `SaloonPrototype-EditorPreview` directory.
+- Editor/source changes only; no new builds, version change, GitHub push or publication.
+
+
+## 2026-11-08 — headshots, persistent beer healing and room movement
+
+- Only the dedicated head sphere accepts bullet damage (1 HP). Body hits still spend
+  ammo/action, cause no HP loss or hit reaction, and do not apply friendly-fire penalties.
+  Standing CharacterControllers cannot swallow head rays; furniture still blocks shots.
+- F stands/sits for free during room actions, including before/after a player's turn.
+  WASD uses host CharacterController collision and stays inside the assigned room.
+  Discussion remains seated. Standing checks nearby clear positions; side-room chairs
+  need more clearance than bar stools. Bar stations now align with the five actual stools.
+- Non-lethal damage preserves normal/gifted drinking and the original completion time.
+  Lethal damage clears the timer, disables head collision and cannot revive the victim.
+- Bots commit to a head position for 0.3 seconds before firing, allowing a sidestep to
+  dodge. Their existing legal actions, target priorities and resources are unchanged.
+- Replaced the stretched bar visual with a paneled oak/walnut counter, brass rail/taps,
+  bottle shelves, backbar panels, wall trim, lamps and room pictures. Geometry is combined
+  by material. Existing licensed local textures/props and collision geometry are reused.
+- `SALOON_ROOM_ACTIONS PASS`: actual command/raycast tests covered free standing/sitting,
+  movement after passing, both rooms, room bounds, discussion locks, body/head shots,
+  friendly body hits, seated/standing headshots, human/bot dodges, visible head alignment,
+  normal/gifted healing through damage, and lethal non-revival. Rendered bar preview
+  inspected at OS temporary `SaloonPrototype-EditorPreview/room-actions-new-bar.png`.
+- `SALOON_LOBBY PASS`: real UDP clients in four- and five-player Editor matches stood and
+  moved while waiting, replicated standing poses, received every turn and stayed connected.
+  Capacity, private roles, bots and replacement checks also passed. This uses clients in
+  one Editor process; it is not a run on the Windows computer.
+- Full clock/snapshot, gameplay, heist, beer, release, social, polish and practice suites
+  passed (`SALOON_EDITOR_ROUNDS PASS`). Final combat/grip/flinch/wire/recovery/ragdoll
+  checks passed too (`SALOON_COMBAT PASS`, `SALOON_EDITOR_ITERATION PASS`).
+- Checks ran in the open Unity Editor, logged in `/tmp/saloon-editor-combat.log`.
+  Historical documentation images generated by regression checks were restored.
+  README explains uninterrupted beer healing; README and in-game controls explain
+  headshots and F/WASD movement.
+  No new player builds, version bump, GitHub push or release.
+
+
+## 2026-11-08 — bots stand and dodge during room actions
+
+- Bots now stand automatically at the start of room actions, strafe around nearby
+  opponents and change direction/pause at varied intervals. Movement runs independently
+  of turn order and spent actions, through the same host input and CharacterController
+  collision path as human movement. A short capsule sweep avoids furniture/players;
+  predicted movement and host clamping keep bots in their assigned room.
+- Bots pause for drinking, handoffs and safe work; they can continue moving while
+  drawing/reloading/shooting. Existing committed aim points and action authorization
+  remain intact. They stop at aftermath and return to seated discussion.
+- Added the Editor menu `Saloon/Verify bot dodging movement in Play mode`. Its production
+  movement loop passed automatic standing in all three rooms, actual displacement after
+  leaving chairs, replicated walking animation, room bounds, waiting/spent-turn movement,
+  unchanged ammo/actions from roaming, dodging a real pre-aimed headshot, and a moving
+  bot drawing/landing exactly one legal headshot. Drinking pauses, aftermath stops and
+  seated discussion also passed: `SALOON_BOT_MOVEMENT PASS` and
+  `SALOON_EDITOR_ITERATION PASS` in `/tmp/saloon-editor-combat.log`.
+- README describes bot movement. Editor/source only; no new player builds or release.
+
+
+## 2026-11-08 — 0.2.9 downloadable release validation
+
+- Created universal Intel/Apple Silicon macOS and Windows x64 Development players from
+  current source, version 0.2.9 (`Saloon/Build current downloadable release`).
+- The first packaged-player test exposed stripping of `Unlit/Color`, used by talking mouths.
+  Character creation failed on the host. The release preparation now retains this shader
+  (and validates the runtime sprite shader) in GraphicsSettings. Both players were rebuilt.
+- Added `Tools/lan_match_test.py` and opt-in `lan-match-host/client` player automation.
+  These run one host plus three/four independent processes, without bots, for three rounds:
+  Ready/room planning, all-player bar turns and free movement, two paired rooms with coin
+  choices and actual headshots, bar beer healing, and complete final results. Private role
+  decks are checked across all process logs. Delayed links can be injected per client.
+- Final packaged Mac four-process test passed all clients through all three rounds and
+  kept every connection until results. Exact four-role deck passed. Logs:
+  `Builds/0.2.9/TestResults/mac-four-final/`. Tests use separate processes on one host;
+  they cannot certify four physical devices' router/Wi-Fi/firewall configuration.
+- Extended the native Windows workflow with a LAN suite for four/five players and impaired
+  four-player links. Platform results are recorded below after that workflow finishes.
+- Public source excludes the Asset Store pack and derived Gunman files; compiled players
+  contain the licensed character. ZIPs include setup instructions, role README and credits.

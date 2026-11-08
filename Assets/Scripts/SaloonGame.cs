@@ -16,9 +16,15 @@ namespace Saloon
         public bool MenuOpen = true;
         public float Sensitivity = 2;
         public bool Sandbox { get; private set; }
+        public bool BotsEnabled;
+        public int BotMatchSize=5;
         public bool Hosting => Connection.Hosting;
         public bool InRoom => Connection.Connected;
         public int PlayerCount => players.Count;
+        public int HumanCount=>players.Values.Count(p=>!p.bot);
+        public int PlannedMatchSize=>BotsEnabled?Mathf.Max(HumanCount,Mathf.Clamp(BotMatchSize,4,5)):HumanCount;
+        public bool CanStartMatch=>Hosting&&(phase==Phase.Lobby||phase==Phase.Finished)&&SaloonRules.SupportedMatchSize(PlannedMatchSize);
+        public string LobbyStartStatus=>PlannedMatchSize>5?"Rules for 6–8 players will be added later. Start with 4 or 5.":!BotsEnabled&&HumanCount<4?"Need 4 or 5 human players, or turn bots on.":BotsEnabled?"Missing seats will be filled with bots when the host starts.":"No bots. Start with 4 or 5 human players.";
         public Phase CurrentPhase => phase;
         public string LocalId => Connection.LocalId.ToString();
         public PlayerView Self => View?.players?.FirstOrDefault(p => p.id == LocalId);
@@ -44,21 +50,26 @@ namespace Saloon
         class Participant
         {
             public ulong id;
-            public string name, notice="", busyAction="";
+            public string name, notice="", busyAction="",voiceId="";
             public string safeReport="";
             public int inspectedProgress=-1;
             public Role role;
             public GameObject body;
             public CharacterController controller;
-            public CapsuleCollider hitbox;
+            public CapsuleCollider hitbox,solid;
+            public SphereCollider head;
             public Vector2 move;
             public float yaw,pitch,lastInput,lastAction,nextShot,busyUntil,vertical;
-            public int hp,ammo,beer,shots,seat=-1,room,chosenRoom,poseVersion,beerPickupRound=-1;
+            public int hp,ammo,beer,shots,hits,seat=-1,room,chosenRoom,poseVersion,beerPickupRound=-1;
+            public float hitAt=-10;public Vector3 hitDirection;
             public bool gatherStation;
             public ulong? companion;
             public bool drawn,bot,bag;
             public int escapeRound;
             public float botThink,drinkReady,giftUntil;
+            public float botAimAt=-1;public Vector3 botAim;
+            public float botRoamAt;public Vector3 botMoveWorld;
+            public float deathAt=-1;public Vector3 deathDirection;
             public int giftSequence;public ulong giftTarget;
             public bool Alive => hp>0;
         }
@@ -90,13 +101,21 @@ namespace Saloon
             gameObject.AddComponent<SaloonHUD>().Game=this;
             gameObject.AddComponent<SaloonAutomation>().Game=this;
             gameObject.AddComponent<SaloonCloudVerification>().Game=this;
-            AddEvent("Prototype ready. Five humans for a real match; practice players pursue their role objectives.");
+            AddEvent("Prototype ready. Four or five players per match, optional bots; lobby capacity eight.");
         }
 
         void OnJoined(ulong id)
         {
             if(!Hosting)return;
             if(players.ContainsKey(id))return;
+            if(phase==Phase.Finished)ReopenLobby();
+            var replacement=players.Values.Where(p=>p.bot).OrderByDescending(p=>p.id).FirstOrDefault();
+            if(replacement!=null)RemoveBot(replacement.id);
+            if(players.Count>=SaloonRules.LobbyCapacity)
+            {
+                if(Connection.Manager.ConnectedClients.ContainsKey(id))Connection.Manager.DisconnectClient(id);
+                return;
+            }
             var p=CreateParticipant(id,"Stranger "+(players.Count+1),false);
             players.Add(id,p);AddEvent(p.name+" entered the saloon.");
         }
@@ -104,12 +123,17 @@ namespace Saloon
         Participant CreateParticipant(ulong id,string name,bool bot)
         {
             int index=players.Count;
-            var body=new GameObject("Player collision "+id);body.transform.position=SaloonWorld.Spawns[index%5];
+            var body=new GameObject("Player collision "+id);body.transform.position=SaloonWorld.Spawns[index%SaloonWorld.Spawns.Length];
             var identity=body.AddComponent<SaloonBody>();identity.id=id;
             var controller=body.AddComponent<CharacterController>();controller.height=1.8f;controller.radius=.30f;controller.center=new Vector3(0,.9f,0);controller.stepOffset=.25f;controller.skinWidth=.025f;
             var target=new GameObject("Player hitbox");target.layer=8;target.transform.SetParent(body.transform,false);
             var hitbox=target.AddComponent<CapsuleCollider>();hitbox.height=1.8f;hitbox.radius=.32f;hitbox.center=Vector3.up*.9f;
-            return new Participant{id=id,name=name,body=body,controller=controller,hitbox=hitbox,hp=tuning.health,ammo=tuning.cylinder,bot=bot};
+            var headObject=new GameObject("Player head hitbox");headObject.layer=8;headObject.transform.SetParent(body.transform,false);
+            var head=headObject.AddComponent<SphereCollider>();
+            var solidObject=new GameObject("Seated player collision");solidObject.layer=SaloonMovement.SolidLayer;solidObject.transform.SetParent(body.transform,false);
+            var solid=solidObject.AddComponent<CapsuleCollider>();solid.radius=.30f;
+            var player=new Participant{id=id,name=name,body=body,controller=controller,hitbox=hitbox,head=head,solid=solid,hp=tuning.health,ammo=tuning.cylinder,bot=bot};
+            UpdatePlayerColliders(player);return player;
         }
 
         void OnLeft(ulong id)
@@ -128,7 +152,7 @@ namespace Saloon
             Sandbox=sandbox;voiceRoom="saloon-"+Guid.NewGuid().ToString("N");
             Connection.StartLan(true,"127.0.0.1",port);
             if(!Connection.Hosting)return;
-            MenuOpen=false;LockCursor();
+            MenuOpen=!sandbox;SyncPointer();
             if(sandbox)
                 StartPractice();
         }
@@ -136,30 +160,57 @@ namespace Saloon
         public void StartPractice()
         {
             if(!Hosting||(phase!=Phase.Lobby&&phase!=Phase.Finished))return;
-            Sandbox=true;
+            BotsEnabled=true;StartMatch();
+        }
+
+        void RemoveBot(ulong id){Destroy(players[id].body);players.Remove(id);}
+        void TrimBots(int target)
+        {
+            foreach(var id in players.Values.Where(p=>p.bot).OrderByDescending(p=>p.id).Select(p=>p.id).ToArray())
+            {if(players.Count<=target)break;RemoveBot(id);}
+        }
+        void FillBots(int target)
+        {
+            TrimBots(target);
             ulong next=10000;
-            while(players.Count<5)
+            while(players.Count<target)
             {
                 while(players.ContainsKey(next))next++;
                 players.Add(next,CreateParticipant(next,"Practice player "+(next-9999),true));
                 next++;
             }
-            StartMatch();
         }
 
-        public void ClearPracticeTargets()
+        void ReopenLobby()
         {
-            if(!Hosting||(phase!=Phase.Lobby&&phase!=Phase.Finished))return;
-            foreach(var id in players.Values.Where(p=>p.bot).Select(p=>p.id).ToArray())
-            {Destroy(players[id].body);players.Remove(id);}
-            Sandbox=false;phase=Phase.Lobby;Connection.Accepting=true;outcome="";
-            Broadcast();
+            phase=Phase.Lobby;Connection.Accepting=true;outcome="";ResetHeist();int index=0;
+            foreach(var p in players.Values)
+            {
+                p.hits=0;p.hitAt=-10;p.hitDirection=Vector3.zero;p.role=Role.Unknown;p.hp=tuning.health;p.ammo=tuning.cylinder;p.seat=-1;p.drawn=false;p.busyUntil=0;p.busyAction="";p.move=Vector2.zero;p.deathAt=-1;p.notice="";p.poseVersion++;
+                p.controller.enabled=false;p.body.transform.position=SaloonWorld.Spawns[index++%SaloonWorld.Spawns.Length];p.controller.enabled=true;p.hitbox.enabled=true;
+            }
         }
+        public void SetBotsEnabled(bool enabled)
+        {
+            if((InRoom&&!Hosting)||MatchActive)return;
+            BotsEnabled=enabled;if(!Hosting)return;
+            if(!enabled)TrimBots(HumanCount);
+            if(phase==Phase.Finished)ReopenLobby();
+            Sandbox=players.Values.Any(p=>p.bot);Broadcast();
+        }
+        public void SetBotMatchSize(int count)
+        {
+            if(!SaloonRules.SupportedMatchSize(count)||(InRoom&&!Hosting)||MatchActive)return;
+            BotMatchSize=count;if(!Hosting)return;
+            if(phase==Phase.Finished)ReopenLobby();
+            TrimBots(Mathf.Max(count,HumanCount));Sandbox=players.Values.Any(p=>p.bot);Broadcast();
+        }
+        public void ClearPracticeTargets(){SetBotsEnabled(false);}
 
         public void JoinLan()
         {
             if(!ushort.TryParse(Port,out var port)||port==0){Connection.Status="Use a valid port.";return;}
-            Sandbox=false;Connection.StartLan(false,Address.Trim(),port);MenuOpen=false;
+            Sandbox=false;Connection.StartLan(false,Address.Trim(),port);MenuOpen=true;
         }
 
         public async void Cloud(bool host)
@@ -167,19 +218,25 @@ namespace Saloon
             Sandbox=false;
             if(host)voiceRoom="saloon-"+Guid.NewGuid().ToString("N");
             await Connection.StartCloud(host,JoinCode);
-            if(Connection.Connected){MenuOpen=false;LockCursor();}
+            if(Connection.Connected){MenuOpen=true;SyncPointer();}
         }
 
         public void StartMatch()
         {
-            if(!Hosting||players.Count!=5||(phase!=Phase.Lobby&&phase!=Phase.Finished))return;
-            var deck=SaloonRules.Deck.ToArray();
+            if(!Hosting||(phase!=Phase.Lobby&&phase!=Phase.Finished))return;
+            if(!BotsEnabled)TrimBots(HumanCount);
+            int count=PlannedMatchSize;
+            if(!SaloonRules.SupportedMatchSize(count)){Connection.Status=LobbyStartStatus;Broadcast();return;}
+            if(BotsEnabled)FillBots(count);
+            Sandbox=players.Values.Any(p=>p.bot);
+            var deck=SaloonRules.DeckFor(players.Count);
             for(int i=deck.Length-1;i>0;i--){int j=UnityEngine.Random.Range(0,i+1);(deck[i],deck[j])=(deck[j],deck[i]);}
             int index=0;
             foreach(var p in players.Values)
             {
-                p.role=deck[index];p.hp=tuning.health;p.ammo=tuning.cylinder;p.beer=0;p.beerPickupRound=-1;p.drawn=false;p.seat=-1;p.busyUntil=0;p.busyAction="";p.move=Vector2.zero;p.vertical=0;p.shots=0;p.notice="";p.nextShot=0;p.lastAction=-100;
-                p.controller.enabled=false;p.body.transform.position=SaloonWorld.Spawns[index++];p.controller.enabled=true;p.hitbox.enabled=true;
+                p.hits=0;p.hitAt=-10;p.hitDirection=Vector3.zero;p.role=deck[index];p.hp=tuning.health;p.ammo=tuning.cylinder;p.beer=0;p.beerPickupRound=-1;p.drawn=false;p.seat=-1;p.busyUntil=0;p.busyAction="";p.move=Vector2.zero;p.vertical=0;p.shots=0;p.notice="";p.nextShot=0;p.lastAction=-100;
+                p.deathAt=-1;p.deathDirection=Vector3.zero;
+                p.controller.enabled=false;p.body.transform.position=SaloonWorld.Spawns[index++%SaloonWorld.Spawns.Length];p.controller.enabled=true;p.hitbox.enabled=true;
             }
             var order=players.Keys.OrderBy(_=>UnityEngine.Random.value).ToArray();
             rounds.Start(order,Time.time,tuning.discussionSeconds,tuning.turnSeconds,tuning.roundLimit,tuning.choosingSeconds,tuning.regroupSeconds);
@@ -191,35 +248,36 @@ namespace Saloon
         void Update()
         {
             if(Input.GetKeyDown(KeyCode.Escape)){MenuOpen=!MenuOpen;SyncPointer();}
+            ShowRole=!MenuOpen&&Self?.alive==true&&Input.GetKey(KeyCode.Tab);
             if(!InRoom){UnlockCursor();return;}
+            SyncPointer();UpdateSpectator();
             if(!helloSent&&Time.unscaledTime>=helloAt){Connection.Send(new Command{kind="hello",name=PlayerName});helloAt=Time.unscaledTime+1;}
             if(Self!=null&&Self.name==CleanName(PlayerName))helloSent=true;
-            if(!MenuOpen&&Self!=null)
+            if(!MenuOpen&&Self?.alive==true)
             {
-                if(Input.GetKeyDown(KeyCode.P))ToggleRoomPlanner();
+                if(View?.phase==Phase.Discussion&&Input.GetKeyDown(KeyCode.Space))ToggleReady();
+                if(Input.GetKeyDown(KeyCode.F))Act("stance");
                 if(!NeedsPointer&&Cursor.lockState!=CursorLockMode.Locked&&Input.GetMouseButtonDown(0))LockCursor();
                 if(Cursor.lockState==CursorLockMode.Locked)
                 {
                     yaw+=Input.GetAxis("Mouse X")*Sensitivity;
                     pitch=Mathf.Clamp(pitch-Input.GetAxis("Mouse Y")*Sensitivity,-75,75);
-                    ShowRole=Input.GetKey(KeyCode.Tab);
                     if(Input.GetKeyDown(KeyCode.Q))Act("draw");
                     if(Input.GetKeyDown(KeyCode.R))Act("reload");
                     if(Input.GetKeyDown(KeyCode.E))Act("interact");
                     if(Input.GetKeyDown(KeyCode.B))Act("drink");
                     if(Input.GetKeyDown(KeyCode.G))Act("give");
-                    if(Input.GetKeyDown(KeyCode.Space))Act("pass");
+                    if(View.phase!=Phase.Discussion&&Input.GetKeyDown(KeyCode.Space))Act("pass");
                     if(Input.GetKeyDown(KeyCode.H))Act("rob");
                     if(Input.GetKeyDown(KeyCode.X))Act("escape");
                     if(Input.GetKeyDown(KeyCode.C))Act("inspect");
                     if(Input.GetMouseButtonDown(0))Act("fire");
                 }
             }
-            else ShowRole=false;
             if(!AutomatedInput&&Time.unscaledTime>=nextInput)
             {
                 var move=!MenuOpen&&Cursor.lockState==CursorLockMode.Locked?new Vector2(Input.GetAxisRaw("Horizontal"),Input.GetAxisRaw("Vertical")):Vector2.zero;
-                Connection.Send(new Command{kind="input",x=move.x,z=move.y,yaw=yaw,pitch=pitch});nextInput=Time.unscaledTime+.033f;
+                Connection.Send(new Command{kind="input",x=move.x,z=move.y,yaw=yaw,pitch=pitch,poseVersion=Self?.poseVersion??-1});nextInput=Time.unscaledTime+.033f;
             }
             if(Hosting)TickServer();
             UpdateCamera();UpdateInteractionHint();
@@ -231,11 +289,13 @@ namespace Saloon
         {
             foreach(var p in players.Values)
             {
+                UpdatePlayerColliders(p);
                 if(!p.Alive)continue;
+                if(p.bot&&!verifying)TickBotMovement(p);
                 if(p.busyUntil>0&&Time.time>=p.busyUntil)
                 {
                     if(p.busyAction=="reload")p.ammo=tuning.cylinder;
-                    if(p.busyAction=="drink"||p.busyAction=="giftDrink")p.hp=Mathf.Min(tuning.health,p.hp+1);
+                    if(p.busyAction=="drink"||p.busyAction=="giftDrink"){p.hp=Mathf.Min(tuning.health,p.hp+1);p.notice="Beer finished · +1 HP.";}
                     if(p.busyAction=="rob")CompleteRobbery(p);
                     p.busyUntil=0;p.busyAction="";
                 }
@@ -246,8 +306,14 @@ namespace Saloon
                     if(!p.controller.enabled)continue;
                     p.vertical=p.controller.isGrounded?-1:p.vertical-20*Time.deltaTime;
                     float speed=p.busyUntil>Time.time?tuning.walkSpeed*.35f:tuning.walkSpeed;
-                    if(MatchActive||phase==Phase.Finished)world=Vector3.zero;
+                    if(!CanWalk(p))world=Vector3.zero;
                     p.controller.Move((world*speed+Vector3.up*p.vertical)*Mathf.Min(Time.deltaTime,.05f));
+                    if(phase==Phase.Turns)
+                    {
+                        var bounded=SaloonMovement.ClampToRoom(p.body.transform.position,p.room);
+                        if((bounded-p.body.transform.position).sqrMagnitude>.0001f)
+                        {p.controller.enabled=false;p.body.transform.position=bounded;p.controller.enabled=true;p.notice="Stay in your assigned room until the round ends.";}
+                    }
                 }
             }
             if(MatchActive)
@@ -274,7 +340,7 @@ namespace Saloon
         void PositionEveryone(bool gather)
         {
             var capacities=new[]{5,2,2};
-            foreach(var dead in players.Values.Where(p=>!p.Alive&&!p.gatherStation))capacities[dead.room]--;
+            foreach(var dead in players.Values.Where(p=>!p.Alive&&!p.gatherStation&&!ObserverReady(p)))capacities[dead.room]--;
             var assignments=SaloonRounds.AssignRooms(players.Values.Where(p=>p.Alive).Select(p=>p.id),id=>players[id].chosenRoom,id=>players[id].companion,capacities);
             var slots=new int[3];int index=0;
             foreach(var p in players.Values)
@@ -282,25 +348,27 @@ namespace Saloon
                 int homeSlot=index++;
                 if(!p.Alive)continue;
                 p.room=gather?0:assignments[p.id];if(!gather&&p.room!=0)p.escapeRound=0;
-                while(!gather&&players.Values.Any(dead=>!dead.Alive&&!dead.gatherStation&&dead.room==p.room&&dead.seat==100+slots[p.room]))slots[p.room]++;
+                while(!gather&&players.Values.Any(dead=>!dead.Alive&&!ObserverReady(dead)&&!dead.gatherStation&&dead.room==p.room&&dead.seat==100+slots[p.room]))slots[p.room]++;
                 int slot=gather?homeSlot:slots[p.room]++;p.gatherStation=gather;
                 Vector3 position=SaloonStations.Position(gather,p.room,slot);float facing=SaloonStations.Facing(gather,p.room,slot);
                 p.controller.enabled=false;p.body.transform.position=position;p.seat=100+slot;p.move=Vector2.zero;
                 p.notice=gather?"":(p.room==0&&p.chosenRoom!=0?SaloonStations.Name(p.chosenRoom)+" was full. Assigned to Bar.":"Assigned to "+SaloonStations.Name(p.room)+".");
-                p.botThink=gather?0:Time.time+1.2f+(p.id%5)*.4f;
-                p.yaw=facing;p.pitch=0;p.poseVersion++;p.drawn=false;p.busyAction="";p.busyUntil=0;
+                p.botMoveWorld=Vector3.zero;p.botRoamAt=gather?0:Time.time+.2f+(p.id%5)*.12f;
+                p.botAimAt=-1;p.botThink=gather?0:Time.time+1.2f+(p.id%5)*.4f;
+                p.yaw=facing;p.pitch=0;p.poseVersion++;UpdatePlayerColliders(p);p.drawn=false;p.busyAction="";p.busyUntil=0;
                 if(gather){p.chosenRoom=0;p.companion=null;}
             }
             SetupDuels(gather);
         }
 
+        public void ToggleReady()=>Connection.Send(new Command{kind="ready",x=Self?.ready==true?0:1});
         public void ChooseRoom(int room,string companion)=>Connection.Send(new Command{kind="room",x=room,name=companion});
 
         bool SpendAction(Participant p,float duration=0)
         {
             if(phase==Phase.Turns&&!DuelAllows(p)){p.notice=roomTurns.ContainsKey(p.room)?"Wait for your turn at this table.":"Wait for the coin and the opening action.";return false;}
             if((phase==Phase.Discussion||phase==Phase.Turns)&&rounds.TrySpend(p.id,Time.time,duration)){AdvanceRoomTurn(p.room);return true;}
-            p.notice=phase==Phase.Discussion?"Discussion: talk and position; actions start after the timer.":"Actions are locked or your action is spent. One action per round.";
+            p.notice=phase==Phase.Discussion?"Discussion: talk and position; choose your plan and Ready when you are done.":"Actions are locked or your action is spent. One action per round.";
             return false;
         }
 
@@ -308,22 +376,34 @@ namespace Saloon
         {
             if(!Hosting||!players.TryGetValue(id,out var p))return;
             if(cmd.kind=="hello") {p.name=CleanName(cmd.name);return;}
+            if(cmd.kind=="voice")
+            {
+                string voiceIdentity=cmd.name??"";
+                if(voiceIdentity.Length<=128&&voiceIdentity.All(c=>char.IsLetterOrDigit(c)||c=='-'||c=='_'))p.voiceId=voiceIdentity;
+                return;
+            }
             if(cmd.kind=="input")
             {
-                if(!Finite(cmd.x)||!Finite(cmd.z)||!Finite(cmd.yaw)||!Finite(cmd.pitch))return;
-                p.move=MatchActive?Vector2.zero:Vector2.ClampMagnitude(new Vector2(cmd.x,cmd.z),1);p.yaw=Mathf.Repeat(cmd.yaw,360);p.pitch=Mathf.Clamp(cmd.pitch,-75,75);p.lastInput=Time.time;return;
+                if(!Finite(cmd.x)||!Finite(cmd.z)||!Finite(cmd.yaw)||!Finite(cmd.pitch)||cmd.poseVersion!=p.poseVersion)return;
+                p.move=CanWalk(p)?Vector2.ClampMagnitude(new Vector2(cmd.x,cmd.z),1):Vector2.zero;p.yaw=Mathf.Repeat(cmd.yaw,360);p.pitch=Mathf.Clamp(cmd.pitch,-75,75);p.lastInput=Time.time;return;
+            }
+            if(cmd.kind=="ready")
+            {
+                if(phase==Phase.Discussion&&p.Alive){rounds.SetReady(p.id,cmd.x>0);p.notice=cmd.x>0?"Ready — waiting for the table.":"Not ready — you can edit your plan.";}
+                return;
             }
             if(cmd.kind=="room")
             {
-                if((phase!=Phase.Choosing&&phase!=Phase.Discussion)||!p.Alive||Time.time>=rounds.Deadline)return;
+                if((phase!=Phase.Choosing&&phase!=Phase.Discussion)||!p.Alive||(phase==Phase.Choosing&&Time.time>=rounds.Deadline))return;
                 int room=(int)cmd.x;if(room<0||room>2)return;
                 ulong? companion=null;
                 if(!string.IsNullOrEmpty(cmd.name)&&ulong.TryParse(cmd.name,out var companionId)&&companionId!=p.id&&players.TryGetValue(companionId,out var other)&&other.Alive)companion=companionId;
-                p.chosenRoom=room;p.companion=companion;p.notice="Room preference saved.";return;
+                p.chosenRoom=room;p.companion=companion;rounds.SetReady(p.id,false);p.notice="Room preference saved.";return;
             }
             if(cmd.kind=="coin"){ClaimCoin(p,(int)cmd.x);return;}
             if(!p.Alive||phase==Phase.Finished||Time.time-p.lastAction<.09f)return;
             p.lastAction=Time.time;
+            if(cmd.kind=="stance"){ToggleStance(p);return;}
             if(cmd.kind=="interact"&&p.seat>=0&&!MatchActive){Stand(p);return;}
             if(p.busyUntil>Time.time){p.notice="Finish what you are doing first.";return;}
             switch(cmd.kind)
@@ -363,12 +443,12 @@ namespace Saloon
         RaycastHit? Target(Participant p,float distance)
         {
             Physics.SyncTransforms();
-            var hits=Physics.RaycastAll(Eye(p),Forward(p),distance,~0,QueryTriggerInteraction.Ignore);
+            var hits=Physics.RaycastAll(Eye(p),Forward(p),distance,~((1<<SaloonRagdoll.Layer)|(1<<SaloonMovement.SolidLayer)),QueryTriggerInteraction.Ignore);
             Array.Sort(hits,(a,b)=>a.distance.CompareTo(b.distance));
             foreach(var hit in hits)
             {
                 var body=hit.collider.GetComponentInParent<SaloonBody>();
-                if(body!=null&&body.id==p.id)continue;
+                if(body!=null&&(body.id==p.id||(players.TryGetValue(body.id,out var player)&&(!player.Alive||hit.collider==player.controller))))continue;
                 return hit;
             }
             return null;
@@ -386,18 +466,31 @@ namespace Saloon
                 var body=hit.Value.collider.GetComponentInParent<SaloonBody>();
                 if(body!=null&&players.TryGetValue(body.id,out var victim)&&victim.Alive&&(!MatchActive||victim.room==p.room))
                 {
-                    victim.hp--;p.notice="Hit.";victim.notice="You were hit!";
-                    // Damage interrupts drinking/reloading; the consumed beer is lost.
-                    victim.busyUntil=0;victim.busyAction="";
-                    if(!victim.Alive)
+                    if(hit.Value.collider!=victim.head){p.notice="Body shot — only headshots deal damage.";return;}
+                    bool friendly=SaloonRules.Allies(p.role,victim.role);
+                    TakeDamage(victim,Forward(p));p.notice="Headshot.";victim.notice="You were hit in the head!";
+                    if(friendly){TakeDamage(p,-Forward(p));p.notice="Friendly fire — you lost 1 HP.";}
+                    // Resolve the outcome after both losses, including a double elimination.
+                    if(!victim.Alive||!p.Alive)
                     {
-                        victim.bag=false;victim.escapeRound=0;victim.drawn=false;victim.move=Vector2.zero;victim.controller.enabled=false;victim.hitbox.enabled=false;
-                        AddEvent(victim.name+" was eliminated.");
                         string result=SaloonRules.Winner(players.Values.Where(x=>x.Alive).Select(x=>x.role));
                         if(!string.IsNullOrEmpty(result))QueueFinish(result);
                     }
                 }
             }
+        }
+
+        bool ObserverReady(Participant p)=>!p.Alive&&p.deathAt>=0&&Time.time-p.deathAt>=SaloonRagdoll.ObserverDelay;
+        void TakeDamage(Participant p,Vector3 direction=default)
+        {
+            if(!p.Alive)return;
+            p.hp--;p.hits++;p.hitAt=Time.time;p.hitDirection=direction.sqrMagnitude>.01f?direction.normalized:Vector3.back;
+            bool keepDrinking=p.Alive&&(p.busyAction=="drink"||p.busyAction=="giftDrink");
+            if(!keepDrinking){p.busyUntil=0;p.busyAction="";}
+            if(p.Alive)return;
+            p.deathAt=Time.time;p.deathDirection=direction;
+            p.bag=false;p.escapeRound=0;p.drawn=false;p.move=Vector2.zero;p.controller.enabled=false;p.hitbox.enabled=false;p.head.enabled=false;p.solid.enabled=false;
+            AddEvent(p.name+" was eliminated.");
         }
 
         void Interact(Participant p)
@@ -427,12 +520,15 @@ namespace Saloon
         void Stand(Participant p)
         {
             var original=p.body.transform.position;
+            Physics.SyncTransforms();
+            foreach(float distance in new[]{.9f,1.15f,1.4f})
             foreach(var offset in new[]{Vector3.back,Vector3.right,Vector3.left,Vector3.forward})
             {
-                var pos=original+Quaternion.Euler(0,p.yaw,0)*offset*.9f;pos.y=.08f;
-                var collisions=Physics.OverlapCapsule(pos+Vector3.up*.4f,pos+Vector3.up*1.45f,.32f);
+                var pos=original+Quaternion.Euler(0,p.yaw,0)*offset*distance;pos.y=.08f;
+                if(phase==Phase.Turns&&!SaloonMovement.InRoom(pos,p.room))continue;
+                var collisions=Physics.OverlapCapsule(pos+Vector3.up*.4f,pos+Vector3.up*1.45f,.32f,~((1<<8)|(1<<SaloonRagdoll.Layer)),QueryTriggerInteraction.Ignore);
                 if(collisions.Any(c=>c.GetComponentInParent<SaloonBody>()?.id!=p.id))continue;
-                p.controller.enabled=false;p.body.transform.position=pos;p.controller.enabled=true;p.seat=-1;p.notice="";return;
+                p.controller.enabled=false;p.body.transform.position=pos;p.controller.enabled=true;p.seat=-1;p.poseVersion++;p.move=Vector2.zero;p.vertical=0;p.notice="Standing. WASD to move; F near an empty seat to sit.";UpdatePlayerColliders(p);return;
             }
             p.notice="There is no room to stand — someone is blocking your chair.";
         }
@@ -468,24 +564,27 @@ namespace Saloon
             if(!players.TryGetValue(recipient,out var own))return null;
             return new Snapshot
             {
-                players=players.Values.Select(p=>new PlayerView{id=p.id.ToString(),name=p.name,x=p.body.transform.position.x,y=p.body.transform.position.y,z=p.body.transform.position.z,yaw=p.yaw,pitch=p.pitch,alive=p.Alive,drawn=p.drawn,seated=p.seat>=0,sheriff=p.role==Role.Sheriff,busy=p.busyUntil>Time.time&&(p.busyAction!="rob"||own.id==p.id),shots=p.shots,health=p.hp,maxHealth=tuning.health,carriedBeer=p.beer,drinking=(p.busyAction=="drink"||(p.busyAction=="giftDrink"&&Time.time>=p.drinkReady))&&p.busyUntil>Time.time,
+                players=players.Values.Select(p=>new PlayerView{id=p.id.ToString(),name=p.name,voiceId=p.voiceId,x=p.body.transform.position.x,y=p.body.transform.position.y,z=p.body.transform.position.z,yaw=p.yaw,pitch=p.pitch,alive=p.Alive,ready=rounds.IsReady(p.id),drawn=p.drawn,seated=p.seat>=0,sheriff=p.role==Role.Sheriff,busy=p.busyUntil>Time.time&&(p.busyAction!="rob"||own.id==p.id),shots=p.shots,health=p.hp,maxHealth=tuning.health,carriedBeer=p.beer,drinking=(p.busyAction=="drink"||(p.busyAction=="giftDrink"&&Time.time>=p.drinkReady))&&p.busyUntil>Time.time,
+                    hits=p.hits,hitAge=p.hits>0?Mathf.Max(0,Time.time-p.hitAt):99,hitX=p.hitDirection.x,hitY=p.hitDirection.y,hitZ=p.hitDirection.z,
+                    observer=ObserverReady(p),bot=p.bot,deathAge=!p.Alive&&p.deathAt>=0?Time.time-p.deathAt:0,deathX=p.deathDirection.x,deathY=p.deathDirection.y,deathZ=p.deathDirection.z,
                     drinkRemaining=(p.busyAction=="drink"||p.busyAction=="giftDrink")?Mathf.Max(0,p.busyUntil-Time.time):0,
                     drinkDuration=tuning.drinkSeconds,giftRemaining=Mathf.Max(0,p.giftUntil-Time.time),
                     giftSequence=phase==Phase.Turns&&own.room==p.room&&p.giftUntil>Time.time?p.giftSequence:0,
                     giftTarget=phase==Phase.Turns&&own.room==p.room&&p.giftUntil>Time.time?p.giftTarget.ToString():"",
                     robbing=own.id==p.id&&p.busyAction=="rob"&&p.busyUntil>Time.time,
-                    moneyBag=own.id==p.id&&p.bag,escaping=own.id==p.id&&p.escapeRound>0,room=p.room,chosenRoom=p.chosenRoom,companion=p.companion?.ToString()??"",poseVersion=p.poseVersion,revealedRole=phase==Phase.Finished?p.role.ToString():""}).ToArray(),
-                phase=phase,remaining=MatchActive?Mathf.Max(0,rounds.Deadline-Time.time):0,
+                    moneyBag=own.id==p.id&&SaloonRules.CanRob(p.role)&&p.bag,escaping=own.id==p.id&&SaloonRules.CanRob(p.role)&&p.escapeRound>0,room=p.room,chosenRoom=p.chosenRoom,companion=p.companion?.ToString()??"",poseVersion=p.poseVersion,revealedRole=phase==Phase.Finished?p.role.ToString():""}).ToArray(),
+                phase=phase,remaining=MatchActive&&phase!=Phase.Discussion?Mathf.Max(0,rounds.Deadline-Time.time):0,
                 round=rounds.Round,roundLimit=rounds.Limit,
                 activePlayerId=phase==Phase.Turns?rounds.Active?.ToString():"",
                 activePlayerName=phase==Phase.Turns&&rounds.Active.HasValue?players[rounds.Active.Value].name:"",
                 turnOrder=rounds.Order.Select(id=>id.ToString()).ToArray(),
-                actionAvailable=phase==Phase.Turns&&rounds.CanAct(recipient,Time.time)&&DuelAllows(own),outcome=outcome,ownRole=own.role.ToString(),duel=PrivateDuel(own),roomTurn=PrivateRoomTurn(own),
+                actionAvailable=own.Alive&&phase==Phase.Turns&&rounds.CanAct(recipient,Time.time)&&DuelAllows(own),outcome=outcome,ownRole=own.role.ToString(),duel=PrivateDuel(own),roomTurn=PrivateRoomTurn(own),
                 ally="",
                 health=own.hp,ammo=own.ammo,beers=beers,carriedBeer=own.beer,notice=own.notice,
-                sandbox=Sandbox,moneyBag=own.bag,escapePending=own.escapeRound>0,
+                sandbox=Sandbox,moneyBag=SaloonRules.CanRob(own.role)&&own.bag,escapePending=SaloonRules.CanRob(own.role)&&own.escapeRound>0,
+                botsEnabled=BotsEnabled,botMatchSize=BotMatchSize,lobbyCapacity=SaloonRules.LobbyCapacity,
                 safeProgress=own.role==Role.Sheriff?own.inspectedProgress:-1,safeReport=own.role==Role.Sheriff?own.safeReport:"",
-                objectiveNotice=own.bag?(own.escapeRound>0?"Escape pending — hold the money at the bar.":"Money secured — escape available."):"",
+                objectiveNotice=SaloonRules.CanRob(own.role)&&own.bag?(own.escapeRound>0?"Escape pending — hold the money at the bar.":"Money secured — escape available."):"",
                 busyRemaining=Mathf.Max(0,own.busyUntil-Time.time),voiceRoom=voiceRoom
             };
         }
@@ -506,8 +605,8 @@ namespace Saloon
             if(snapshot.phase!=shownPhase)
             {
                 shownPhase=snapshot.phase;
-                if(shownPhase==Phase.Choosing)MenuOpen=false;
-                if(shownPhase!=Phase.Discussion)RoomPlannerOpen=false;
+                if(shownPhase==Phase.Choosing||shownPhase==Phase.Discussion)MenuOpen=false;
+                RoomPlannerOpen=shownPhase==Phase.Discussion;
                 Debug.Log("SALOON_PHASE "+shownPhase+" host="+Hosting+" round="+snapshot.round);
             }
             SyncPointer();
@@ -518,26 +617,31 @@ namespace Saloon
                     avatar=new GameObject("Avatar "+p.name).AddComponent<SaloonAvatar>();
                     avatar.Initialize(this,p,Array.IndexOf(snapshot.players,p));avatars.Add(p.id,avatar);
                 }
-                avatar.Apply(p,p.id==LocalId);
+                avatar.Apply(p,p.id==ViewpointId);
             }
             foreach(var id in avatars.Keys.Where(id=>!snapshot.players.Any(p=>p.id==id)).ToArray()){Destroy(avatars[id].gameObject);avatars.Remove(id);}
         }
 
         void UpdateCamera()
         {
-            var self=Self;if(self==null)return;
+            if(externalCamera){ViewCamera.transform.SetPositionAndRotation(externalPosition,externalRotation);return;}
+            if(UpdateDeathCamera())return;
+            var self=CameraPlayer;if(self==null)return;
             var target=new Vector3(self.x,self.y+(self.seated?1.35f:1.65f),self.z);
-            if((ViewCamera.transform.position-target).sqrMagnitude>9)ViewCamera.transform.position=target;
+            if(cameraCut||(ViewCamera.transform.position-target).sqrMagnitude>9)ViewCamera.transform.position=target;
             else ViewCamera.transform.position=Vector3.SmoothDamp(ViewCamera.transform.position,target,ref cameraVelocity,.045f);
-            ViewCamera.transform.rotation=Quaternion.Euler(pitch,yaw,0)*CameraImpact();
-            ViewCamera.fieldOfView=Mathf.Lerp(ViewCamera.fieldOfView,!MenuOpen&&Input.GetMouseButton(1)?60:78,Time.deltaTime*12);
+            var rotation=Quaternion.Euler(IsSpectating?self.pitch:pitch,IsSpectating?self.yaw:yaw,0)*(IsSpectating?Quaternion.identity:CameraImpact());
+            ViewCamera.transform.rotation=IsSpectating&&!cameraCut?Quaternion.Slerp(ViewCamera.transform.rotation,rotation,1-Mathf.Exp(-Time.deltaTime*20)):rotation;
+            cameraCut=false;
+            ViewCamera.fieldOfView=Mathf.Lerp(ViewCamera.fieldOfView,!MenuOpen&&!IsSpectating&&View.phase!=Phase.Discussion&&Input.GetMouseButton(1)?60:78,Time.deltaTime*12);
         }
 
         void UpdateInteractionHint()
         {
             InteractionHint="";if(Self==null||!Self.alive)return;
-            if(View.phase!=Phase.Lobby&&View.phase!=Phase.Finished)
-                return;
+            if(View.phase==Phase.Turns)
+            {InteractionHint=Self.seated?"F · Stand and dodge · Headshots only":"WASD · Move / dodge · F · Sit nearby";return;}
+            if(View.phase!=Phase.Lobby&&View.phase!=Phase.Finished)return;
             if(Self.seated){InteractionHint="E  /  stand up";return;}
             if(Physics.Raycast(ViewCamera.transform.position,ViewCamera.transform.forward,out var hit,tuning.interactionDistance,~0,QueryTriggerInteraction.Ignore))
             {
@@ -558,7 +662,7 @@ namespace Saloon
             foreach(var p in players.Values)Destroy(p.body);players.Clear();
             foreach(var a in avatars.Values)Destroy(a.gameObject);avatars.Clear();
             previousHp=previousShots=-1;shotKick=hitKick=HitFlash=0;RoomPlannerOpen=false;duels.Clear();roomTurns.Clear();pendingOutcome="";
-            View=null;phase=Phase.Lobby;Sandbox=false;helloSent=false;outcome="";MenuOpen=true;UnlockCursor();leaving=false;
+            spectateId=null;shownViewpoint=null;View=null;phase=Phase.Lobby;Sandbox=false;helloSent=false;outcome="";MenuOpen=true;UnlockCursor();leaving=false;
         }
 
         async void LeaveWithReason(string reason)
@@ -580,6 +684,7 @@ namespace Saloon
             VerificationFinished=false;VerificationPassed=false;verifying=true;SaloonSnapshotVerification.Run();yield return null;
             void Check(bool ok,string text){if(!ok){VerificationFinished=true;Debug.LogError("SALOON_GAMEPLAY FAIL "+text);throw new InvalidOperationException(text);}Debug.Log("SALOON_CHECK "+text);}
             var host=players[Connection.LocalId];var other=players.Values.First(p=>p.bot);
+            host.role=Role.Sheriff;other.role=Role.Outlaw; // Resource checks below exercise an enemy hit.
             var packed=SaloonSnapshotWire.Encode(PrivateSnapshot(host.id),out int legacyBytes);
             Check(packed.Length<legacyBytes/2,"real five-player snapshot uses less than half the old wire bytes");
             Debug.Log("SALOON_WIRE_SIZE legacy="+legacyBytes+" packed="+packed.Length);
@@ -588,10 +693,11 @@ namespace Saloon
             var start=host.body.transform.position;OnCommand(host.id,new Command{kind="input",x=1,z=1});Do(host,"interact");TickServer();
             Check(host.body.transform.position==start&&host.move==Vector2.zero&&host.seat>=100,"input and stand commands cannot move seated players");
             host.drawn=true;int ammo=host.ammo;Do(host,"fire");Check(host.ammo==ammo,"discussion blocks shots");
-            rounds.Start(players.Keys,Time.time-1,1,30,2,1,1);phase=rounds.Phase;TickServer();Check(phase==Phase.Choosing,"discussion opens room choices");
+            rounds.Start(players.Keys,Time.time-1,1,30,2,1,1);phase=rounds.Phase;TickServer();Check(phase==Phase.Discussion,"discussion waits for Ready regardless of elapsed time");
             OnCommand(host.id,new Command{kind="room",x=1,name=other.id.ToString()});OnCommand(other.id,new Command{kind="room",x=1,name=host.id.ToString()});
             Check(host.chosenRoom==1&&host.companion==other.id,"room nomination accepted by host");
-            yield return new WaitForSeconds(1.15f);Check(phase==Phase.Turns&&host.room==1&&other.room==1,"mutual companions occupy the same side room");
+            foreach(var p in players.Values)OnCommand(p.id,new Command{kind="ready",x=1});TickServer();
+            yield return new WaitForSeconds(.15f);Check(phase==Phase.Turns&&host.room==1&&other.room==1,"mutual companions occupy the same side room");
             duels.Clear(); // Legacy shared-action fixture; coin authorization is exercised separately below.
             var view=PrivateSnapshot(host.id);Check(view.players.First(p=>p.id==other.id.ToString()).room==1,"room roster replicated");
             Check(rounds.CanAct(host.id,Time.time)&&rounds.CanAct(other.id,Time.time),"all living players have a simultaneous action");
@@ -608,6 +714,7 @@ namespace Saloon
             yield return VerifyReleaseChanges();
             yield return VerifySocialChanges();
             yield return VerifyPolishChanges();
+            yield return VerifyPracticeAndFairTurns();
             VerificationPassed=true;VerificationFinished=true;Debug.Log("SALOON_GAMEPLAY PASS");if(!Application.isEditor)Application.Quit(0);
         }
 

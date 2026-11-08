@@ -14,8 +14,8 @@ namespace Saloon
             void Window(int limit=6)
             {
                 pendingOutcome="";outcome="";ResetHeist();
-                foreach(var p in players.Values){p.hp=3;p.role=Role.Deputy;p.hitbox.enabled=true;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;p.ammo=6;p.shots=0;}
-                rounds.Start(players.Keys,Time.time-3,1,30,limit,1,1);rounds.Tick(Time.time-2,id=>true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
+                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.role=Role.Deputy;p.hitbox.enabled=true;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;p.ammo=6;p.shots=0;}
+                rounds.Start(players.Keys,Time.time-3,1,30,limit,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
             }
             void Aim(Participant from,Participant to)
             {var dir=Eye(to)-Eye(from);from.yaw=Mathf.Atan2(dir.x,dir.z)*Mathf.Rad2Deg;from.pitch=0;from.drawn=true;from.busyUntil=0;from.ammo=6;from.nextShot=0;}
@@ -52,10 +52,18 @@ namespace Saloon
             Check(!host.Alive&&phase==Phase.Aftermath&&pendingOutcome=="LAW WINS","lethal final shot queues the result instead of displaying it immediately");
             Check(PrivateSnapshot(host.id).players.All(p=>string.IsNullOrEmpty(p.revealedRole)),"roles and results remain hidden until animations finish");
             Broadcast();yield return new WaitForSeconds(.25f);
-            Check(gun.gameObject.activeInHierarchy&&!ShowEliminationOverlay,"dying shooter retains their final gun animation without an elimination overlay");
+            Check(!gun.gameObject.activeInHierarchy&&avatars[host.id.ToString()].CorpseVisible&&!ShowEliminationOverlay,"dying shooter enters ragdoll view without an elimination overlay");
             Check(host.body.transform.position==position,"dead player retains their seat during terminal aftermath");
             yield return new WaitForSeconds(2.9f);Check(phase==Phase.Finished&&outcome=="LAW WINS","terminal result appears after three seconds");
             Check(PrivateSnapshot(host.id).players.All(p=>!string.IsNullOrEmpty(p.revealedRole)),"terminal result reveals roles after the delay");
+            Window();host.role=Role.Renegade;peer.role=Role.Sheriff;peer.hp=1;
+            var defeated=players.Values.Where(p=>p!=host&&p!=peer).ToArray();
+            for(int i=0;i<defeated.Length;i++){defeated[i].role=i<2?Role.Outlaw:Role.Deputy;defeated[i].hp=0;defeated[i].hitbox.enabled=false;}
+            turn=roomTurns[0];turn.order=new[]{host.id,peer.id}.Concat(defeated.Select(p=>p.id)).ToArray();
+            Aim(host,peer);Fire(host);
+            Check(host.Alive&&players.Values.Count(p=>p.Alive)==1&&phase==Phase.Aftermath&&pendingOutcome=="RENEGADE WINS — LAST STANDING","Renegade's final shot queues the last-survivor victory");
+            yield return new WaitForSeconds(3.15f);
+            Check(phase==Phase.Finished&&outcome=="RENEGADE WINS — LAST STANDING","Renegade victory completes without stealing or escaping");
             Debug.Log("SALOON_POLISH PASS");
         }
 #endif

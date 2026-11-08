@@ -6,7 +6,7 @@ on:
       release:
         description: Published release tag to execute
         required: true
-        default: v0.2.4
+        default: v0.2.9
         type: string
 
       suite:
@@ -20,6 +20,7 @@ on:
           - stress
           - limited
           - smoke
+          - lan
 
 permissions:
   contents: read

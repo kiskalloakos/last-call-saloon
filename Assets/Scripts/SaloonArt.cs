@@ -52,10 +52,11 @@ namespace Saloon
                 var previous=world.transform.Find("Low-poly art overlay");if(previous!=null)UnityEngine.Object.DestroyImmediate(previous.gameObject);
                 foreach(var child in world.GetComponentsInChildren<Transform>(true))
                     if(child!=null&&(child.name=="Chair visual"||child.name=="Table visual"||child.name=="Shelf visual"))UnityEngine.Object.DestroyImmediate(child.gameObject);
+                var interior=world.transform.Find("Western interior");if(interior!=null)UnityEngine.Object.DestroyImmediate(interior.gameObject);
                 SaloonWorld.GeneratedMaterials.Clear();
             }
             foreach(var label in world.GetComponentsInChildren<TextMesh>(true))label.gameObject.SetActive(false);
-            if(world.transform.Find("Low-poly art overlay")!=null)return;
+            if(world.transform.Find("Low-poly art overlay")!=null){SaloonInterior.Apply(world);return;}
             var overlay=new GameObject("Low-poly art overlay");overlay.transform.SetParent(world.transform,false);
             var woodTexture=Resources.Load<Texture2D>(Root+"Textures/WoodPlanks");
             var floor=SaloonWorld.Material("Retro floorboards",new Color(.62f,.48f,.34f));floor.mainTexture=woodTexture;floor.mainTextureScale=new Vector2(.5f,6);
@@ -94,6 +95,7 @@ namespace Saloon
             }
             At("Cup",overlay.transform,new Vector3(.6f,1.44f,3.8f),new Vector3(.11f,.14f,.11f));
             At("Mug",overlay.transform,new Vector3(1.6f,1.44f,3.7f),new Vector3(.18f,.23f,.17f));
+            SaloonInterior.Apply(world);
 
         }
 

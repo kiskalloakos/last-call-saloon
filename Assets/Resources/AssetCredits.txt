@@ -8,3 +8,9 @@ Other artwork is CC0: Kenney furniture and characters; Donnee tavern furniture;
 Frakassets/Pixor ale mug; Grab3D Office Safe; wriks WRAD ARMS;
 Amal Kumar / Poly Haven Wood Planks; James Ray Cock / Poly Haven Wine Barrel.
 Source links and full provenance are recorded in Documentation/ASSET-SOURCES.md.
+
+Shared Gunman character: Low Poly Western Starter Pack 1.0 by tt-3D
+https://assetstore.unity.com/packages/3d/characters/low-poly-western-starter-pack-383104
+Standard Unity Asset Store EULA (not CC0).
+https://unity.com/legal/as-terms
+Adapted for Last Call: normalized prefab, procedural animation, jaw/grip blend shapes.

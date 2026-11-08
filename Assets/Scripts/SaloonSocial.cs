@@ -41,11 +41,10 @@ namespace Saloon
         }
         readonly Dictionary<int,RoomTurn> roomTurns=new Dictionary<int,RoomTurn>();
         public bool RoomPlannerOpen;
-        public bool NeedsPointer=>View!=null&&(View.phase==Phase.Choosing||
-            (View.phase==Phase.Discussion&&RoomPlannerOpen)||(View.phase==Phase.Turns&&View.duel?.stage=="choosing"));
+        public bool NeedsPointer=>View!=null&&(View.phase==Phase.Discussion||View.phase==Phase.Choosing||(View.phase==Phase.Turns&&View.duel?.stage=="choosing"));
         public float HitFlash { get; private set; }
         float eliminatedAt=-10;
-        public bool ShowEliminationOverlay=>View?.phase!=Phase.Aftermath&&Time.unscaledTime-eliminatedAt>=1.2f;
+        public bool ShowEliminationOverlay=>View?.phase!=Phase.Aftermath&&Self?.observer==true;
         float shotKick,hitKick;
         int previousHp=-1,previousShots=-1;
         void SetupDuels(bool gather)
@@ -56,11 +55,16 @@ namespace Saloon
                 var pair=group.OrderBy(p=>p.id).ToArray();
                 if(pair.Length>2)
                 {
-                    float seconds=Mathf.Max(4,tuning.turnSeconds/pair.Length);
+                    float seconds=Mathf.Max(10,tuning.turnSeconds/pair.Length);
                     roomTurns[group.Key]=new RoomTurn{order=pair.OrderBy(p=>UnityEngine.Random.value).Select(p=>p.id).ToArray(),seconds=seconds,until=Time.time+seconds};
                     rounds.EnsureDeadline(Time.time+seconds*pair.Length+1);continue;
                 }
                 if(pair.Length!=2)continue;
+                foreach(var p in pair)
+                {
+                    var other=pair.First(x=>x.id!=p.id);var direction=other.body.transform.position-p.body.transform.position;
+                    p.yaw=Quaternion.LookRotation(direction).eulerAngles.y;p.pitch=0;p.poseVersion++;
+                }
                 duels[group.Key]=new Duel{a=pair[0].id,b=pair[1].id,heads=pair[UnityEngine.Random.Range(0,2)].id,choiceUntil=Time.time+CoinChoiceSeconds};
             }
             if(duels.Count>0)rounds.DelayDeadline(CoinChoiceSeconds+CoinFlipSeconds);
@@ -104,8 +108,11 @@ namespace Saloon
             while(turn.index<turn.order.Length)
             {
                 ulong id=turn.order[turn.index];
-                if(players[id].Alive&&rounds.CanAct(id,Time.time)&&Time.time<turn.until)return;
-                if(players[id].Alive&&rounds.CanAct(id,Time.time))
+                // A late frame must not let the shared deadline erase everyone's remaining turn.
+                // Only the current actor may time out; the next actor gets a fresh full window.
+                rounds.EnsureDeadline(Mathf.Max(Time.time,turn.until)+turn.seconds*(turn.order.Length-turn.index-1)+1);
+                if(players[id].Alive&&!rounds.HasSpent(id)&&Time.time<turn.until)return;
+                if(players[id].Alive&&!rounds.HasSpent(id))
                 {rounds.TrySpend(id,Time.time);players[id].notice="Passed — your turn timed out.";}
                 turn.index++;turn.until=Time.time+turn.seconds;
             }
@@ -132,12 +139,12 @@ namespace Saloon
         }
         public void ChooseCoin(int side)=>Connection.Send(new Command{kind="coin",x=side});
         public void ToggleRoomPlanner()
-        {if(View?.phase!=Phase.Discussion)return;RoomPlannerOpen=!RoomPlannerOpen;SyncPointer();}
-        void SyncPointer(){if(MenuOpen||NeedsPointer)UnlockCursor();else LockCursor();}
+        {if(View?.phase!=Phase.Discussion)return;RoomPlannerOpen=true;SyncPointer();}
+        void SyncPointer(){if(!MenuOpen&&NeedsPointer&&Self?.alive==true&&Input.GetMouseButton(1))LockCursor();else if(MenuOpen||NeedsPointer||Self?.alive==false)UnlockCursor();else LockCursor();}
         void ApplyImpactFeedback(PlayerView self)
         {
             if(self==null)return;
-            if(self.health<=0&&previousHp!=0)eliminatedAt=Time.unscaledTime;
+            if(self.health<=0&&previousHp!=0){eliminatedAt=Time.unscaledTime;cameraCut=true;}
             if(self.health>0)eliminatedAt=-10;
             if(previousHp>=0&&self.health<previousHp){hitKick=1;HitFlash=.22f;}
             if(previousShots>=0&&self.shots>previousShots)shotKick=1;

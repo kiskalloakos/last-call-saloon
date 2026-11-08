@@ -15,45 +15,44 @@ namespace Saloon
         int lastShot;
         bool local;
         Vector3 target;
-        float recoil,snapshotAt,shotAt=-10;
+        float snapshotAt,shotAt=-10,drawAmount;
         Light flash,thirdFlash;
         float muzzleUntil;
-        Animation locomotion;
-        Transform rightArm,rightForearm,rightHand;
+        SaloonCharacterMotion motion;
+        SaloonSpeechMouth speechMouth;
+        Vector3 walkingVelocity;
+        Transform rightArm,rightForearm,rightHand,gunSpin,firstGunSpin;
+        Quaternion handBasis;Vector3 handGrip;
+        SaloonGunGrip gunGrip;
+        SaloonHitReaction hitReaction;
+        int lastHit;
+        public bool DamageFlashVisible=>hitReaction!=null&&hitReaction.FlashVisible;
+        public float LastVisualHitAt=>hitReaction?.LastHitAt??-10;
         int shownHealth=-1,shownMaxHealth=-1;
+        SaloonRagdoll ragdoll;
+        public SaloonRagdoll DeathBody=>ragdoll;
+        public bool CorpseVisible=>state!=null&&!state.alive&&!state.observer&&model.activeSelf;
 
         public void Initialize(SaloonGame owner,PlayerView initial,int colorIndex)
         {
-            game=owner;state=initial;target=new Vector3(initial.x,initial.y,initial.z);transform.position=target;
-            var mat=SaloonWorld.Material("Coat "+initial.id,SaloonWorld.PlayerColors[colorIndex%5]);
-            mat.mainTexture=Resources.Load<Texture2D>("Art/CharacterSkin");mat.color=Color.Lerp(mat.color,Color.white,.65f);
-            model=SaloonWorld.Prop("Art/Character/characterMedium",Vector3.zero,1.72f,0,mat,false);
-            model.transform.SetParent(transform,false);model.transform.localPosition=Vector3.zero;
-            var bones=model.GetComponentsInChildren<Transform>();
-            rightArm=bones.FirstOrDefault(t=>t.name=="RightArm");rightForearm=bones.FirstOrDefault(t=>t.name=="RightForeArm");rightHand=bones.FirstOrDefault(t=>t.name=="RightHand");
-            var skeleton=model.GetComponentsInChildren<Transform>().FirstOrDefault(t=>t.name=="Root");
-            if(skeleton!=null)
-            {
-                foreach(var existing in model.GetComponentsInChildren<Animation>())
-                    if(existing.gameObject!=skeleton.gameObject){existing.Stop();existing.enabled=false;}
-                foreach(var animator in model.GetComponentsInChildren<Animator>())animator.enabled=false;
-                locomotion=skeleton.GetComponent<Animation>();if(locomotion==null)locomotion=skeleton.gameObject.AddComponent<Animation>();
-                // The skinned mesh is a sibling of the armature, not its child.
-                locomotion.cullingType=AnimationCullingType.AlwaysAnimate;
-                foreach(string name in new[]{"idle","run"})
-                {
-                    var clip=Resources.LoadAll<AnimationClip>("Art/Animations/"+name).Where(c=>!c.name.StartsWith("__preview__")).OrderByDescending(c=>c.length).FirstOrDefault();
-                    if(clip==null)continue;locomotion.AddClip(clip,name);locomotion[name].wrapMode=WrapMode.Loop;
-                    if(name=="run")locomotion[name].speed=.65f;
-                }
-                if(locomotion.GetClip("idle")!=null)locomotion.Play("idle");
-            }
-            gun=MakeGun(transform);gun.transform.localPosition=new Vector3(.27f,1.1f,.36f);
+            game=owner;state=initial;drawAmount=initial.drawn?1:0;target=new Vector3(initial.x,initial.y,initial.z);transform.position=target;
+            var prefab=Resources.Load<GameObject>(SaloonCharacterMotion.ResourcePath);
+            if(prefab==null)throw new System.InvalidOperationException("Prepare the Western Gunman character from the Saloon menu.");
+            model=Instantiate(prefab,transform);model.name="Western Gunman";
+            motion=model.GetComponent<SaloonCharacterMotion>();motion.Initialize(initial.seated);
+            speechMouth=model.GetComponent<SaloonSpeechMouth>();speechMouth.PhaseOffset=(ulong.Parse(initial.id)%17)*.71f;speechMouth.Initialize();
+            rightArm=motion.Bone(HumanBodyBones.RightUpperArm);rightForearm=motion.Bone(HumanBodyBones.RightLowerArm);rightHand=motion.Bone(HumanBodyBones.RightHand);
+            var middle=motion.Bone(HumanBodyBones.RightMiddleProximal);
+            var thumb=motion.Bone(HumanBodyBones.RightThumbProximal);
+            handBasis=Quaternion.Inverse(rightHand.rotation)*Quaternion.LookRotation(middle.position-rightHand.position,rightHand.forward);
+            handGrip=rightHand.InverseTransformPoint((middle.position+thumb.position)*.5f);
+            gunGrip=new SaloonGunGrip(motion);hitReaction=new SaloonHitReaction(model);lastHit=initial.hits;
+            gun=MakeGun(transform);gunSpin=gun.transform.Find("Spin pivot");
             mug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));mug.transform.SetParent(transform,false);mug.transform.localPosition=new Vector3(.28f,1.02f,.33f);mug.SetActive(false);
             var nameObject=new GameObject("Name");nameObject.transform.SetParent(transform);nameObject.transform.localPosition=new Vector3(0,2.05f,0);
-            label=nameObject.AddComponent<TextMesh>();label.characterSize=.022f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;
+            label=nameObject.AddComponent<TextMesh>();label.characterSize=.015f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;
             var healthObject=new GameObject("Health dots");healthObject.transform.SetParent(transform,false);healthObject.transform.localPosition=new Vector3(0,1.85f,0);
-            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.018f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.richText=true;
+            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.014f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.richText=true;
             if(!game.Hosting&&initial.id!=game.LocalId)
             {
                 var collider=gameObject.AddComponent<CapsuleCollider>();collider.center=Vector3.up*.9f;collider.height=1.8f;collider.radius=.3f;
@@ -67,7 +66,26 @@ namespace Saloon
 
         public void Apply(PlayerView next,bool isLocal)
         {
+            var nextPosition=new Vector3(next.x,next.y,next.z);
+            bool placed=next.poseVersion!=state.poseVersion||(nextPosition-target).sqrMagnitude>2;
+            walkingVelocity=placed?Vector3.zero:(nextPosition-target)/Mathf.Max(.03f,Time.time-snapshotAt);
+            if(placed)transform.position=nextPosition;
+            if(next.hits<lastHit||(!state.alive&&next.alive)){hitReaction.Clear();motion.ClearHit();}
+            if(next.hits>lastHit&&next.hitAge<.70f)
+            {
+                motion.Hit(new Vector3(next.hitX,next.hitY,next.hitZ),next.hitAge);hitReaction.Trigger(next.hitAge);
+            }
+            lastHit=next.hits;
             state=next;local=isLocal;snapshotAt=Time.time;
+            if(!next.alive||next.observer||next.drinking){speechMouth.Silence();gunGrip.Release();}
+            if(next.alive&&ragdoll!=null){ragdoll.Restore();ragdoll=null;}
+            if(!next.alive&&!next.observer&&ragdoll==null)
+            {
+                model.SetActive(true);ragdoll=model.AddComponent<SaloonRagdoll>();
+                ragdoll.Launch(new Vector3(next.deathX,next.deathY,next.deathZ));
+            }
+            if(next.observer&&ragdoll!=null)ragdoll.Hide();
+            var hitbox=GetComponent<CapsuleCollider>();if(hitbox!=null)hitbox.enabled=next.alive;
             drinkAudio.spatialBlend=isLocal?0:1;drinkAudio.volume=isLocal?.35f:.28f;
             if(next.drinking&&!wasDrinking){drinkAudio.pitch=Mathf.Clamp(2.5f/Mathf.Max(.2f,next.drinkDuration),.5f,3);drinkAudio.Play();}
             if(!next.drinking&&wasDrinking)drinkAudio.Stop();wasDrinking=next.drinking;
@@ -76,8 +94,7 @@ namespace Saloon
                 lastGift=next.giftSequence;audioSource.PlayOneShot(SaloonBeerAudio.Handoff,.25f);StartCoroutine(Handoff(next.giftTarget,next.giftRemaining));
             }
             target=new Vector3(next.x,next.y,next.z);
-            model.SetActive(!local);label.gameObject.SetActive(!local);
-            healthDots.gameObject.SetActive(!local);
+            SetViewpoint(isLocal);
             label.text=next.name+(!next.alive?"  ·  eliminated":"")+(next.sheriff?"\nSHERIFF":"")+(!string.IsNullOrEmpty(next.revealedRole)?"\n"+next.revealedRole:"");
             label.color=!next.alive?new Color(.61f,.57f,.51f):next.sheriff?new Color(1,.77f,.3f):new Color(.94f,.86f,.69f);
             if(next.health!=shownHealth||next.maxHealth!=shownMaxHealth)
@@ -94,74 +111,100 @@ namespace Saloon
             }
             bool holdingBeer=next.alive&&!next.drawn&&(next.carriedBeer>0||next.drinking);
             mug.SetActive(!local&&holdingBeer);
-            if(local&&firstPersonGun==null)
-            {
-                firstPersonGun=MakeGun(game.ViewCamera.transform);
-                firstPersonMug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));firstPersonMug.transform.SetParent(game.ViewCamera.transform,false);
-                flash=MakeMuzzle(firstPersonGun.transform);
-            }
             if(firstPersonMug!=null)firstPersonMug.SetActive(local&&holdingBeer);
             if(next.shots>lastShot)
             {
                 audioSource.spatialBlend=local?0:1;audioSource.pitch=1+(next.shots%3-1)*.015f;
-                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);recoil=1;shotAt=Time.time;muzzleUntil=Time.time+.075f;
+                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);shotAt=Time.time;muzzleUntil=Time.time+.075f;
                 var tracer=new GameObject("Shot trail");var line=tracer.AddComponent<LineRenderer>();
                 line.sharedMaterial=SaloonWorld.Material("Shot trail",new Color(1,.7f,.3f));line.startWidth=.018f;line.endWidth=.003f;line.positionCount=2;
                 var eye=target+Vector3.up*(next.seated?1.35f:1.65f);var dir=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
-                line.SetPosition(0,eye+dir*.4f);line.SetPosition(1,eye+dir*20);Destroy(tracer,.055f);
+                var weapon=local&&firstPersonGun!=null?firstPersonGun:gun;
+                line.SetPosition(0,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip));line.SetPosition(1,eye+dir*20);Destroy(tracer,.055f);
             }
             lastShot=next.shots;
+        }
+
+        public void SetViewpoint(bool isViewpoint)
+        {
+            local=isViewpoint;
+            model.SetActive(!state.observer&&(!local||!state.alive));
+            label.gameObject.SetActive(!state.observer&&(!local||!state.alive));healthDots.gameObject.SetActive(!local&&state.alive);
+            if(local&&state.alive&&firstPersonGun==null)
+            {
+                firstPersonGun=MakeGun(game.ViewCamera.transform);firstGunSpin=firstPersonGun.transform.Find("Spin pivot");
+                firstPersonMug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));firstPersonMug.transform.SetParent(game.ViewCamera.transform,false);
+                flash=MakeMuzzle(firstPersonGun.transform);
+            }
         }
 
         void LateUpdate()
         {
             if(state==null)return;
-            bool moving=(transform.position-target).sqrMagnitude>.003f&&state.alive&&!state.seated;
-            if(locomotion!=null)
+            hitReaction.Tick();
+            speechMouth.Tick(game.Voice.SpeechLevel(state.voiceId),state.alive&&!state.observer&&!state.drinking,Time.unscaledDeltaTime);
+            if(!state.alive)
             {
-                string clip=moving?"run":"idle";
-                if(locomotion.GetClip(clip)!=null&&!locomotion.IsPlaying(clip))locomotion.CrossFade(clip,.15f);
+                gun.SetActive(false);mug.SetActive(false);
+                if(firstPersonGun!=null)firstPersonGun.SetActive(false);
+                if(firstPersonMug!=null)firstPersonMug.SetActive(false);
+                if(ragdoll!=null&&!state.observer)
+                {
+                    label.transform.position=ragdoll.Center+Vector3.up*.65f;
+                    label.transform.rotation=game.ViewCamera.transform.rotation;
+                }
+                return;
             }
             transform.position=Vector3.Lerp(transform.position,target,1-Mathf.Exp(-Time.deltaTime*22));
             transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,state.yaw,0),Time.deltaTime*18);
-            model.transform.localRotation=Quaternion.Euler(state.alive?(state.drinking?-5:0):12,0,0);
-            model.transform.localScale=new Vector3(1,state.seated?.78f:1,1);
-            if(label!=null)label.transform.rotation=game.ViewCamera.transform.rotation;
-            if(healthDots!=null)healthDots.transform.rotation=game.ViewCamera.transform.rotation;
-            recoil=Mathf.MoveTowards(recoil,0,Time.deltaTime*5);
-            float spin=360*Mathf.SmoothStep(0,1,Mathf.Clamp01((Time.time-shotAt-.16f)/.72f));
-            gun.transform.localRotation=Quaternion.Euler(state.pitch-recoil*25+spin,0,-recoil*8);
             float progress=1-Mathf.Clamp01((state.drinkRemaining-(Time.time-snapshotAt))/Mathf.Max(.01f,state.drinkDuration));
             float lift=state.drinking?Mathf.SmoothStep(0,1,Mathf.Min(progress/.2f,(1-progress)/.2f)):0;
+            motion.Pose(state.seated,Time.time-snapshotAt<.25f?walkingVelocity:Vector3.zero,lift,SaloonWeaponPose.Kick(Time.time-shotAt),state.drawn?state.pitch:0);
+            if(label!=null){label.transform.localPosition=new Vector3(0,state.seated?1.60f:2.05f,0);label.transform.rotation=game.ViewCamera.transform.rotation;}
+            if(healthDots!=null){healthDots.transform.localPosition=new Vector3(0,state.seated?1.46f:1.85f,0);healthDots.transform.rotation=game.ViewCamera.transform.rotation;}
+            float elapsed=Time.time-shotAt;
+            bool finishingShot=state.shots>0&&elapsed<SaloonWeaponPose.Duration;
+            drawAmount=Mathf.MoveTowards(drawAmount,(state.alive&&state.drawn)||finishingShot?1:0,Time.deltaTime/SaloonWeaponPose.DrawSeconds);
+            float spin=SaloonWeaponPose.Flip(elapsed);
+            var shotRotation=SaloonWeaponPose.Rotation(elapsed);var shotOffset=SaloonWeaponPose.Offset(elapsed);
+            var drawOffset=SaloonWeaponPose.DrawOffset(drawAmount);var drawRotation=SaloonWeaponPose.DrawRotation(drawAmount);
+            gun.transform.localRotation=Quaternion.Euler(state.pitch,0,0)*shotRotation*drawRotation;
+            gun.transform.localPosition=new Vector3(.25f,state.seated?.91f:1.20f,.44f)+shotOffset+drawOffset;
+            gunSpin.localRotation=Quaternion.Euler(spin,0,0);
+            bool weaponVisible=!state.drinking&&(drawAmount>.001f||finishingShot);
+            if(weaponVisible)
+                gunGrip.Pose(gun.transform,transform.rotation*Quaternion.Euler(state.pitch,0,0)*shotRotation*drawRotation,drawAmount);
+            else gunGrip.Release();
             mug.transform.localPosition=Vector3.Lerp(new Vector3(.28f,state.seated?.80f:1.02f,.33f),new Vector3(.06f,state.seated?.96f:1.30f,.38f),lift);
             // +Y is the mug's rim. Negative pitch brings the rim toward the drinker (-Z).
             mug.transform.localRotation=Quaternion.Euler(-65*lift,0,-10*lift);
+            if(lift>0)
+            {
+                var sipOrigin=motion.Mouth-mug.transform.rotation*(Vector3.up*.155f);
+                mug.transform.position=Vector3.Lerp(transform.TransformPoint(new Vector3(.28f,state.seated?.80f:1.02f,.33f)),sipOrigin,lift);
+            }
             if(mug.activeInHierarchy&&rightArm!=null&&rightForearm!=null&&rightHand!=null)
             {
-                var grip=mug.transform.TransformPoint(new Vector3(.09f,.05f,0));
-                // Bend the existing skinned arm toward the mug after the idle animation.
-                for(int i=0;i<5;i++)
-                {
-                    rightForearm.rotation=Quaternion.FromToRotation(rightHand.position-rightForearm.position,grip-rightForearm.position)*rightForearm.rotation;
-                    rightArm.rotation=Quaternion.FromToRotation(rightHand.position-rightArm.position,grip-rightArm.position)*rightArm.rotation;
-                }
+                var rotation=Quaternion.LookRotation(mug.transform.up,mug.transform.right)*Quaternion.Inverse(handBasis);
+                rightHand.rotation=rotation;
+                var grip=mug.transform.TransformPoint(new Vector3(.08f,.08f,0));
+                SaloonWeaponPose.Reach(rightArm,rightForearm,rightHand,grip-rightHand.TransformVector(handGrip),transform.right*.4f-transform.forward*.2f);
+                rightHand.rotation=rotation;
             }
             if(firstPersonMug!=null)
             {
                 firstPersonMug.transform.localPosition=Vector3.Lerp(new Vector3(.23f,-.30f,.43f),new Vector3(.08f,-.16f,.30f),lift);
                 firstPersonMug.transform.localRotation=Quaternion.Euler(-65*lift,0,-10*lift);
             }
-            bool weaponVisible=(state.alive&&state.drawn)||(state.shots>0&&Time.time-shotAt<.95f);
             gun.SetActive(!local&&weaponVisible);
             thirdFlash.gameObject.SetActive(!local&&weaponVisible&&Time.time<muzzleUntil);
             if(firstPersonGun!=null)
             {
                 firstPersonGun.SetActive(local&&weaponVisible);
-                firstPersonGun.transform.localPosition=new Vector3(.23f,-.24f,.43f-recoil*.13f);
-                firstPersonGun.transform.localRotation=Quaternion.Euler(-recoil*28+spin,0,-recoil*8);
+                firstPersonGun.transform.localPosition=new Vector3(.22f,-.25f,.40f)+shotOffset+drawOffset;
+                firstPersonGun.transform.localRotation=shotRotation*drawRotation;
+                firstGunSpin.localRotation=Quaternion.Euler(spin,0,0);
                 flash.gameObject.SetActive(local&&weaponVisible&&Time.time<muzzleUntil);
-                if(game.View!=null&&game.View.busyRemaining>0)
-                    firstPersonGun.transform.localRotation*=Quaternion.Euler(25,0,25);
             }
         }
 
@@ -184,7 +227,7 @@ namespace Saloon
 
         static Light MakeMuzzle(Transform parent)
         {
-            var go=new GameObject("Muzzle flash");go.transform.SetParent(parent,false);go.transform.localPosition=new Vector3(0,.14f,.21f);
+            var go=new GameObject("Muzzle flash");go.transform.SetParent(parent,false);go.transform.localPosition=new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip;
             var mesh=new Mesh{name="Low-poly muzzle burst"};var vertices=new Vector3[9];var triangles=new int[24];
             for(int i=0;i<8;i++)
             {
@@ -202,8 +245,10 @@ namespace Saloon
         public static GameObject MakeGun(Transform parent)
         {
             var go=new GameObject("Low-poly revolver");go.transform.SetParent(parent,false);
+            var pivot=new GameObject("Spin pivot");pivot.transform.SetParent(go.transform,false);pivot.transform.localPosition=SaloonWeaponPose.Trigger;
             var visual=SaloonArt.Model("Revolver",null,new Vector3(.075f,.18f,.39f));
-            visual.transform.SetParent(go.transform,false);visual.transform.localRotation=Quaternion.identity;
+            visual.transform.SetParent(pivot.transform,false);visual.transform.localPosition=-SaloonWeaponPose.Grip-SaloonWeaponPose.Trigger;
+            visual.transform.localRotation=Quaternion.identity;
             return go;
         }
 

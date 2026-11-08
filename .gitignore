@@ -8,3 +8,12 @@ Builds/
 *.sln
 *.slnx
 .DS_Store
+
+# Imported Asset Store content and derived meshes stay local; distribute compiled players.
+Assets/tt-3d/
+Assets/tt-3d.meta
+Assets/Resources/Art/Western/
+Assets/Resources/Art/Western.meta
+Assets/_Recovery/
+Assets/_Recovery.meta
+__pycache__/

@@ -38,3 +38,15 @@ inspected during conversion. Existing animated Kenney characters are retained; t
 Quaternius character replacement was not needed for this pass.
 
 The CC0 Old Revolver by Lucian Pavel was evaluated and retained as an unused source candidate; its close-up appearance did not fit the beta. The simpler TimDev model is the active weapon.
+
+
+## Shared Western character — 2026-11-08
+
+All players use the Gunman from Low Poly Western Starter Pack 1.0 by tt-3D:
+https://assetstore.unity.com/packages/3d/characters/low-poly-western-starter-pack-383104
+Imported through the user's Unity Asset Store account under the Standard Asset Store EULA.
+Original pack files and derived Gunman meshes/prefabs remain local and are excluded from
+the public source repository. They are included only within compiled game distributions.
+To work from a fresh source checkout, acquire/import the pack through your own Unity
+account, then run **Saloon → Prepare Western Gunman character**. The preparation code
+creates the local runtime prefab and mouth/grip shapes. The character is not CC0.

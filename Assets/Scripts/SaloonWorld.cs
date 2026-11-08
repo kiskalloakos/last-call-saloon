@@ -8,8 +8,8 @@ namespace Saloon
     public static class SaloonWorld
     {
         public static readonly Vector3[] Spawns = {
-            new Vector3(-3, .08f, -3), new Vector3(3, .08f, -3), new Vector3(-5, .08f, 0),
-            new Vector3(2, .08f, 0), new Vector3(6.5f, .08f, 3)
+            new Vector3(-2.2f,.08f,.6f),new Vector3(2.2f,.08f,.6f),new Vector3(-2.2f,.08f,1.8f),new Vector3(2.2f,.08f,1.8f),
+            new Vector3(-1.1f,.08f,2.5f),new Vector3(1.1f,.08f,2.5f),new Vector3(-1.5f,.08f,-2.8f),new Vector3(1.5f,.08f,-2.8f)
         };
         public static readonly Color[] PlayerColors = {
             new Color(.75f,.35f,.20f), new Color(.25f,.51f,.65f), new Color(.66f,.57f,.29f),

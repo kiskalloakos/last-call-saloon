@@ -14,13 +14,14 @@ namespace Saloon
             void Discussion()
             {
                 pendingOutcome="";
-                foreach(var p in players.Values){p.hp=3;p.hitbox.enabled=true;p.beer=0;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;}
+                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.hitbox.enabled=true;p.beer=0;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;}
                 rounds.Start(players.Keys,Time.time,30,30,6,1,1);phase=rounds.Phase;PositionEveryone(true);
             }
             void Actions(bool pair)
             {
                 Discussion();if(pair){host.chosenRoom=peer.chosenRoom=1;host.companion=peer.id;peer.companion=host.id;}
-                rounds.Start(players.Keys,Time.time-3,1,30,6,1,1);rounds.Tick(Time.time-2,id=>true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);if(!pair)roomTurns.Clear();
+                host.role=Role.Sheriff;peer.role=Role.Outlaw;
+                rounds.Start(players.Keys,Time.time-3,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);if(!pair)roomTurns.Clear();
             }
             void Aim(Participant from,Participant to)
             {var dir=Eye(to)-Eye(from);from.yaw=Mathf.Atan2(dir.x,dir.z)*Mathf.Rad2Deg;from.pitch=0;from.drawn=true;from.busyUntil=0;from.ammo=6;from.nextShot=0;}

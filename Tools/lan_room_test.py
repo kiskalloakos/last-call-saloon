@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Rendered host/client regression: real 30s discussion, UI, room commands and assignment."""
+"""Rendered host/client regression: discussion/Ready UI, room commands and assignment."""
 import argparse
 from pathlib import Path
 import subprocess
@@ -47,10 +47,10 @@ try:
                             print(f'SALOON_PHASE_LAG {phase} {lag:.2f}s', flush=True)
         if link and not outage_started:
             host_log = args.logs / 'host.log'
-            if host_log.exists() and 'SALOON_PHASE Choosing' in host_log.read_text(errors='replace'):
+            if host_log.exists() and 'SALOON_PHASE Discussion' in host_log.read_text(errors='replace'):
                 link.blackout(5)
                 outage_started = True
-                print('SALOON_LINK starting 5s packet outage during room selection', flush=True)
+                print('SALOON_LINK starting 5s packet outage during discussion/planning', flush=True)
         time.sleep(.25)
     passed = not link or (outage_started and link.error is None and link.forwarded > 0 and link.dropped > 0)
     if args.limited:
