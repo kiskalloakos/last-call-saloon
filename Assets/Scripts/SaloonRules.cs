@@ -80,7 +80,7 @@ namespace Saloon
                     "Stop the money escaping until the final round with a Law player alive, or eliminate every Outlaw and the Renegade. You cannot rob or escape with money.",
                     "The Deputy is your ally. Shooting them also costs you 1 HP.",
                     "HOW TO PROTECT THE MONEY",
-                    "1. Choose <b>Bar</b>, then Ready.\n2. On your turn, press <b>C</b> to inspect. It tells you whether the safe was touched or money is missing.\n3. Hold <b>V</b> to talk. Ask what others did and compare their stories.\n4. Use your turn to shoot a suspected thief or help an ally with beer.\n5. Keep the money from escaping. The Deputy is helping you, but their role is hidden.");
+                    "1. Choose <b>Bar</b>, then Ready.\n2. On your turn, press <b>C</b> to inspect. It tells you whether the safe was touched, if new marks appeared, or money is missing. Read your clues during discussion.\n3. Hold <b>V</b> to talk. Ask what others did and compare their stories.\n4. Use your turn to shoot a suspected thief or help an ally with beer.\n5. Keep the money from escaping. The Deputy is helping you, but their role is hidden.");
                 case Role.Deputy:return new RoleGuide(
                     "Help the Sheriff protect the money. Your role is secret, even from the Sheriff.",
                     "Protect the Sheriff and stop the thieves. <b>C is Sheriff-only.</b> Use your turn to defend the money or help the Sheriff.",
@@ -170,6 +170,7 @@ namespace Saloon
         public RoomTurnView roomTurn;
         public bool hasDuel,hasRoomTurn;
         public string safeReport;
+        public string[] evidence;
         public int health, ammo, beers, carriedBeer;
         public bool sandbox, moneyBag, escapePending;
         public bool botsEnabled;

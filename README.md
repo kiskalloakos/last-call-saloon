@@ -203,6 +203,13 @@ UDP port (7777 by default), or create/join an online room code. All devices must
 same source/build version: use matching 0.2.10 clients for this playtest. Mixed versions are rejected with a
 clear message. A disconnect reason stays on the menu instead of being silently replaced.
 
+## Private discussion clues (Unity development version)
+
+- At the Bar during room actions, keep someone working the safe in view for about **one second**. If you can see them clearly, your notebook records their name and round. Looking away, walls, other rooms and death prevent this. It does not say whether they finished or got any money.
+- **Sheriff: press C on your turn at the Bar.** Your inspection records the safe's condition, whether new tool marks appeared since your previous check, and the round of the latest completed safe work. It never names the thief. An interrupted attempt leaves no completed-work marks.
+- During discussion, read **YOUR CLUES · PRIVATE** on the left. It holds your six latest clues, newest first. Scroll to read older ones; they stay through rounds and reset for a new match.
+- Hold **V** to tell the table what you found. Clues are not shared automatically. You can keep quiet or bluff; nobody else can open your notebook. Reports are snapshots of what you knew then, not live updates.
+
 ## What happens in a round
 
 | Phase | Default length | What happens |
@@ -309,8 +316,8 @@ When the carrier is eliminated, the money becomes collectible at the bar again w
 the safe remains open. It does not become a loose object you have to walk over to pick up.
 
 Robbery has no reaching/leaning animation, visible money pouch, forced holster, sound cue,
-global notification, role reveal or public action log. Even roommates receive no robbery,
-bag, escape or robbery-busy flags; they may suspect you from your choices, but cannot read
+global notification, role reveal or public action log. Roommates receive no raw robbery,
+bag, escape or robbery-busy flags; they may collect the private witness clue described above, but cannot read
 an automatic visual confession. The worker/carrier still sees their own private status.
 Safe progress is no longer live public HUD information.
 

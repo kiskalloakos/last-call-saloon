@@ -880,3 +880,31 @@ the sole survivor; Renegade has no money objective.
 - Kept the 0.2.10 release marked prerelease. The exact reported Windows disconnect and
   the single intermittent impaired initial join remain unconfirmed/unresolved. These tests
   use multiple processes on one machine per platform, not four separate physical devices.
+
+
+## 2026-11-09 — private discussion evidence (Unity development source)
+
+- Added a host-authoritative private notebook, six latest entries with round labels,
+  shown during discussion. Entries persist across rounds and reset with the heist for
+  a new match. Every snapshot carries only its recipient's notebook; spectator POV
+  never exposes the followed player's clues. No global clue messages or role reveals.
+- A living bar player must look toward a living safe worker within 12 units, unobstructed,
+  continuously for 0.75 seconds. Looking away or losing sight resets the observation.
+  The clue names the worker but explicitly does not claim completion or money ownership.
+- Sheriff C retains its role/room/action restrictions. Reports include new marks since
+  the previous check and the round of the latest completed work, with no thief identity.
+  Interrupted work does not add completed-work marks; reports remain last-known checks.
+- `SALOON_EVIDENCE PASS` (twice) and `SALOON_EDITOR_ITERATION PASS` in
+  `/tmp/saloon-evidence.log`: looking away, brief glances, walls, death, sustained sight,
+  deduplication, recipient privacy, interrupted work, inspection deltas/action cost,
+  stale reports, compressed wire roundtrip, history bound and new-match reset.
+- Visually inspected the populated notebook alongside discussion planning in Unity:
+  both clues readable, scrolling available, no overlap with room/companion/Ready buttons.
+  README and the Sheriff role guide describe the mechanic. No new downloadable builds.
+
+- A report-height edit made during the first broad run triggered hot reload and invalidated
+  that run's avatar/network fixture state. Stopped and restarted Unity; the clean run in
+  `/tmp/saloon-evidence-regressions.log` has no runtime exceptions and passed snapshot wire/
+  stream, round clock, heist, beer, release, social, polish, practice, gameplay and
+  `SALOON_EDITOR_ROUNDS PASS`. Restored the suite's generated historical PNG captures.
+- Existing downloadable 0.2.10 binaries are unchanged; test this feature in Unity source.

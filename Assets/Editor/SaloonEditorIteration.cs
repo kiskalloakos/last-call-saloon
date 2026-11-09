@@ -51,6 +51,9 @@ public static class SaloonEditorIteration
     [MenuItem("Saloon/Verify four-player LAN recovery in Play mode")]
     public static void RunRecovery(){Begin("recovery");}
 
+    [MenuItem("Saloon/Verify discussion evidence in Play mode")]
+    public static void RunEvidence(){Begin("evidence");}
+
     static void Begin(string mode)
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before verifying.");
@@ -67,7 +70,7 @@ public static class SaloonEditorIteration
             string mode=SessionState.GetString(Mode,"");
             bool lobby=mode=="lobby"||mode=="disconnect"||mode=="recovery";
             if(lobby)game.SetBotsEnabled(false);
-            game.HostLan(!lobby);game.StartCoroutine(mode=="recovery"?game.VerifyLanRecovery():mode=="disconnect"?game.VerifyDisconnectDetails():mode=="planning"?game.VerifyPlanningDraft():mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
+            game.HostLan(!lobby);game.StartCoroutine(mode=="evidence"?game.VerifyEvidence():mode=="recovery"?game.VerifyLanRecovery():mode=="disconnect"?game.VerifyDisconnectDetails():mode=="planning"?game.VerifyPlanningDraft():mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
         }
         bool timeout=EditorApplication.timeSinceStartup-started>60;
         if(!game.VerificationFinished&&!timeout)return;

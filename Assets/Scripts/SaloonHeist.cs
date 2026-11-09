@@ -11,8 +11,8 @@ namespace Saloon
         static readonly int[] PracticeRoomCycle={0,1,1,2};
         void ResetHeist()
         {
-            safeProgress=0;pendingOutcome="";
-            foreach(var p in players.Values){p.bag=false;p.escapeRound=0;p.botThink=0;p.botAimAt=-1;p.giftUntil=0;p.inspectedProgress=-1;p.safeReport="";}
+            safeProgress=0;lastSafeWorkRound=0;pendingOutcome="";
+            foreach(var p in players.Values){p.bag=false;p.escapeRound=0;p.botThink=0;p.botAimAt=-1;p.giftUntil=0;p.inspectedProgress=-1;p.safeReport="";p.evidence.Clear();p.safeWatch.Clear();}
         }
         void BeginRobbery(Participant p)
         {
@@ -21,21 +21,24 @@ namespace Saloon
             if(p.bag){p.notice="You already carry the money.";return;}
             if(!SpendAction(p,tuning.robberySeconds))return;
             p.busyAction="rob";p.busyUntil=Time.time+tuning.robberySeconds;p.notice="Working quietly — a shot will interrupt you.";
-            // No global event, action log, voice broadcast or observer notification.
+            // No global notification. Only attentive, living bar witnesses can collect a private clue.
         }
         void InspectSafe(Participant p)
         {
             if(phase!=Phase.Turns||p.room!=0||p.role!=Role.Sheriff){p.notice="Only the Sheriff can inspect the safe, at the bar.";return;}
             if(!SpendAction(p))return;
+            int previous=p.inspectedProgress;
             p.inspectedProgress=safeProgress;
             string state=players.Values.Any(x=>x.Alive&&x.bag)?"money missing":safeProgress==3?"open · money inside":safeProgress==0?"sealed · money inside":"tampered with · money inside";
-            p.safeReport="Round "+rounds.Round+" check · "+state;p.notice="Inspection complete. The report is private.";
+            string marks=safeProgress==0?"No tool marks.":previous<0?"Tool marks from round "+lastSafeWorkRound+".":safeProgress>previous?"New tool marks since your last check (round "+lastSafeWorkRound+").":"No new tool marks since your last check.";
+            p.safeReport="Round "+rounds.Round+" check · "+state+". "+marks;
+            NoteEvidence(p,p.safeReport);p.notice="Inspection complete. Read your private clues during discussion.";
         }
         void CompleteRobbery(Participant p)
         {
             if(!SaloonRules.CanRob(p.role)||!p.Alive||p.room!=0||phase!=Phase.Turns)return;
             if(players.Values.Any(x=>x.bag&&x.Alive)){p.notice="Nothing recovered from the safe.";return;}
-            safeProgress=Mathf.Min(3,safeProgress+1);
+            safeProgress=Mathf.Min(3,safeProgress+1);lastSafeWorkRound=rounds.Round;
             if(safeProgress==3){p.bag=true;p.notice="You collected the money. X to declare escape on a later action.";}
             else p.notice="Safe work completed: "+safeProgress+" / 3.";
         }

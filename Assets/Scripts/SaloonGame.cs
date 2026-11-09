@@ -53,6 +53,8 @@ namespace Saloon
             public string name, notice="", busyAction="",voiceId="";
             public string safeReport="";
             public int inspectedProgress=-1;
+            public readonly List<string> evidence=new List<string>();
+            public readonly Dictionary<ulong,float> safeWatch=new Dictionary<ulong,float>();
             public Role role;
             public GameObject body;
             public CharacterController controller;
@@ -287,6 +289,7 @@ namespace Saloon
 
         void TickServer()
         {
+            TickEvidence();
             foreach(var p in players.Values)
             {
                 UpdatePlayerColliders(p);
@@ -581,6 +584,7 @@ namespace Saloon
                 actionAvailable=own.Alive&&phase==Phase.Turns&&rounds.CanAct(recipient,Time.time)&&DuelAllows(own),outcome=outcome,ownRole=own.role.ToString(),duel=PrivateDuel(own),roomTurn=PrivateRoomTurn(own),
                 ally="",
                 health=own.hp,ammo=own.ammo,beers=beers,carriedBeer=own.beer,notice=own.notice,
+                evidence=own.evidence.ToArray(),
                 sandbox=Sandbox,moneyBag=SaloonRules.CanRob(own.role)&&own.bag,escapePending=SaloonRules.CanRob(own.role)&&own.escapeRound>0,
                 botsEnabled=BotsEnabled,botMatchSize=BotMatchSize,lobbyCapacity=SaloonRules.LobbyCapacity,
                 safeProgress=own.role==Role.Sheriff?own.inspectedProgress:-1,safeReport=own.role==Role.Sheriff?own.safeReport:"",

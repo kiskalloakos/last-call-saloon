@@ -13,6 +13,7 @@ namespace Saloon
         Vector2 scroll;
         bool online;
         float disconnectCopiedUntil;
+        Vector2 evidenceScroll;
         Texture2D coinTexture;
 
         void Styles()
@@ -117,7 +118,7 @@ namespace Saloon
             }
             if(!Game.MenuOpen)
             {
-                if(!Game.IsSpectating&&!string.IsNullOrEmpty(view.safeReport))Text(28,120,360,45,"LAST INSPECTION\n"+view.safeReport,small);
+                if(!Game.IsSpectating&&view.phase!=Phase.Discussion&&!string.IsNullOrEmpty(view.safeReport))Text(28,120,390,96,"LAST INSPECTION\n"+view.safeReport,small);
                 Text(350,590,580,30,view.objectiveNotice,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
                 var hintStyle=new GUIStyle(small){fontSize=13,wordWrap=false};hintStyle.normal.textColor=new Color(.79f,.75f,.66f,.65f);
                 Text(28,650,1220,22,SaloonRules.Hint(view,Game.Self),hintStyle);
@@ -129,6 +130,7 @@ namespace Saloon
             Text(980,674,274,25,"TAB  Role    ESC  Menu",new GUIStyle(small){alignment=TextAnchor.MiddleRight});
             if(!Game.MenuOpen&&Game.Self?.alive==true)
             {
+                if(view.phase==Phase.Discussion)EvidenceCard();
                 if(view.phase==Phase.Discussion||view.phase==Phase.Choosing)Invitations();
                 if(view.phase==Phase.Choosing||(view.phase==Phase.Discussion&&Game.RoomPlannerOpen))RoomChoices();
                 if(view.phase==Phase.Turns&&view.duel!=null)DuelCard();
@@ -156,6 +158,18 @@ namespace Saloon
                 int row=0;foreach(var p in view.players)Text(400,310+row++*30,500,28,$"{p.name}  /  {p.revealedRole}  /  {(p.alive?"survived":"eliminated")}",small);
                 Text(400,460,500,30,"Esc → lobby to start the next match",subtitle);
             }
+        }
+
+        void EvidenceCard()
+        {
+            Panel(new Rect(28,180,330,230),new Color(.04f,.035f,.03f,.94f));
+            Text(44,192,298,24,"YOUR CLUES · PRIVATE",subtitle);
+            Text(44,219,298,40,"Tell the table what you saw. Others cannot read this notebook.",small);
+            var clues=Game.View.evidence??Array.Empty<string>();
+            evidenceScroll=GUI.BeginScrollView(new Rect(44,266,298,128),evidenceScroll,new Rect(0,0,274,Mathf.Max(128,clues.Length*84)));
+            if(clues.Length==0)Text(0,0,274,110,"No clues yet.\nAt the Bar, watch someone working the safe for a moment.\nSheriff: C on your turn inspects the safe.",small);
+            for(int i=0;i<clues.Length;i++)Text(0,i*84,274,80,clues[clues.Length-1-i],small);
+            GUI.EndScrollView();
         }
 
         void RoleCard(Role role)
