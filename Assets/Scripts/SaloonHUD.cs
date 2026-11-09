@@ -129,10 +129,10 @@ namespace Saloon
             if(!string.IsNullOrEmpty(notice)&&(Time.unscaledTime-noticeAt<4||Game.Connection.WaitingForSnapshot||view.busyRemaining>0||Game.Self?.alive==false)){Text(412,585,416,32,notice,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});}
             string voiceLabel=Game.Voice.Transmitting?"●  Speaking":Game.Voice.Muted?"Microphone muted":Game.Voice.Connected?"V  Talk":"Voice offline";
             Text(28,688,300,20,voiceLabel,Game.Voice.Transmitting?subtitle:small);
-            Text(980,688,274,20,"Tab  Role     Esc  Menu",new GUIStyle(small){alignment=TextAnchor.MiddleRight});
-            if(!Game.MenuOpen&&Game.Self?.alive==true)
+            Text(980,688,274,20,view.ownRole==Role.Sheriff.ToString()?"Tab  Role & clues     Esc  Menu":"Tab  Role     Esc  Menu",new GUIStyle(small){alignment=TextAnchor.MiddleRight});
+            if(!Game.MenuOpen&&!Game.ShowRole&&Game.Self?.alive==true)
             {
-                if(view.phase==Phase.Discussion)EvidenceCard();
+                if(view.phase==Phase.Discussion&&view.ownRole!=Role.Sheriff.ToString())EvidenceCard();
                 if(view.phase==Phase.Discussion||view.phase==Phase.Choosing)Invitations();
                 if(view.phase==Phase.Choosing||(view.phase==Phase.Discussion&&Game.RoomPlannerOpen))RoomChoices();
                 if(view.phase==Phase.Turns&&view.duel!=null)DuelCard();
@@ -206,9 +206,24 @@ namespace Saloon
             Text(248,140,784,45,role.ToString().ToUpperInvariant(),roleStyle);
             Text(250,194,780,44,guide.Goal,body);
             Text(250,250,355,24,"WHAT TO PRESS ON YOUR TURN",subtitle);
-            Text(645,250,385,24,guide.PlanTitle,subtitle);
+            Text(645,250,385,24,role==Role.Sheriff?"YOUR CLUES · PRIVATE":guide.PlanTitle,subtitle);
             Text(250,279,355,222,guide.Actions+"\n\n<b>Q</b> draw, aim at the head + <b>left-click</b> shoot.\n<b>R</b> reload.\n<b>E</b> take a beer at Bar (free).\n<b>B / G</b> drink / give your beer.\n<b>Space</b> pass your turn.",help);
-            Text(645,279,385,222,guide.Plan,help);
+            if(role==Role.Sheriff)
+            {
+                var clues=Game.View.evidence??Array.Empty<string>();
+                if(clues.Length==0)Text(645,279,385,222,"No clues yet.\n\nAt the Bar, press C on your turn to inspect the safe. Your findings appear here.\n\nYou can also notice someone working the safe by watching them.",help);
+                else
+                {
+                    evidenceScroll=GUI.BeginScrollView(new Rect(645,279,385,222),evidenceScroll,new Rect(0,0,362,clues.Length*80));
+                    for(int i=0;i<clues.Length;i++)
+                    {
+                        Text(0,i*80,352,70,clues[clues.Length-1-i],help);
+                        Fill(new Rect(0,i*80+74,352,1),rule);
+                    }
+                    GUI.EndScrollView();
+                }
+            }
+            else Text(645,279,385,222,guide.Plan,help);
             Text(250,514,780,22,"HOW YOU WIN",subtitle);
             Text(250,538,780,43,guide.Win,help);
             Text(250,590,780,36,guide.Warning,new GUIStyle(help){normal={textColor=gold}});

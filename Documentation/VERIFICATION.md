@@ -932,3 +932,18 @@ the sole survivor; Renegade has no money objective.
   `SALOON_EDITOR_ITERATION PASS`, no runtime exceptions in that run.
 - Checked the final Clues drawer opening/closing with real mouse input during discussion.
   Unity remains open in a local discussion preview. No release binaries were rebuilt.
+
+
+## 2026-11-09 — Sheriff clues on Tab
+
+- The Sheriff's role card always shows their own six latest private clues in its right
+  column, newest first, with an empty-state inspection hint. The Sheriff no longer has
+  a separate discussion clue drawer. Other roles retain their existing witness drawer.
+- Tab releases the cursor for scrolling in discussion and room actions, including while
+  holding right mouse. Gameplay clicks/actions/movement are suppressed while reading;
+  planning controls are hidden behind the role overlay. Releasing Tab restores normal input.
+- Updated inspection notice, role instructions, bottom key hint and README. No clue
+  generation, role privacy or inspection action-cost rules changed.
+- `SALOON_EVIDENCE PASS` and `SALOON_EDITOR_ITERATION PASS` in `/tmp/saloon-tab-clues.log`,
+  including a new check that a displayed Tab card in room actions unlocks the pointer.
+  Source compiles with no runtime exceptions in that run. No player builds created.

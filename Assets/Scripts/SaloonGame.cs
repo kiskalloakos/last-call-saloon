@@ -255,7 +255,7 @@ namespace Saloon
             SyncPointer();UpdateSpectator();
             if(!helloSent&&Time.unscaledTime>=helloAt){Connection.Send(new Command{kind="hello",name=PlayerName});helloAt=Time.unscaledTime+1;}
             if(Self!=null&&Self.name==CleanName(PlayerName))helloSent=true;
-            if(!MenuOpen&&Self?.alive==true)
+            if(!MenuOpen&&!ShowRole&&Self?.alive==true)
             {
                 if(View?.phase==Phase.Discussion&&Input.GetKeyDown(KeyCode.Space))ToggleReady();
                 if(Input.GetKeyDown(KeyCode.F))Act("stance");
@@ -278,7 +278,7 @@ namespace Saloon
             }
             if(!AutomatedInput&&Time.unscaledTime>=nextInput)
             {
-                var move=!MenuOpen&&Cursor.lockState==CursorLockMode.Locked?new Vector2(Input.GetAxisRaw("Horizontal"),Input.GetAxisRaw("Vertical")):Vector2.zero;
+                var move=!MenuOpen&&!ShowRole&&Cursor.lockState==CursorLockMode.Locked?new Vector2(Input.GetAxisRaw("Horizontal"),Input.GetAxisRaw("Vertical")):Vector2.zero;
                 Connection.Send(new Command{kind="input",x=move.x,z=move.y,yaw=yaw,pitch=pitch,poseVersion=Self?.poseVersion??-1});nextInput=Time.unscaledTime+.033f;
             }
             if(Hosting)TickServer();

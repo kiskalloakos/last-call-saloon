@@ -206,8 +206,7 @@ clear message. A disconnect reason stays on the menu instead of being silently r
 ## Interface (Unity development version)
 
 Health sits at the lower left as separate HP segments and a count; ammo sits at the lower right.
-Room, partner, Ready and turn prompts stay at the right edge. During discussion, click **Clues**
-at the upper left to open or close your private notebook. It closes during room actions.
+Room, partner, Ready and turn prompts stay at the right edge. **Sheriff: hold Tab to see your private clues alongside your role**, during discussion or room actions. Scroll to read older clues while holding Tab. Other roles can open **Clues** at the upper left during discussion.
 Hold **Tab** for role help; **Esc** opens lobby/settings. The in-game interface uses compact,
 flat slate controls with no large persistent HUD panels.
 
@@ -215,7 +214,7 @@ flat slate controls with no large persistent HUD panels.
 
 - At the Bar during room actions, keep someone working the safe in view for about **one second**. If you can see them clearly, your notebook records their name and round. Looking away, walls, other rooms and death prevent this. It does not say whether they finished or got any money.
 - **Sheriff: press C on your turn at the Bar.** Your inspection records the safe's condition, whether new tool marks appeared since your previous check, and the round of the latest completed safe work. It never names the thief. An interrupted attempt leaves no completed-work marks.
-- During discussion, read **YOUR CLUES · PRIVATE** on the left. It holds your six latest clues, newest first. Scroll to read older ones; they stay through rounds and reset for a new match.
+- **Sheriff: hold Tab** to read **YOUR CLUES · PRIVATE** on your role card, at any time while alive. Other roles use the discussion Clues drawer. It holds your six latest clues, newest first. Scroll to read older ones; they stay through rounds and reset for a new match.
 - Hold **V** to tell the table what you found. Clues are not shared automatically. You can keep quiet or bluff; nobody else can open your notebook. Reports are snapshots of what you knew then, not live updates.
 
 ## What happens in a round

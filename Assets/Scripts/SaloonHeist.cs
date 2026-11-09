@@ -32,7 +32,7 @@ namespace Saloon
             string state=players.Values.Any(x=>x.Alive&&x.bag)?"money missing":safeProgress==3?"open · money inside":safeProgress==0?"sealed · money inside":"tampered with · money inside";
             string marks=safeProgress==0?"No tool marks.":previous<0?"Tool marks from round "+lastSafeWorkRound+".":safeProgress>previous?"New tool marks since your last check (round "+lastSafeWorkRound+").":"No new tool marks since your last check.";
             p.safeReport="Round "+rounds.Round+" check · "+state+". "+marks;
-            NoteEvidence(p,p.safeReport);p.notice="Inspection complete. Read your private clues during discussion.";
+            NoteEvidence(p,p.safeReport);p.notice="Inspection complete. Hold Tab to read your clues.";
         }
         void CompleteRobbery(Participant p)
         {

@@ -38,6 +38,9 @@ namespace Saloon
             Actions();CompleteRobbery(worker);InspectSafe(witness);
             Check(witness.safeReport.Contains("New tool marks")&&witness.safeReport.Contains("round 1"),"inspection compares completed safe work with the previous check");
             Check(!rounds.CanAct(witness.id,Time.time),"inspection still costs the Sheriff's action");
+            ShowRole=true;Broadcast();SyncPointer();
+            Check(NeedsPointer&&Cursor.lockState==CursorLockMode.None,"Tab makes room-action clues scrollable with a free cursor");
+            ShowRole=false;
             string report=witness.safeReport;CompleteRobbery(worker);
             Check(witness.safeReport==report,"later safe work never updates an old report automatically");
             Actions();InspectSafe(witness);Actions();InspectSafe(witness);
@@ -51,7 +54,12 @@ namespace Saloon
             NoteEvidence(witness,"Round 1: you saw "+worker.name+" working the safe. You did not see whether they finished.");
             NoteEvidence(witness,"Round 2 check · tampered with · money inside. New tool marks since your last check (round 1).");
             rounds.Start(players.Keys,Time.time,30,30,6,1,1);phase=rounds.Phase;PositionEveryone(true);MenuOpen=false;Broadcast();
-            yield return new WaitForSeconds(15);
+            float previewUntil=Time.unscaledTime+20;bool captured=false;
+            while(Time.unscaledTime<previewUntil)
+            {
+                if(ShowRole&&!captured){ScreenCapture.CaptureScreenshot("/tmp/saloon-sheriff-tab.png");captured=true;}
+                yield return null;
+            }
             Debug.Log("SALOON_EVIDENCE PASS");VerificationPassed=VerificationFinished=true;
         }
     }

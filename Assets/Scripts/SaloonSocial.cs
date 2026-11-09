@@ -41,7 +41,7 @@ namespace Saloon
         }
         readonly Dictionary<int,RoomTurn> roomTurns=new Dictionary<int,RoomTurn>();
         public bool RoomPlannerOpen;
-        public bool NeedsPointer=>View!=null&&(View.phase==Phase.Discussion||View.phase==Phase.Choosing||(View.phase==Phase.Turns&&View.duel?.stage=="choosing"));
+        public bool NeedsPointer=>View!=null&&(ShowRole||View.phase==Phase.Discussion||View.phase==Phase.Choosing||(View.phase==Phase.Turns&&View.duel?.stage=="choosing"));
         public float HitFlash { get; private set; }
         float eliminatedAt=-10;
         public bool ShowEliminationOverlay=>View?.phase!=Phase.Aftermath&&Self?.observer==true;
@@ -140,7 +140,7 @@ namespace Saloon
         public void ChooseCoin(int side)=>Connection.Send(new Command{kind="coin",x=side});
         public void ToggleRoomPlanner()
         {if(View?.phase!=Phase.Discussion)return;RoomPlannerOpen=true;SyncPointer();}
-        void SyncPointer(){if(!MenuOpen&&NeedsPointer&&Self?.alive==true&&Input.GetMouseButton(1))LockCursor();else if(MenuOpen||NeedsPointer||Self?.alive==false)UnlockCursor();else LockCursor();}
+        void SyncPointer(){if(ShowRole){UnlockCursor();return;}if(!MenuOpen&&NeedsPointer&&Self?.alive==true&&Input.GetMouseButton(1))LockCursor();else if(MenuOpen||NeedsPointer||Self?.alive==false)UnlockCursor();else LockCursor();}
         void ApplyImpactFeedback(PlayerView self)
         {
             if(self==null)return;
