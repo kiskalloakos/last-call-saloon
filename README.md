@@ -203,6 +203,14 @@ UDP port (7777 by default), or create/join an online room code. All devices must
 same source/build version: use matching 0.2.10 clients for this playtest. Mixed versions are rejected with a
 clear message. A disconnect reason stays on the menu instead of being silently replaced.
 
+## Interface (Unity development version)
+
+Health sits at the lower left as separate HP segments and a count; ammo sits at the lower right.
+Room, partner, Ready and turn prompts stay at the right edge. During discussion, click **Clues**
+at the upper left to open or close your private notebook. It closes during room actions.
+Hold **Tab** for role help; **Esc** opens lobby/settings. The in-game interface uses compact,
+flat slate controls with no large persistent HUD panels.
+
 ## Private discussion clues (Unity development version)
 
 - At the Bar during room actions, keep someone working the safe in view for about **one second**. If you can see them clearly, your notebook records their name and round. Looking away, walls, other rooms and death prevent this. It does not say whether they finished or got any money.

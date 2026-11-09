@@ -50,9 +50,9 @@ namespace Saloon
             gun=MakeGun(transform);gunSpin=gun.transform.Find("Spin pivot");
             mug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));mug.transform.SetParent(transform,false);mug.transform.localPosition=new Vector3(.28f,1.02f,.33f);mug.SetActive(false);
             var nameObject=new GameObject("Name");nameObject.transform.SetParent(transform);nameObject.transform.localPosition=new Vector3(0,2.05f,0);
-            label=nameObject.AddComponent<TextMesh>();label.characterSize=.015f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;
+            label=nameObject.AddComponent<TextMesh>();label.characterSize=.0105f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;
             var healthObject=new GameObject("Health dots");healthObject.transform.SetParent(transform,false);healthObject.transform.localPosition=new Vector3(0,1.85f,0);
-            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.014f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.richText=true;
+            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.010f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.richText=true;
             if(!game.Hosting&&initial.id!=game.LocalId)
             {
                 var collider=gameObject.AddComponent<CapsuleCollider>();collider.center=Vector3.up*.9f;collider.height=1.8f;collider.radius=.3f;

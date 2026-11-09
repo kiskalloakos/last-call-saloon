@@ -908,3 +908,27 @@ the sole survivor; Renegade has no money objective.
   stream, round clock, heist, beer, release, social, polish, practice, gameplay and
   `SALOON_EDITOR_ROUNDS PASS`. Restored the suite's generated historical PNG captures.
 - Existing downloadable 0.2.10 binaries are unchanged; test this feature in Unity source.
+
+
+## 2026-11-09 — compact corner interface
+
+- Replaced the default Unity beveled controls with flat slate controls and restrained
+  cool accents. Gameplay no longer has large panel backgrounds behind phase/Sheriff,
+  a full-width footer, or a permanently expanded notebook. Main menus, role help,
+  pause and results use the same typography and control styles.
+- Room/partner/Ready controls form a compact right-edge list. Coin and turn prompts
+  stay in that corner. A collapsed Clues button opens a small private scrollable list
+  during discussion; it closes for room actions. Existing clue rules stay unchanged.
+- Health uses separate filled/depleted segments plus an exact HP count at bottom left,
+  with a distinct low-health color. Ammo is bottom right. Transient notices disappear
+  after four seconds; connection warnings, elimination and active timers remain visible.
+- Reduced world nameplate/HP-dot scale. Field, hover, focus, selected and disabled styles,
+  sliders and scrollbars share the flat theme. Runtime textures/skin are cleaned up.
+- Manually checked in Unity: solo launch, compact discussion controls, Ready advancing
+  to room actions/coin, clean center view and HP/ammo corner placement.
+
+- Final compile and private clue verification passed in a clean Editor session:
+  `/tmp/saloon-minimal-ui-verified.log`, `SALOON_EVIDENCE PASS` and
+  `SALOON_EDITOR_ITERATION PASS`, no runtime exceptions in that run.
+- Checked the final Clues drawer opening/closing with real mouse input during discussion.
+  Unity remains open in a local discussion preview. No release binaries were rebuilt.
