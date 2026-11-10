@@ -36,12 +36,11 @@ namespace Saloon
             int oldPose=host.poseVersion;
             foreach(var p in players.Values)OnCommand(p.id,new Command{kind="ready",x=1});TickServer();Broadcast();
             Check(phase==Phase.Turns,"all Ready starts room actions without a choosing timer");
-            var direction=(peer.body.transform.position-host.body.transform.position).normalized;
-            Check(Vector3.Dot(Quaternion.Euler(0,host.yaw,0)*Vector3.forward,direction)>.99f&&Vector3.Dot(Quaternion.Euler(0,peer.yaw,0)*Vector3.forward,-direction)>.99f,"two players at the bar face one another");
+            Check(!duels.ContainsKey(0)&&roomTurns[0].order.Length==2,"two players at the bar use normal turns without a coin toss");
             float facing=host.yaw;OnCommand(host.id,new Command{kind="input",yaw=facing+180,poseVersion=oldPose});
             Check(host.yaw==facing,"old look packets cannot overwrite the new room facing");
-            yield return new WaitForSeconds(.35f);yield return Capture("02-facing-coin");
-            var duel=duels[0];duel.claimed=duel.flipping=duel.revealed=true;duel.first=host.id;duel.result="HEADS";duel.firstUntil=Time.time+30;
+            yield return new WaitForSeconds(.35f);yield return Capture("02-bar-actions");
+            var turn=roomTurns[0];turn.order=new[]{host.id,peer.id};turn.index=0;turn.until=Time.time+30;
             host.drawn=peer.drawn=true;Broadcast();yield return new WaitForSeconds(.25f);
             var weapon=ViewCamera.transform.Find("Low-poly revolver");
             Check(weapon!=null&&weapon.Find("First-person right arm")==null,"first-person revolver has no visible arm");

@@ -6,7 +6,7 @@ namespace Saloon
     {
         public static readonly Vector3 Grip=new Vector3(0,.035f,-.135f);
         public static readonly Vector3 Trigger=new Vector3(0,.035f,.045f);
-        public const float FlipStart=.16f,FlipSeconds=.95f,Duration=1.16f,DrawSeconds=.35f;
+        public const float FlipStart=.16f,FlipSeconds=.95f,Duration=1.16f,DrawSeconds=.25f;
         static float Ease(float t){t=Mathf.Clamp01(t);return t*t*t*(t*(t*6-15)+10);}
         public static float Kick(float elapsed)
         {
@@ -20,8 +20,8 @@ namespace Saloon
             float progress=Ease((elapsed-FlipStart)/FlipSeconds);
             float arc=Mathf.Sin(progress*Mathf.PI);return arc*arc;
         }
-        public static Vector3 Offset(float elapsed)=>new Vector3(.012f*Flourish(elapsed),-.022f*Flourish(elapsed),-.045f*Kick(elapsed));
-        public static Quaternion Rotation(float elapsed)=>Quaternion.Euler(-12*Kick(elapsed),-2*Flourish(elapsed),-1.5f*Kick(elapsed)+6*Flourish(elapsed));
+        public static Vector3 Offset(float elapsed)=>new Vector3(.012f*Flourish(elapsed),-.022f*Flourish(elapsed),-.075f*Kick(elapsed));
+        public static Quaternion Rotation(float elapsed)=>Quaternion.Euler(-19*Kick(elapsed),-2*Flourish(elapsed),-2.5f*Kick(elapsed)+6*Flourish(elapsed));
         public static Vector3 DrawOffset(float amount)=>new Vector3(0,-.34f,-.025f)*(1-Ease(amount));
         public static Quaternion DrawRotation(float amount)=>Quaternion.Euler(14*(1-Ease(amount)),0,0);
 

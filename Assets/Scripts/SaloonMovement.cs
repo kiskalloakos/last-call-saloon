@@ -8,6 +8,7 @@ namespace Saloon
         public const int SolidLayer=10;
         public static Vector3 ClampToRoom(Vector3 p,int room)
         {
+            if(room==3)return SaloonSmokingArea.Clamp(p);
             if(room==1){p.x=Mathf.Clamp(p.x,-6.65f,-3.35f);p.z=Mathf.Clamp(p.z,-5.35f,-2.02f);}
             else if(room==2){p.x=Mathf.Clamp(p.x,3.35f,6.65f);p.z=Mathf.Clamp(p.z,-5.35f,-2.02f);}
             else {p.x=Mathf.Clamp(p.x,-7.4f,7.4f);p.z=Mathf.Clamp(p.z,-1.25f,6.4f);}
@@ -18,11 +19,13 @@ namespace Saloon
 
     public partial class SaloonGame
     {
-        bool CanWalk(Participant p)=>p.Alive&&p.seat<0&&(phase==Phase.Lobby||phase==Phase.Turns);
+        bool CanWalk(Participant p)=>p.Alive&&p.seat<0&&!TableLocksSeat(p)&&(phase==Phase.Lobby||phase==Phase.Turns);
 
         // Movement runs independently of turn/action authorization, just like human input.
         void TickBotMovement(Participant p)
         {
+            if(p.room==3){p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;return;}
+            if(TableLocksSeat(p)){p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;return;}
             if(!p.Alive||phase!=Phase.Turns)
             {p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;p.botRoamAt=0;return;}
             if(Time.time<p.botRoamAt&&p.seat>=0)return;
@@ -96,7 +99,7 @@ namespace Saloon
             if(nearest==null){p.notice="Move closer to an empty chair or stool, then press F to sit.";return;}
             p.controller.enabled=false;p.body.transform.position=nearest.transform.position+Vector3.up*(nearest.gameObject.name=="stoolBar"?.35f:.08f);
             p.seat=1000+nearest.index;p.yaw=nearest.sitYaw;p.pitch=0;p.poseVersion++;p.move=Vector2.zero;p.vertical=0;
-            p.notice="Seated. F to stand and dodge.";UpdatePlayerColliders(p);
+            p.notice="";UpdatePlayerColliders(p);
         }
     }
 }

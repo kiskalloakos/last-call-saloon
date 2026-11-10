@@ -121,10 +121,10 @@ namespace Saloon
                 if(!ok){Report(false,"round "+round+" action/movement/health not acknowledged health="+self.health+" action="+actionSeen+" stood="+stood+" moved="+moved+" sent="+actionSent+" beer="+view.carriedBeer+" notice="+view.notice);return;}
                 completedMask|=1<<round;Debug.Log("SALOON_LAN_MATCH_ROUND PASS index="+index+" round="+round+" health="+self.health);
             }
-            if(view.phase==Phase.Finished)
+            if(view.phase==Phase.Discussion&&view.round==4)
             {
-                bool ok=privacy&&completedMask==14&&!view.outcome.Contains("DISCONNECTED")&&view.players.All(p=>p.revealedRole!="");
-                Report(ok,"three rounds complete; standing/movement, paired coin/headshots, beer healing, results; outcome="+view.outcome);
+                bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&view.players.All(p=>p.revealedRole=="");
+                Report(ok,"three rounds complete and round four started beyond the legacy cap; standing/movement, paired coin/headshots, beer healing; outcome="+view.outcome);
             }
         }
     }

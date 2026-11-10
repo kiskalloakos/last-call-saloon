@@ -30,7 +30,7 @@ public static class SaloonProject
             }
         }
         EditorSceneManager.NewScene(NewSceneSetup.EmptyScene,NewSceneMode.Single);
-        SaloonWorld.Build();SaloonArt.Apply();
+        SaloonWorld.Build();SaloonArt.Apply();SaloonRoomWindows.Apply();SaloonRoomSigns.Apply();SaloonSmokingArea.Apply();
         foreach(var mat in SaloonWorld.GeneratedMaterials)
         {
             string path="Assets/Generated/Materials/"+mat.name.Replace('/','-')+".mat";

@@ -33,7 +33,7 @@ public static class SaloonArtSetup
         var world=GameObject.Find("Saloon World");
         if(world==null)throw new InvalidOperationException("Open the Saloon scene first.");
         Undo.RegisterFullObjectHierarchyUndo(world,"Apply low-poly saloon art");
-        SaloonArt.Apply(true);
+        SaloonArt.Apply(true);SaloonRoomWindows.Apply();SaloonRoomSigns.Apply();
         Directory.CreateDirectory("Assets/Generated/Materials");
         foreach(var mat in SaloonWorld.GeneratedMaterials)
         {

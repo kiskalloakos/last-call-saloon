@@ -22,7 +22,7 @@ namespace Saloon
         public string MicrophoneName=>Connected?VivoxService.Instance.EffectiveInputDevice?.DeviceName??"No microphone detected":"Not connected";
         public bool Transmitting=>transmitting;
         string channel="";
-        bool deadChannel,transmitting,autoAttempted,verificationMode;
+        bool deadChannel,outdoorChannel,transmitting,autoAttempted,verificationMode;
         float nextPosition;
         float nextActivity,nextIdentity;
         readonly Dictionary<string,float> speech=new Dictionary<string,float>();
@@ -88,7 +88,7 @@ namespace Saloon
             await SaloonConnection.EnsureServices();CheckCurrent(version);
             if(VivoxService.Instance.InitializationState!=VivoxInitializationState.Initialized)await VivoxService.Instance.InitializeAsync();
             CheckCurrent(version);
-            VivoxService.Instance.MuteInputDevice();
+            VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();
             if(!VivoxService.Instance.IsLoggedIn)
                 await VivoxService.Instance.LoginAsync(new LoginOptions{DisplayName=Game.PlayerName,EnableTTS=false,ParticipantUpdateFrequency=ParticipantPropertyUpdateFrequency.FivePerSecond});
             CheckCurrent(version);
@@ -105,25 +105,30 @@ namespace Saloon
                 Status="Connecting proximity voice...";
                 await Prepare(requestMicrophone,version);
                 deadChannel=Game.Self!=null&&!Game.Self.alive;
-                await JoinLifeChannel(deadChannel);CheckCurrent(version);
+                await VivoxService.Instance.LeaveAllChannelsAsync();CheckCurrent(version);
+                await JoinLifeChannel(deadChannel,!deadChannel&&Game.OutsideForSmoke);CheckCurrent(version);
                 Connected=true;Enabled=true;
-                Status=MicrophoneAllowed?"Proximity voice ready — hold V to speak; M toggles microphone mute.":"Voice connected for listening; microphone permission is off.";
-                Debug.Log("SALOON_VOICE CONNECTED "+(deadChannel?"dead":"positional"));
+                Status=outdoorChannel?"Private outside voice — only the people having a smoke can hear you.":MicrophoneAllowed?"Proximity voice ready — hold V to speak; M toggles microphone mute.":"Voice connected for listening; microphone permission is off.";
+                Debug.Log("SALOON_VOICE CONNECTED "+(deadChannel?"dead":outdoorChannel?"smoke":"positional"));
             }
             catch(OperationCanceledException) { }
             catch(Exception e){Status="Voice connection: "+e.Message;Debug.LogWarning(Status);}
             finally{Busy=false;}
         }
 
-        async Task JoinLifeChannel(bool dead)
+        string DesiredChannel=>SaloonPrivacy.VoiceChannel(Game.VoiceRoom,Game.View?.phase??Phase.Lobby,Game.Self?.room??0,Game.Self?.alive==true);
+
+        async Task JoinLifeChannel(bool dead,bool outdoors)
         {
-            channel=Game.VoiceRoom+(dead?"-dead":"-alive");
+            deadChannel=dead;outdoorChannel=!dead&&outdoors;
+            channel=Game.VoiceRoom+(dead?"-dead":outdoorChannel?"-smoke":"-alive");
             var options=new ChannelOptions{MakeActiveChannelUponJoining=false};
-            if(dead)await VivoxService.Instance.JoinGroupChannelAsync(channel,ChatCapability.AudioOnly,options);
+            if(dead||outdoorChannel)await VivoxService.Instance.JoinGroupChannelAsync(channel,ChatCapability.AudioOnly,options);
             else await VivoxService.Instance.JoinPositionalChannelAsync(channel,ChatCapability.AudioOnly,new Channel3DProperties(10,2,1,AudioFadeModel.LinearByDistance),options);
             await VivoxService.Instance.SetChannelTransmissionModeAsync(TransmissionMode.Single,channel);
             VivoxService.Instance.MuteInputDevice();transmitting=false;
             UpdatePosition();
+            if(channel==DesiredChannel)VivoxService.Instance.UnmuteOutputDevice();
         }
 
         Task RequestMicrophone()
@@ -135,13 +140,19 @@ namespace Saloon
         void CheckCurrent(int version)
         {if(version!=generation)throw new OperationCanceledException();}
 
+        public void ValidateArea()
+        {
+            if(!Connected||channel==DesiredChannel)return;
+            VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;speech.Clear();
+        }
+
         void Update()
         {
-            if(!autoAttempted&&!Application.isBatchMode&&!Game.AutomatedInput&&Game.InRoom&&Game.Self!=null&&!string.IsNullOrEmpty(Game.VoiceRoom))
+            if(!autoAttempted&&!Game.Connection.Solo&&!Application.isBatchMode&&!Game.AutomatedInput&&Game.InRoom&&Game.Self!=null&&!string.IsNullOrEmpty(Game.VoiceRoom))
             {autoAttempted=true;Connect();}
             if(!Connected||Busy)return;
             bool alive=Game.Self!=null&&Game.Self.alive;
-            if(deadChannel==alive){operation=SwitchLifeChannel(!alive);return;}
+            if(channel!=DesiredChannel){operation=SwitchLifeChannel(!alive,alive&&Game.OutsideForSmoke);return;}
             if(!verificationMode)
             {
                 if(!Game.MenuOpen&&Input.GetKeyDown(KeyCode.M))Muted=!Muted;
@@ -158,22 +169,22 @@ namespace Saloon
 
         void UpdatePosition()
         {
-            if(deadChannel||string.IsNullOrEmpty(channel)||Game.ViewCamera==null)return;
+            if(deadChannel||outdoorChannel||string.IsNullOrEmpty(channel)||Game.ViewCamera==null)return;
             var t=Game.ViewCamera.transform;
             VivoxService.Instance.Set3DPosition(t.position,t.position,t.forward,t.up,channel);
         }
 
-        async Task SwitchLifeChannel(bool dead)
+        async Task SwitchLifeChannel(bool dead,bool outdoors)
         {
             Busy=true;int version=generation;
             try
             {
-                VivoxService.Instance.MuteInputDevice();transmitting=false;
+                VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;speech.Clear();
                 await VivoxService.Instance.LeaveChannelAsync(channel);CheckCurrent(version);
                 deadChannel=dead;
-                await JoinLifeChannel(dead);CheckCurrent(version);
-                Status=dead?"Eliminated players' voice — living players cannot hear you.":"Proximity voice ready — hold V to speak.";
-                Debug.Log("SALOON_VOICE CHANNEL "+(dead?"dead":"positional"));
+                await JoinLifeChannel(dead,outdoors);CheckCurrent(version);
+                Status=dead?"Eliminated players' voice — living players cannot hear you.":outdoorChannel?"Private outside voice — hold V to talk to the people having a smoke.":"Proximity voice ready — hold V to speak.";
+                Debug.Log("SALOON_VOICE CHANNEL "+(dead?"dead":outdoorChannel?"smoke":"positional"));
             }
             catch(OperationCanceledException) { }
             catch(Exception e){Connected=false;Status="Voice channel: "+e.Message;Debug.LogWarning(Status);}
@@ -182,7 +193,7 @@ namespace Saloon
 
         public void EchoTest()
         {
-            if(Busy)return;
+            if(Busy||(Connected&&channel!=DesiredChannel))return;
             operation=RunEchoTest();
         }
 
@@ -196,7 +207,7 @@ namespace Saloon
                 if(!MicrophoneAllowed)throw new InvalidOperationException("Allow microphone access in your operating-system settings first.");
                 await VivoxService.Instance.JoinEchoChannelAsync(echo,ChatCapability.AudioOnly,new ChannelOptions{MakeActiveChannelUponJoining=false});CheckCurrent(version);
                 await VivoxService.Instance.SetChannelTransmissionModeAsync(TransmissionMode.Single,echo);
-                VivoxService.Instance.UnmuteInputDevice();Status="Echo test: speak now — only you hear this, for eight seconds.";
+                VivoxService.Instance.UnmuteOutputDevice();VivoxService.Instance.UnmuteInputDevice();Status="Echo test: speak now — only you hear this, for eight seconds.";
                 await Task.Delay(8000,echoCancellation.Token);
                 CheckCurrent(version);Status="Microphone test finished — hold V to speak in the saloon.";
             }

@@ -54,6 +54,21 @@ public static class SaloonEditorIteration
     [MenuItem("Saloon/Verify discussion evidence in Play mode")]
     public static void RunEvidence(){Begin("evidence");}
 
+    [MenuItem("Saloon/Verify tabletop blackjack in Play mode")]
+    public static void RunBlackjack(){Begin("blackjack");}
+
+    [MenuItem("Saloon/Verify tabletop coin flip in Play mode")]
+    public static void RunCoin(){Begin("coin");}
+
+    [MenuItem("Saloon/Verify solo practice startup in Play mode")]
+    public static void RunSolo(){Begin("solo");}
+
+    [MenuItem("Saloon/Verify one-way room windows in Play mode")]
+    public static void RunWindows(){Begin("windows");}
+
+    [MenuItem("Saloon/Verify smoking area and private plans in Play mode")]
+    public static void RunSmoking(){Begin("smoking");}
+
     static void Begin(string mode)
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before verifying.");
@@ -70,13 +85,16 @@ public static class SaloonEditorIteration
             string mode=SessionState.GetString(Mode,"");
             bool lobby=mode=="lobby"||mode=="disconnect"||mode=="recovery";
             if(lobby)game.SetBotsEnabled(false);
-            game.HostLan(!lobby);game.StartCoroutine(mode=="evidence"?game.VerifyEvidence():mode=="recovery"?game.VerifyLanRecovery():mode=="disconnect"?game.VerifyDisconnectDetails():mode=="planning"?game.VerifyPlanningDraft():mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
+            if(mode!="solo")game.HostLan(!lobby);
+            game.StartCoroutine(mode=="solo"?game.VerifySoloPractice():mode=="coin"?game.VerifyTabletopCoin():mode=="smoking"?game.VerifySmoking():mode=="windows"?game.VerifyRoomWindows():mode=="blackjack"?game.VerifyTabletopBlackjack():mode=="evidence"?game.VerifyEvidence():mode=="recovery"?game.VerifyLanRecovery():mode=="disconnect"?game.VerifyDisconnectDetails():mode=="planning"?game.VerifyPlanningDraft():mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
         }
-        bool timeout=EditorApplication.timeSinceStartup-started>60;
+        bool timeout=EditorApplication.timeSinceStartup-started>100;
         if(!game.VerificationFinished&&!timeout)return;
         if(!cleaning){cleaning=true;game.Leave();return;}
         if(game.InRoom||game.View!=null)return;
         Debug.Log(game.VerificationPassed&&!timeout?"SALOON_EDITOR_ITERATION PASS":"SALOON_EDITOR_ITERATION FAIL");
+        bool passed=game.VerificationPassed&&!timeout;
         SessionState.SetBool(Pending,false);running=cleaning=false;EditorApplication.ExitPlaymode();
+        if(Application.isBatchMode&&(SessionState.GetString(Mode,"")=="solo"||SessionState.GetString(Mode,"")=="coin"||SessionState.GetString(Mode,"")=="blackjack"||SessionState.GetString(Mode,"")=="planning"||SessionState.GetString(Mode,"")=="windows"||SessionState.GetString(Mode,"")=="smoking"))EditorApplication.Exit(passed?0:1);
     }
 }

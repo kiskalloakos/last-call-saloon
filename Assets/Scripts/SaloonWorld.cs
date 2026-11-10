@@ -62,14 +62,12 @@ namespace Saloon
             Box("Porch",new Vector3(0,-.06f,-8.5f),new Vector3(8,.15f,3),wood);
             Box("Porch roof",new Vector3(0,3.3f,-8.5f),new Vector3(8,.15f,3),dark);
             foreach(float x in new[]{-3.7f,3.7f}) Box("Porch post",new Vector3(x,1.6f,-9.7f),new Vector3(.18f,3.2f,.18f),wood);
-            // Two conversation rooms, each open toward the saloon and screened from the bar.
+            // Two enclosed rooms; SaloonRoomWindows supplies their continuous glass fronts.
             foreach(float center in new[]{-5f,5f})
             {
-                Box("Room back",new Vector3(center,1.8f,-5.7f),new Vector3(4,3.6f,.18f),dark);
-                Box("Room side",new Vector3(center-2,1.8f,-3.7f),new Vector3(.18f,3.6f,4),dark);
-                Box("Room side",new Vector3(center+2,1.8f,-3.7f),new Vector3(.18f,3.6f,4),dark);
-                Box("Room screen",new Vector3(center-.6f,1.8f,-1.7f),new Vector3(2.8f,3.6f,.18f),dark);
-                Box("Room doorway lintel",new Vector3(center+1.4f,3.25f,-1.7f),new Vector3(1.2f,.7f,.18f),dark);
+                Box("Room back",new Vector3(center,2.05f,-5.7f),new Vector3(4,4.1f,.18f),dark);
+                Box("Room side",new Vector3(center-2,2.05f,-3.7f),new Vector3(.18f,4.1f,4),dark);
+                Box("Room side",new Vector3(center+2,2.05f,-3.7f),new Vector3(.18f,4.1f,4),dark);
             }
 
             Box("Bar front",new Vector3(-1.8f,.65f,3.8f),new Vector3(8.5f,1.3f,1),dark);

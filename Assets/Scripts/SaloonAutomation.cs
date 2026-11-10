@@ -152,16 +152,16 @@ namespace Saloon
                     Game.Connection.Send(new Command{kind="input",x=0,z=Time.unscaledTime-liveStarted<1?-1:0,yaw=0,pitch=0,poseVersion=self.poseVersion});
                     nextMove=Time.unscaledTime+.04f;
                 }
-                if(Game.View.phase==Phase.Finished&&!reported)
+                if(Game.View.phase==Phase.Discussion&&Game.View.round>=2&&!reported)
                 {
                     reported=true;
-                    bool valid=!moved&&privacyChecked&&Game.View.players.Length==5&&Game.View.ownRole!="Unknown"&&Game.View.players.All(p=>!string.IsNullOrEmpty(p.revealedRole));
+                    bool valid=!moved&&privacyChecked&&Game.View.players.Length==5&&Game.View.ownRole!="Unknown"&&string.IsNullOrEmpty(Game.View.outcome)&&Game.View.players.All(p=>string.IsNullOrEmpty(p.revealedRole));
                     Debug.Log("SALOON_SMOKE "+(valid?"PASS":"FAIL")+" mode="+mode+" players="+Game.View.players.Length+" role="+Game.View.ownRole+" outcome="+Game.View.outcome+" movement="+moved);
-                    // Let the host's final reliable snapshot leave the transport before shutdown.
+                    // Let the next-round snapshot reach every peer before shutdown.
                     resultCode=valid?0:3;quitAfter=Time.unscaledTime+(Game.Hosting?1f:.25f);
                 }
             }
-            if(Time.unscaledTime-started>55){Debug.LogError("SALOON_SMOKE FAIL: timed out waiting for five players/match completion");Application.Quit(4);}
+            if(Time.unscaledTime-started>55){Debug.LogError("SALOON_SMOKE FAIL: timed out waiting for five players/next round");Application.Quit(4);}
         }
     }
 }

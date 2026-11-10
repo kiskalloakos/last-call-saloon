@@ -15,9 +15,10 @@ namespace Saloon
     public class SaloonConnection : MonoBehaviour
     {
         public NetworkManager Manager { get; private set; }
-        public bool Hosting => Manager != null && Manager.IsServer;
-        public bool Connected => Manager != null && Manager.IsConnectedClient;
-        public ulong LocalId => Manager != null ? Manager.LocalClientId : 0;
+        public bool Solo { get; private set; }
+        public bool Hosting => Solo || (Manager != null && Manager.IsServer);
+        public bool Connected => Solo || (Manager != null && Manager.IsConnectedClient);
+        public ulong LocalId => Solo ? NetworkManager.ServerClientId : Manager != null ? Manager.LocalClientId : 0;
         public string Status = "Choose solo practice, LAN, or an online room.";
         public string RoomCode = "";
         public string LastDisconnectDetails { get; private set; }="";
@@ -49,19 +50,19 @@ namespace Saloon
             Manager = go.AddComponent<NetworkManager>();
             var transport = go.AddComponent<UnityTransport>();
             transport.MaxPacketQueueSize=1024;
-            Debug.Log("SALOON_BUILD version="+Application.version+" guid="+Application.buildGUID+" platform="+Application.platform+" protocol=state-4 utc="+DateTime.UtcNow.ToString("O"));
+            Debug.Log("SALOON_BUILD version="+Application.version+" guid="+Application.buildGUID+" platform="+Application.platform+" protocol=state-11 utc="+DateTime.UtcNow.ToString("O"));
             Manager.NetworkConfig = new NetworkConfig
             {
                 NetworkTransport = transport,
                 EnableSceneManagement = false,
                 ConnectionApproval = true,
-                ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-4/"+Application.version),
+                ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-11/"+Application.version),
                 TickRate = 30,
                 ClientConnectionBufferTimeout = 15
             };
             Manager.ConnectionApprovalCallback = (request, response) =>
             {
-                bool matching=Encoding.UTF8.GetString(request.Payload)=="LastCall/state-4/"+Application.version;
+                bool matching=Encoding.UTF8.GetString(request.Payload)=="LastCall/state-11/"+Application.version;
                 response.Approved = matching && Accepting && Manager.ConnectedClientsIds.Count < SaloonRules.LobbyCapacity;
                 response.CreatePlayerObject = false;
                 response.Pending = false;
@@ -69,6 +70,7 @@ namespace Saloon
             };
             Manager.OnClientConnectedCallback += id =>
             {
+                if(Solo)return;
                 RegisterMessages();
                 if(id==LocalId&&receivedSnapshots==0)lastSnapshotAt=Time.unscaledTime;
                 Debug.Log("SALOON_NET joined="+id+" host="+Hosting+" time="+Time.realtimeSinceStartup.ToString("F2"));
@@ -77,6 +79,7 @@ namespace Saloon
             };
             Manager.OnClientDisconnectCallback += id =>
             {
+                if(Solo)return;
                 // Capture this before game cleanup can replace the transport's reason.
                 string reason=Manager.DisconnectReason;
                 Debug.LogWarning("SALOON_NET disconnect utc="+DateTime.UtcNow.ToString("O")+" peer="+id+" host="+Hosting+" event="+Manager.DisconnectEvent+
@@ -154,9 +157,18 @@ namespace Saloon
             catch(Exception e){Debug.LogWarning("Ignored malformed snapshot: "+e.Message);}
         }
 
+        public void StartSolo()
+        {
+            if(Busy||Connected||(Manager!=null&&Manager.IsListening))return;
+            Initialize();ResetStateStream();
+            // Use the same host commands and serialized snapshots, without opening a socket.
+            Solo=true;Accepting=false;Status="Solo practice is ready.";
+            Joined?.Invoke(LocalId);
+        }
+
         public void StartLan(bool host, string address, ushort port)
         {
-            if (Busy || (Manager != null && Manager.IsListening)) return;
+            if (Busy || Solo || (Manager != null && Manager.IsListening)) return;
             Initialize();
             Accepting=true;
             ResetStateStream();
@@ -168,7 +180,7 @@ namespace Saloon
 
         public async Task StartCloud(bool host, string code)
         {
-            if (Busy || (Manager != null && Manager.IsListening)) return;
+            if (Busy || Solo || (Manager != null && Manager.IsListening)) return;
             Busy = true;
             Initialize();
             Accepting=true;
@@ -233,6 +245,7 @@ namespace Saloon
 
         public void SendSnapshot(ulong target, Snapshot snapshot)
         {
+            if(Solo&&target!=LocalId)return;
             var packed=SaloonSnapshotWire.Encode(snapshot,out int oldBytes);uint sequence=++snapshotSequence;
             int count=(packed.Length+SaloonSnapshotWire.ChunkBytes-1)/SaloonSnapshotWire.ChunkBytes;
             if(target!=LocalId){sentSnapshots++;legacyBytes+=oldBytes;}
@@ -284,7 +297,7 @@ namespace Saloon
 
         public async Task Disconnect()
         {
-            disconnectRequested=true;
+            disconnectRequested=true;Solo=false;
             try { if (session != null) await session.LeaveAsync(); }
             catch (Exception e) { Debug.LogWarning(e.Message); }
             session = null;

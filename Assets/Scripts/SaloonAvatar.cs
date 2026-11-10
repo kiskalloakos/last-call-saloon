@@ -10,7 +10,8 @@ namespace Saloon
         PlayerView state;
         GameObject model,gun,firstPersonGun,mug,firstPersonMug;
         TextMesh label,healthDots;
-        AudioSource audioSource,drinkAudio;
+        AudioSource audioSource,drinkAudio,reloadAudio;
+        int lastReload;
         bool wasDrinking;int lastGift;GameObject handoffMug;
         int lastShot;
         bool local;
@@ -19,6 +20,8 @@ namespace Saloon
         Light flash,thirdFlash;
         float muzzleUntil;
         SaloonCharacterMotion motion;
+        SaloonSmokingVisual smoking;
+        public SaloonSmokingVisual SmokingVisual=>smoking;
         SaloonSpeechMouth speechMouth;
         Vector3 walkingVelocity;
         Transform rightArm,rightForearm,rightHand,gunSpin,firstGunSpin;
@@ -29,12 +32,14 @@ namespace Saloon
         public bool DamageFlashVisible=>hitReaction!=null&&hitReaction.FlashVisible;
         public float LastVisualHitAt=>hitReaction?.LastHitAt??-10;
         int shownHealth=-1,shownMaxHealth=-1;
+        SaloonFootsteps footsteps;
         SaloonRagdoll ragdoll;
         public SaloonRagdoll DeathBody=>ragdoll;
         public bool CorpseVisible=>state!=null&&!state.alive&&!state.observer&&model.activeSelf;
 
         public void Initialize(SaloonGame owner,PlayerView initial,int colorIndex)
         {
+            footsteps=gameObject.AddComponent<SaloonFootsteps>();
             game=owner;state=initial;drawAmount=initial.drawn?1:0;target=new Vector3(initial.x,initial.y,initial.z);transform.position=target;
             var prefab=Resources.Load<GameObject>(SaloonCharacterMotion.ResourcePath);
             if(prefab==null)throw new System.InvalidOperationException("Prepare the Western Gunman character from the Saloon menu.");
@@ -46,13 +51,14 @@ namespace Saloon
             var thumb=motion.Bone(HumanBodyBones.RightThumbProximal);
             handBasis=Quaternion.Inverse(rightHand.rotation)*Quaternion.LookRotation(middle.position-rightHand.position,rightHand.forward);
             handGrip=rightHand.InverseTransformPoint((middle.position+thumb.position)*.5f);
+            smoking=gameObject.AddComponent<SaloonSmokingVisual>();smoking.Initialize(game,motion);
             gunGrip=new SaloonGunGrip(motion);hitReaction=new SaloonHitReaction(model);lastHit=initial.hits;
             gun=MakeGun(transform);gunSpin=gun.transform.Find("Spin pivot");
             mug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));mug.transform.SetParent(transform,false);mug.transform.localPosition=new Vector3(.28f,1.02f,.33f);mug.SetActive(false);
             var nameObject=new GameObject("Name");nameObject.transform.SetParent(transform);nameObject.transform.localPosition=new Vector3(0,2.05f,0);
-            label=nameObject.AddComponent<TextMesh>();label.characterSize=.0105f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;
+            label=nameObject.AddComponent<TextMesh>();label.characterSize=.0105f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;SaloonWorldText.Attach(label);
             var healthObject=new GameObject("Health dots");healthObject.transform.SetParent(transform,false);healthObject.transform.localPosition=new Vector3(0,1.85f,0);
-            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.010f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.richText=true;
+            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.011f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.richText=true;SaloonWorldText.Attach(healthDots);
             if(!game.Hosting&&initial.id!=game.LocalId)
             {
                 var collider=gameObject.AddComponent<CapsuleCollider>();collider.center=Vector3.up*.9f;collider.height=1.8f;collider.radius=.3f;
@@ -61,6 +67,8 @@ namespace Saloon
             audioSource=gameObject.AddComponent<AudioSource>();audioSource.spatialBlend=1;audioSource.minDistance=2;audioSource.maxDistance=45;
             drinkAudio=gameObject.AddComponent<AudioSource>();drinkAudio.clip=SaloonBeerAudio.Drinking;drinkAudio.minDistance=.8f;drinkAudio.maxDistance=7;drinkAudio.rolloffMode=AudioRolloffMode.Linear;
             thirdFlash=MakeMuzzle(gun.transform);
+            reloadAudio=gameObject.AddComponent<AudioSource>();reloadAudio.playOnAwake=false;reloadAudio.minDistance=1;reloadAudio.maxDistance=12;reloadAudio.rolloffMode=AudioRolloffMode.Linear;
+            lastReload=initial.reloads;
             lastGift=initial.giftSequence;lastShot=initial.shots;
         }
 
@@ -107,20 +115,28 @@ namespace Saloon
                     if(i>0)dots.Append("  ");
                     dots.Append(i<next.health?"<color=#F1E4CB>●</color>":"<color=#6D665C>●</color>");
                 }
+                dots.Append("<color=#F1E4CB>  ").Append(Mathf.Max(0,next.health)).Append(" / ").Append(next.maxHealth).Append(" HP</color>");
                 healthDots.text=dots.ToString();
             }
-            bool holdingBeer=next.alive&&!next.drawn&&(next.carriedBeer>0||next.drinking);
+            reloadAudio.spatialBlend=isLocal?0:1;reloadAudio.volume=isLocal?.6f:.4f;
+            if(next.reloads>lastReload&&next.reloading)
+            {
+                reloadAudio.clip=SaloonGunAudio.Reload;reloadAudio.pitch=Mathf.Clamp(reloadAudio.clip.length/Mathf.Max(.2f,next.reloadDuration),.25f,4);
+                reloadAudio.time=Mathf.Clamp01(1-next.reloadRemaining/Mathf.Max(.2f,next.reloadDuration))*(reloadAudio.clip.length-.01f);reloadAudio.Play();
+            }
+            if(!next.reloading||!next.alive)reloadAudio.Stop();lastReload=next.reloads;
+            bool holdingBeer=next.alive&&next.room!=3&&!next.drawn&&(next.carriedBeer>0||next.drinking);
             mug.SetActive(!local&&holdingBeer);
             if(firstPersonMug!=null)firstPersonMug.SetActive(local&&holdingBeer);
             if(next.shots>lastShot)
             {
                 audioSource.spatialBlend=local?0:1;audioSource.pitch=1+(next.shots%3-1)*.015f;
-                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);shotAt=Time.time;muzzleUntil=Time.time+.075f;
-                var tracer=new GameObject("Shot trail");var line=tracer.AddComponent<LineRenderer>();
+                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);shotAt=Time.time;muzzleUntil=Time.time+.09f;
+                var tracer=new GameObject("Shot trail");tracer.layer=SaloonSmokingArea.IndoorLayer;var line=tracer.AddComponent<LineRenderer>();
                 line.sharedMaterial=SaloonWorld.Material("Shot trail",new Color(1,.7f,.3f));line.startWidth=.018f;line.endWidth=.003f;line.positionCount=2;
                 var eye=target+Vector3.up*(next.seated?1.35f:1.65f);var dir=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
                 var weapon=local&&firstPersonGun!=null?firstPersonGun:gun;
-                line.SetPosition(0,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip));line.SetPosition(1,eye+dir*20);Destroy(tracer,.055f);
+                line.SetPosition(0,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip));line.SetPosition(1,SaloonRoomWindows.ClipShotTrail(eye,dir,20));Destroy(tracer,.055f);
             }
             lastShot=next.shots;
         }
@@ -141,10 +157,12 @@ namespace Saloon
         void LateUpdate()
         {
             if(state==null)return;
+            footsteps.Tick(transform.position,state.alive,state.seated,Time.time-snapshotAt<.25f,local,state.room==3);
             hitReaction.Tick();
             speechMouth.Tick(game.Voice.SpeechLevel(state.voiceId),state.alive&&!state.observer&&!state.drinking,Time.unscaledDeltaTime);
             if(!state.alive)
             {
+                smoking.Pose(state,local,100);
                 gun.SetActive(false);mug.SetActive(false);
                 if(firstPersonGun!=null)firstPersonGun.SetActive(false);
                 if(firstPersonMug!=null)firstPersonMug.SetActive(false);
@@ -160,8 +178,12 @@ namespace Saloon
             float progress=1-Mathf.Clamp01((state.drinkRemaining-(Time.time-snapshotAt))/Mathf.Max(.01f,state.drinkDuration));
             float lift=state.drinking?Mathf.SmoothStep(0,1,Mathf.Min(progress/.2f,(1-progress)/.2f)):0;
             motion.Pose(state.seated,Time.time-snapshotAt<.25f?walkingVelocity:Vector3.zero,lift,SaloonWeaponPose.Kick(Time.time-shotAt),state.drawn?state.pitch:0);
-            if(label!=null){label.transform.localPosition=new Vector3(0,state.seated?1.60f:2.05f,0);label.transform.rotation=game.ViewCamera.transform.rotation;}
-            if(healthDots!=null){healthDots.transform.localPosition=new Vector3(0,state.seated?1.46f:1.85f,0);healthDots.transform.rotation=game.ViewCamera.transform.rotation;}
+            // Follow the posed head, so sitting or wearing a hat cannot bury the health label.
+            var healthPosition=motion.Bone(HumanBodyBones.Head).position+Vector3.up*.43f;
+            if(label!=null){label.transform.position=healthPosition+Vector3.up*.18f;label.transform.rotation=game.ViewCamera.transform.rotation;}
+            if(healthDots!=null){healthDots.transform.position=healthPosition;healthDots.transform.rotation=game.ViewCamera.transform.rotation;}
+            float labelScale=Mathf.Min(1,Vector3.Distance(game.ViewCamera.transform.position,healthPosition)/3);
+            label.transform.localScale=healthDots.transform.localScale=Vector3.one*labelScale;
             float elapsed=Time.time-shotAt;
             bool finishingShot=state.shots>0&&elapsed<SaloonWeaponPose.Duration;
             drawAmount=Mathf.MoveTowards(drawAmount,(state.alive&&state.drawn)||finishingShot?1:0,Time.deltaTime/SaloonWeaponPose.DrawSeconds);
@@ -171,7 +193,7 @@ namespace Saloon
             gun.transform.localRotation=Quaternion.Euler(state.pitch,0,0)*shotRotation*drawRotation;
             gun.transform.localPosition=new Vector3(.25f,state.seated?.91f:1.20f,.44f)+shotOffset+drawOffset;
             gunSpin.localRotation=Quaternion.Euler(spin,0,0);
-            bool weaponVisible=!state.drinking&&(drawAmount>.001f||finishingShot);
+            bool weaponVisible=state.room!=3&&!state.drinking&&(drawAmount>.001f||finishingShot);
             if(weaponVisible)
                 gunGrip.Pose(gun.transform,transform.rotation*Quaternion.Euler(state.pitch,0,0)*shotRotation*drawRotation,drawAmount);
             else gunGrip.Release();
@@ -196,7 +218,9 @@ namespace Saloon
                 firstPersonMug.transform.localPosition=Vector3.Lerp(new Vector3(.23f,-.30f,.43f),new Vector3(.08f,-.16f,.30f),lift);
                 firstPersonMug.transform.localRotation=Quaternion.Euler(-65*lift,0,-10*lift);
             }
+            smoking.Pose(state,local,state.smokeAge+Mathf.Max(0,Time.time-snapshotAt));
             gun.SetActive(!local&&weaponVisible);
+            AnimateMuzzle(thirdFlash,elapsed);if(flash!=null)AnimateMuzzle(flash,elapsed);
             thirdFlash.gameObject.SetActive(!local&&weaponVisible&&Time.time<muzzleUntil);
             if(firstPersonGun!=null)
             {
@@ -225,20 +249,34 @@ namespace Saloon
             if(offered!=null)Destroy(offered);handoffMug=null;
         }
 
+        static void AnimateMuzzle(Light light,float elapsed)
+        {
+            float fade=1-Mathf.Clamp01(elapsed/.09f);
+            light.intensity=6*fade*fade;
+            light.transform.localScale=Vector3.one*(.6f+.6f*fade);
+            light.transform.localRotation=Quaternion.Euler(0,0,(int)(elapsed*120)*37);
+        }
         static Light MakeMuzzle(Transform parent)
         {
             var go=new GameObject("Muzzle flash");go.transform.SetParent(parent,false);go.transform.localPosition=new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip;
-            var mesh=new Mesh{name="Low-poly muzzle burst"};var vertices=new Vector3[9];var triangles=new int[24];
-            for(int i=0;i<8;i++)
+            var mesh=new Mesh{name="Crossed muzzle flame"};var vertices=new Vector3[18];var triangles=new int[48];var colors=new Color[18];
+            // Two intersecting bursts stay visible from the shooter's camera and beside the barrel.
+            for(int plane=0;plane<2;plane++)
             {
-                float angle=i*Mathf.PI/4;float radius=i%2==0?.075f:.025f;
-                vertices[i+1]=new Vector3(Mathf.Cos(angle)*radius,Mathf.Sin(angle)*radius,0);
-                triangles[i*3]=0;triangles[i*3+1]=i+1;triangles[i*3+2]=(i+1)%8+1;
+                int offset=plane*9;colors[offset]=new Color(1,1,.86f);
+                for(int i=0;i<8;i++)
+                {
+                    float angle=i*Mathf.PI/4,radius=i%2==0?.115f:.036f;
+                    var point=new Vector3(Mathf.Cos(angle)*radius,Mathf.Sin(angle)*radius,0);
+                    vertices[offset+i+1]=plane==0?point:new Vector3(point.x,0,point.y+.035f);
+                    colors[offset+i+1]=new Color(1,.46f,.08f,.75f);
+                    int t=plane*24+i*3;triangles[t]=offset;triangles[t+1]=offset+i+1;triangles[t+2]=offset+(i+1)%8+1;
+                }
             }
-            mesh.vertices=vertices;mesh.triangles=triangles;mesh.RecalculateNormals();go.AddComponent<MeshFilter>().sharedMesh=mesh;
-            var renderer=go.AddComponent<MeshRenderer>();renderer.sharedMaterial=new Material(Shader.Find("Sprites/Default")){color=new Color(1,.76f,.27f)};
+            mesh.vertices=vertices;mesh.triangles=triangles;mesh.colors=colors;mesh.RecalculateNormals();go.AddComponent<MeshFilter>().sharedMesh=mesh;
+            var renderer=go.AddComponent<MeshRenderer>();renderer.sharedMaterial=new Material(Shader.Find("Sprites/Default")){color=Color.white};
             renderer.shadowCastingMode=UnityEngine.Rendering.ShadowCastingMode.Off;
-            var light=go.AddComponent<Light>();light.type=LightType.Point;light.range=2.5f;light.color=new Color(1,.65f,.2f);light.intensity=3;
+            var light=go.AddComponent<Light>();light.type=LightType.Point;light.range=3.2f;light.color=new Color(1,.67f,.3f);light.intensity=6;
             go.SetActive(false);return light;
         }
 
@@ -251,6 +289,8 @@ namespace Saloon
             visual.transform.localRotation=Quaternion.identity;
             return go;
         }
+
+        public void Silence(){if(audioSource!=null)audioSource.Stop();if(drinkAudio!=null)drinkAudio.Stop();}
 
         void OnDestroy(){if(handoffMug!=null)Destroy(handoffMug);if(firstPersonGun!=null)Destroy(firstPersonGun);if(firstPersonMug!=null)Destroy(firstPersonMug);}
     }

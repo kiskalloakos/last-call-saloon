@@ -9,7 +9,7 @@ namespace Saloon
     {
         public SaloonGame Game;
         GUIStyle title,subtitle,body,small,button,field,roleStyle;
-        readonly Color ink=new Color(.92f,.94f,.95f), gold=new Color(.56f,.77f,.79f), muted=new Color(.64f,.70f,.74f);
+        readonly Color ink=new Color(.19f,.13f,.09f), gold=new Color(.54f,.27f,.12f), muted=new Color(.39f,.31f,.23f);
         bool cluesOpen;
         Vector2 scroll;
         float menuContentHeight=1400;
@@ -30,21 +30,33 @@ namespace Saloon
 
         void OnGUI()
         {
-            Styles();GUI.skin=flatSkin;float scale=Mathf.Min(Screen.width/1280f,Screen.height/720f);
+            Styles();worldHud=false;GUI.skin=flatSkin;float scale=Mathf.Min(Screen.width/1280f,Screen.height/720f);
             GUI.matrix=Matrix4x4.TRS(new Vector3((Screen.width-1280*scale)/2,(Screen.height-720*scale)/2,0),Quaternion.identity,new Vector3(scale,scale,1));
             if(!Game.InRoom){MainMenu();return;}
             if(Game.HitFlash>0)Panel(new Rect(0,0,1280,720),new Color(.8f,.08f,.02f,Game.HitFlash));
-            Gameplay();if(Game.MenuOpen)Pause();
+            Gameplay();if(Game.MenuOpen)Paper(Pause);
         }
 
         void Panel(Rect rect,Color color)
         {
-            if(rect.width>=1280){Fill(rect,color.r>.5f?color:paper);return;}
+            if(rect.width>=1280){Fill(rect,color);return;}
             if(rect.height<=3){Fill(rect,gold);return;}
-            Fill(rect,paper);
+            Fill(new Rect(rect.x+2,rect.y+3,rect.width,rect.height),new Color(.20f,.12f,.06f,.12f));
+            Fill(rect,paper);Outline(rect,rule);
+            Fill(new Rect(rect.x+5,rect.y+5,rect.width-10,1),new Color(1,.97f,.86f,.6f));
         }
         void Text(float x,float y,float width,float height,string text,GUIStyle style=null)
-        {bool enabled=GUI.enabled;GUI.enabled=true;GUI.Label(new Rect(x,y,width,height),text,style??body);GUI.enabled=enabled;}
+        {
+            bool enabled=GUI.enabled;GUI.enabled=true;var shown=new GUIStyle(style??body);
+            if(worldHud)
+            {
+                shown.normal.textColor=style==small?new Color(.92f,.87f,.76f):new Color(1,.95f,.82f);
+                var shadow=new GUIStyle(shown);shadow.normal.textColor=new Color(.14f,.07f,.03f,.8f);PassiveText(shadow);
+                GUI.Label(new Rect(x+1,y+2,width,height),text,shadow);
+            }
+            PassiveText(shown);
+            GUI.Label(new Rect(x,y,width,height),text,shown);GUI.enabled=enabled;
+        }
         bool Button(float x,float y,float width,float height,string label,bool selected=false)
         {
             selected|=label.StartsWith("✓ ");label=label.Replace("✓ ","");
@@ -64,7 +76,7 @@ namespace Saloon
             Text(67,199,485,55,"Everyone has a revolver.\nOnly one badge tells the truth.");
             Text(67,271,120,25,"YOUR NAME",subtitle);
             Game.PlayerName=GUI.TextField(new Rect(67,300,480,40),Game.PlayerName,20,field);
-            if(Button(67,359,480,44,"SOLO PRACTICE",true)){Game.SaveName();Game.HostLan(true);}
+            if(Button(67,359,480,44,"SOLO PRACTICE",true)){Game.SaveName();Game.StartSolo();}
             if(Button(67,418,233,38,"LOCAL / LAN",!online))online=false;
             if(Button(314,418,233,38,"ONLINE ROOM",online))online=true;
             if(!online)
@@ -102,41 +114,53 @@ namespace Saloon
         void Gameplay()
         {
             var view=Game.View;if(view==null){Text(40,30,650,100,Game.Connection.Status);return;}
+            worldHud=true;
             var sheriff=view.players.FirstOrDefault(p=>p.sheriff);
             if(view.phase!=Phase.Lobby&&sheriff!=null)
             {
-                Text(28,24,280,18,sheriff.alive?"SHERIFF":"SHERIFF · ELIMINATED",subtitle);
-                Text(28,45,280,24,sheriff.name+(sheriff.id==Game.LocalId?" (you)":""),small);
+                Graphic(new Rect(31,24,43,43),badgeIcon,new Color(.97f,.75f,.34f));
+                Text(84,23,250,20,sheriff.alive?"THE SHERIFF":"SHERIFF · ELIMINATED",subtitle);
+                Text(84,45,250,26,sheriff.name+(sheriff.id==Game.LocalId?"  /  YOU":""),body);
             }
             string phaseLabel=view.phase==Phase.Lobby?"LOBBY":view.phase==Phase.Discussion?"DISCUSSION":view.phase==Phase.Turns?"ROOM ACTIONS":view.phase==Phase.Regroup?"REGROUP":view.phase==Phase.Aftermath?"AFTERMATH":view.phase==Phase.Finished?"MATCH FINISHED":"CHOOSE ROOMS";
-            Text(460,24,360,20,"ROUND "+view.round+"  /  "+phaseLabel,new GUIStyle(subtitle){alignment=TextAnchor.MiddleCenter});
-            string status=view.phase==Phase.Discussion?view.players.Count(p=>p.alive&&p.ready)+" / "+view.players.Count(p=>p.alive)+" ready":view.phase==Phase.Lobby?view.players.Length+" players":TimeSpan.FromSeconds(view.remaining).ToString(@"mm\:ss");
-            Text(460,46,360,22,status,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
+            Text(430,22,420,22,"ROUND "+view.round+"  /  "+phaseLabel,new GUIStyle(title){fontSize=16,alignment=TextAnchor.MiddleCenter});
+            string status=view.phase==Phase.Discussion?view.players.Count(p=>p.alive&&p.ready)+" / "+view.players.Count(p=>p.alive)+" ready":view.phase==Phase.Lobby?view.players.Length+" players":(view.phase==Phase.Turns?(view.actionsRemaining==1?"1 player has an action left":view.actionsRemaining+" players have actions left")+" · ":"")+TimeSpan.FromSeconds(view.remaining).ToString(@"mm\:ss");
+            Text(430,47,420,22,status,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
+            if(view.posseStage>0&&view.phase!=Phase.Finished)
+            {
+                Fill(new Rect(520,78,240,2),new Color(.97f,.65f,.33f,.7f));
+                string pressure=view.posseStage==4?"POSSE ARRIVED":view.posseRoundsRemaining==1?"POSSE APPROACHING · FINAL ROUND":"POSSE APPROACHING · "+view.posseRoundsRemaining+" ROUNDS LEFT";
+                Text(402,82,476,22,pressure,new GUIStyle(subtitle){alignment=TextAnchor.MiddleCenter,normal={textColor=new Color(1,.72f,.38f)}});
+                Text(402,107,476,31,SaloonPosse.Dialogue(view.posseStage),new GUIStyle(small){fontSize=12,alignment=TextAnchor.MiddleCenter});
+            }
+            if(view.phase==Phase.Turns)
+            {
+                string why=view.actionsRemaining==0&&view.actionsInProgress>0?"Finishing "+view.actionsInProgress+" timed action(s)…":view.actionBlockReason;
+                if(!string.IsNullOrEmpty(why)){Text(407,155,466,36,why,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});}
+            }
             Vitals();
             if(view.phase!=Phase.Discussion)cluesOpen=false;
             if(!Game.MenuOpen&&Game.Self!=null&&Game.Self.alive)
             {
-                Text(630,344,24,28,"·",new GUIStyle(body){normal={textColor=Color.white}});
+                if(!Game.OutsideForSmoke&&!Game.PlayingTableGame)
+                {var aim=new Color(.95f,.91f,.83f,.65f);Fill(new Rect(634,359,4,1),aim);Fill(new Rect(643,359,4,1),aim);Fill(new Rect(640,353,1,4),aim);Fill(new Rect(640,362,1,4),aim);}
                 if(!string.IsNullOrEmpty(Game.InteractionHint)){Text(430,623,420,32,Game.InteractionHint,new GUIStyle(body){alignment=TextAnchor.MiddleCenter});}
             }
             if(!Game.MenuOpen)
             {
-                if(!string.IsNullOrEmpty(view.objectiveNotice)&&view.phase!=Phase.Discussion){Panel(new Rect(28,126,345,85),paper);Text(44,140,313,58,view.objectiveNotice,body);}
+                if(!string.IsNullOrEmpty(view.objectiveNotice)&&view.phase!=Phase.Discussion)Text(36,107,300,58,view.objectiveNotice,body);
 
             }
             string notice=Game.Connection.WaitingForSnapshot?"Connection delayed — waiting for host ("+Game.Connection.SnapshotAge.ToString("0")+"s)":Game.Self?.alive==false&&!Game.Self.observer?"ELIMINATED · Entering spectator mode shortly":Game.IsSpectating?"":view.phase==Phase.Aftermath?"":view.busyRemaining>0?$"{view.busyRemaining:0.0}s":view.notice;
             if(notice!=lastNotice){lastNotice=notice;noticeAt=Time.unscaledTime;}
-            if(!string.IsNullOrEmpty(notice)&&(Time.unscaledTime-noticeAt<4||Game.Connection.WaitingForSnapshot||view.busyRemaining>0||Game.Self?.alive==false)){Text(412,585,416,32,notice,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});}
-            string voiceLabel=Game.Voice.Transmitting?"●  Speaking":Game.Voice.Muted?"Microphone muted":Game.Voice.Connected?"V  Talk":"Voice offline";
-            Text(28,688,300,20,voiceLabel,Game.Voice.Transmitting?subtitle:small);
-            Text(980,688,274,20,view.ownRole==Role.Sheriff.ToString()?"Tab  Role & clues     Esc  Menu":"Tab  Role     Esc  Menu",new GUIStyle(small){alignment=TextAnchor.MiddleRight});
+            if(!string.IsNullOrEmpty(notice)&&(Time.unscaledTime-noticeAt<4||Game.Connection.WaitingForSnapshot||view.busyRemaining>0||Game.Self?.alive==false)){Text(404,580,472,32,notice,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});}
             if(!Game.MenuOpen&&!Game.ShowRole&&Game.Self?.alive==true)
             {
-                if(view.phase==Phase.Discussion&&view.ownRole!=Role.Sheriff.ToString())EvidenceCard();
-                if(view.phase==Phase.Discussion||view.phase==Phase.Choosing)Invitations();
-                if(view.phase==Phase.Choosing||(view.phase==Phase.Discussion&&Game.RoomPlannerOpen))RoomChoices();
-                if(view.phase==Phase.Turns&&view.duel!=null)DuelCard();
-                if(view.phase==Phase.Turns&&view.roomTurn!=null)RoomTurnCard();
+                if(view.phase==Phase.Discussion&&view.ownRole!=Role.Sheriff.ToString())Paper(EvidenceCard);
+
+                if(view.phase==Phase.Choosing||(view.phase==Phase.Discussion&&Game.RoomPlannerOpen)){Panel(new Rect(984,80,280,524),new Color(.055f,.049f,.042f,.94f));Paper(RoomChoices);}
+                if(view.phase==Phase.Turns&&view.duel!=null){Panel(new Rect(984,80,280,112),new Color(.055f,.049f,.042f,.92f));Paper(DuelCard);}
+                if(view.phase==Phase.Turns&&view.roomTurn!=null){Panel(new Rect(984,80,280,112),new Color(.055f,.049f,.042f,.92f));Paper(RoomTurnCard);}
             }
             if(Game.IsSpectating&&!Game.MenuOpen)
             {
@@ -147,14 +171,15 @@ namespace Saloon
 
             }
             if(Game.Self!=null&&!Game.Self.alive&&!Game.IsSpectating&&view.phase!=Phase.Finished&&Game.ShowEliminationOverlay)
-            {Panel(new Rect(390,280,500,110),paper);Text(420,294,440,42,"ELIMINATED",new GUIStyle(roleStyle){fontSize=28});Text(420,343,440,30,"Your voice is separated from living players.",small);}
+            {worldHud=false;Panel(new Rect(390,280,500,110),paper);Text(420,294,440,42,"ELIMINATED",new GUIStyle(roleStyle){fontSize=28});Text(420,343,440,30,"Your voice is separated from living players.",small);}
             if(Game.ShowRole&&!Game.MenuOpen)
             {
                 Enum.TryParse(view.ownRole,out Role role);
-                RoleCard(role);
+                Paper(()=>RoleCard(role));
             }
             if(view.phase==Phase.Finished&&!Game.MenuOpen)
             {
+                worldHud=false;
                 Panel(new Rect(350,195,580,320),new Color(.04f,.035f,.03f,.97f));
                 Text(375,220,530,80,view.outcome,new GUIStyle(roleStyle){fontSize=26,wordWrap=true});
                 int row=0;foreach(var p in view.players)Text(400,310+row++*30,500,28,$"{p.name}  /  {p.revealedRole}  /  {(p.alive?"survived":"eliminated")}",small);
@@ -166,17 +191,27 @@ namespace Saloon
         {
             var view=Game.View;int hp=Mathf.Clamp(Game.CameraPlayer?.health??view.health,0,12);
             int max=Mathf.Clamp(Game.CameraPlayer?.maxHealth??Game.tuning.health,1,12);
-            Text(28,632,220,18,Game.IsSpectating?"SPECTATING · HEALTH":"HEALTH",subtitle);
-            for(int i=0;i<max;i++)
+            var white=new Color(1,.95f,.82f);var red=new Color(.80f,.22f,.15f);var healthy=new Color(.70f,.83f,.49f);
+            string role=Game.IsSpectating?Game.CameraPlayer.name:(view.ownRole??"Stranger");
+            Text(40,590,330,38,role.ToUpperInvariant(),new GUIStyle(title){fontSize=24});
+            Text(40,628,140,20,Game.IsSpectating?"SPECTATING":"VITALITY",subtitle);
+            Text(240,625,70,24,hp+" / "+max,new GUIStyle(body){alignment=TextAnchor.MiddleRight});
+            Fill(new Rect(40,654,270,12),new Color(.95f,.86f,.68f,.22f));
+            Fill(new Rect(40,654,270*hp/(float)max,12),hp<=1?red:healthy);
+            Fill(new Rect(40,654,270*hp/(float)max,2),new Color(1,1,.85f,.5f));
+            for(int i=1;i<max;i++)Fill(new Rect(40+270*i/(float)max,654,2,12),new Color(.22f,.16f,.1f,.3f));
+            if(Game.OutsideForSmoke)
             {
-                var rect=new Rect(28+i*35,657,28,7);Fill(rect,new Color(.16f,.19f,.22f));
-                if(i<hp)Fill(rect,hp==1?new Color(.91f,.54f,.43f):new Color(.68f,.85f,.76f));
+                Text(1000,615,240,24,"TAKE A BREATHER",new GUIStyle(title){fontSize=20,alignment=TextAnchor.MiddleRight});
+                Text(1000,650,240,24,"Left-click  /  Take a drag",new GUIStyle(small){alignment=TextAnchor.MiddleRight});
             }
-            Text(28+max*35+5,648,90,25,hp+" / "+max,small);
-            if(!Game.IsSpectating)
+            else if(!Game.IsSpectating)
             {
-                Text(1080,632,174,18,"AMMO",new GUIStyle(subtitle){alignment=TextAnchor.MiddleRight});
-                Text(1080,650,174,30,view.ammo+" / 6"+(view.carriedBeer>0?"   ·   Beer":""),new GUIStyle(body){fontSize=22,alignment=TextAnchor.MiddleRight});
+                int capacity=Game.tuning.cylinder;
+                Text(1030,587,210,24,"REVOLVER",new GUIStyle(subtitle){alignment=TextAnchor.MiddleRight});
+                for(int i=0;i<capacity;i++)Graphic(new Rect(1050+i*24,618,23,43),cartridgeIcon,i<view.ammo?new Color(.98f,.76f,.37f):new Color(.96f,.88f,.72f,.24f));
+                Text(1194,614,58,42,view.ammo.ToString(),new GUIStyle(title){fontSize=31,alignment=TextAnchor.MiddleRight});
+                if(view.carriedBeer>0)Text(1010,665,240,20,"BEER  /  B drink · G offer",new GUIStyle(small){alignment=TextAnchor.MiddleRight});
             }
         }
 
@@ -200,7 +235,7 @@ namespace Saloon
 
         void RoleCard(Role role)
         {
-            var guide=SaloonRules.Guide(role,Game.View.players.Length);
+            var guide=SaloonRules.Guide(role,Game.View.turnOrder?.Length??Game.View.players.Length);
             var help=new GUIStyle(body){fontSize=15,richText=true};
             Panel(new Rect(218,122,844,546),new Color(.045f,.035f,.028f,.99f));
             Text(248,140,784,45,role.ToString().ToUpperInvariant(),roleStyle);
@@ -235,38 +270,38 @@ namespace Saloon
             Game.RoomChooserRenderFrames++;var self=Game.Self;
             const float x=1000,w=254;
             Text(x,92,w,22,"YOUR PLAN",subtitle);
-            Text(x,120,w,20,"Room",small);
-            for(int room=0;room<3;room++)
-                if(Button(x+room*86,144,82,29,new[]{"Bar","West","East"}[room],Game.PlannedRoom==room))Game.ChooseRoom(room,Game.PlannedCompanion);
-            Text(x,187,w,20,"Partner",small);
-            if(Button(x,211,w,26,"Go alone",string.IsNullOrEmpty(Game.PlannedCompanion)))Game.ChooseRoom(Game.PlannedRoom,"");
+            Text(x,120,w,20,"Your room and partner are private",small);
+            for(int room=0;room<4;room++)
+            {
+                int capacity=Game.View.roomCapacities?[room]??(room==0?5:2);
+                string seats=room==0?"Shared":capacity+" places";
+                float ry=148+room*37;
+                if(Button(x,ry,126,31,SaloonStations.Name(room),Game.PlannedRoom==room))Game.ChooseRoom(room,Game.PlannedCompanion);
+                Text(x+134,ry+5,120,22,seats,small);
+            }
+            Text(x,303,w,20,"Partner preference · private",small);
+            if(Button(x,327,w,26,"Go alone",string.IsNullOrEmpty(Game.PlannedCompanion)))Game.ChooseRoom(Game.PlannedRoom,"");
             int row=0;
             foreach(var player in Game.View.players.Where(p=>p.id!=self.id&&p.alive))
             {
-                bool invited=player.companion==self.id;
-                string label=player.name+(invited?" · invites you":"");
-                if(Button(x,243+row++*31,w,27,label,Game.PlannedCompanion==player.id))Game.ChooseRoom(invited?player.chosenRoom:Game.PlannedRoom,player.id);
+                if(Button(x,359+row++*31,w,27,player.name+" · "+player.health+"/"+player.maxHealth+" HP",Game.PlannedCompanion==player.id))Game.ChooseRoom(Game.PlannedRoom,player.id);
             }
-            float y=251+row*31;
-            if(Button(x,y,w,34,Game.PlanReady?"Ready · click to undo":"Ready",Game.PlanReady))Game.ToggleReady();
-            Text(x,y+40,w,35,Game.PlanPending?"Saving…":"Everyone must be ready.",small);
-        }
-
-        void Invitations()
-        {
-            if(Game.RoomPlannerOpen||Game.View.phase==Phase.Choosing)return;
-            int row=0;
-            foreach(var invite in Game.View.players.Where(p=>p.alive&&p.companion==Game.LocalId).Take(1))
-            {
-                float y=548+row++*52;Panel(new Rect(28,y,345,56),new Color(.045f,.035f,.028f,.75f));
-                Text(42,y+6,315,20,invite.name+" invites you",subtitle);
-                Text(42,y+28,315,20,SaloonStations.Name(invite.chosenRoom)+"  ·  P to plan",small);
-            }
+            float y=367+row*31;
+            bool full=!Game.PlanPending&&Game.PlannedRoom==self.chosenRoom&&Game.View.plannedRoomFull;
+            bool enabled=GUI.enabled;GUI.enabled=enabled&&(Game.PlanReady||!full);
+            if(Button(x,y,w,34,Game.PlanReady?"Seat reserved · click to release":full?"Room full":"Ready · reserve seat",Game.PlanReady))Game.ToggleReady();
+            GUI.enabled=enabled;
+            Text(x,y+40,w,45,Game.PlanPending?"Saving…":full&&!Game.PlanReady?"Choose another room, or wait for a seat.":Game.PlanReady?"Your seat is reserved. Waiting for everyone.":"Everyone must be ready.",small);
         }
 
         void DuelCard()
         {
             var duel=Game.View.duel;const float x=1000;
+            if(duel.game=="blackjack"||(duel.game=="coin"&&Game.Self?.room==1))
+            {
+                if(duel.stage=="playing")Text(x,92,254,65,duel.waitingForOpening?duel.firstName+" opens · "+duel.remaining.ToString("0")+"s":duel.yourTurn?"Your move · Q draw · Space pass":"Action spent",small);
+                return;
+            }
             bool choosing=duel.stage=="choosing",flipping=duel.stage=="flipping";
             Text(x,92,254,22,choosing?"CHOOSE YOUR SIDE":flipping?"COIN TOSS":duel.firstName+" opens",subtitle);
             if(choosing)
@@ -324,8 +359,7 @@ namespace Saloon
                 Text(0,y,650,32,"Discussion ends when every living player is Ready.",small);y+=40;
                 Text(0,y,650,26,$"Shared action window: {Game.tuning.turnSeconds:0} seconds",small);y+=28;
                 Game.tuning.turnSeconds=Mathf.Round(GUI.HorizontalSlider(new Rect(0,y,640,25),Game.tuning.turnSeconds,5,60));y+=33;
-                Text(0,y,650,26,$"Round limit: {Game.tuning.roundLimit}",small);y+=28;
-                Game.tuning.roundLimit=Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(0,y,640,25),Game.tuning.roundLimit,1,12));y+=33;
+                Text(0,y,650,26,"Posse: warning after round 7 · arrives after round 10",small);y+=33;
                 Text(0,y,650,26,$"Shared beer supply: {Game.tuning.sharedBeers}",small);y+=28;
                 Game.tuning.sharedBeers=Mathf.RoundToInt(GUI.HorizontalSlider(new Rect(0,y,640,25),Game.tuning.sharedBeers,0,16));y+=32;
                 GUI.enabled=true;y+=8;
@@ -356,7 +390,7 @@ namespace Saloon
                 }
             }
             Text(0,y,640,80,"Revolver: TimDev — CC BY 4.0; adapted model/texture.\nSource: opengameart.org/content/colt-lowpoly-revolver\nLicense: creativecommons.org/licenses/by/4.0/",small);y+=95;
-            Text(0,y,640,120,"Law: defend the money through the round cap or remove all criminals.\nOutlaws: only Outlaws can rob and escape with the money.\nRenegade: eliminate Outlaws first, then Law; be the last alive.\nSheriff death does not end the match. A disconnect aborts it.",small);
+            Text(0,y,640,120,"Law: stop the escape and survive until the posse, or eliminate all criminals.\nOutlaws: only Outlaws can rob and escape with the money.\nRenegade: eliminate Outlaws first, then Law; be the last alive.\nSheriff death does not end the match. Posse arrives after round 10. A disconnect aborts it.",small);
             menuContentHeight=y+130;
             GUI.EndScrollView();
             if(Button(295,630,330,40,"RETURN TO SALOON"))Game.MenuOpen=false;

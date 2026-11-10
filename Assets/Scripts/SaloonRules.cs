@@ -15,7 +15,8 @@ namespace Saloon
         public float turnSeconds = 30;
         public float choosingSeconds = 15;
         public float regroupSeconds = 3;
-        public int roundLimit = 6;
+        // Legacy serialized setting; positive values are ignored by the round clock.
+        [UnityEngine.HideInInspector] public int roundLimit = 0;
         public int health = 3;
         public int cylinder = 6;
         public int sharedBeers = 8;
@@ -23,7 +24,7 @@ namespace Saloon
         public float reloadSeconds = 3.5f;
         public float drinkSeconds = 2.5f;
         public float handoffSeconds = .65f;
-        public float drawSeconds = .6f;
+        public float drawSeconds = .25f;
         public float robberySeconds = 3;
         public float walkSpeed = 3.5f;
         public float interactionDistance = 2.5f;
@@ -39,7 +40,7 @@ namespace Saloon
     public static class SaloonRules
     {
         public const int LobbyCapacity=8;
-        const string EscapeGuide="1. Choose <b>Bar</b>, then Ready.\n2. On your turn, press <b>H</b>. Wait 3 seconds. A hit stops the job.\n3. Three jobs total open the safe. The last worker gets the money.\n4. Press <b>X</b> on a later turn.\n5. Choose <b>Bar again</b> next round. Stay alive with the money until actions end.\nYou cannot start an escape in the final round.";
+        const string EscapeGuide="1. Choose <b>Bar</b>, then Ready.\n2. On your turn, press <b>H</b>. Wait 3 seconds. A hit stops the job.\n3. Three jobs total open the safe. The last worker gets the money.\n4. Press <b>X</b> on a later turn.\n5. Choose <b>Bar again</b> next round. Stay alive with the money until actions end.\nThe posse arrives after round 10. Declare by round 9 to escape in time.";
         public static readonly Role[] Deck = { Role.Sheriff, Role.Deputy, Role.Outlaw, Role.Outlaw, Role.Renegade };
         public static bool SupportedMatchSize(int count)=>count==4||count==5;
         public static Role[] DeckFor(int count)=>count==4?new[]{Role.Sheriff,Role.Deputy,Role.Outlaw,Role.Renegade}:count==5?Deck.ToArray():throw new ArgumentOutOfRangeException(nameof(count),"Role rules are currently defined for four or five players.");
@@ -62,10 +63,10 @@ namespace Saloon
         {
             switch (role)
             {
-                case Role.Sheriff: return "Keep the money from escaping through Round 6, or eliminate all criminals. Sheriff death does not end the match.";
+                case Role.Sheriff: return "Survive and stop the escape until the posse arrives after round 10, or eliminate all criminals. Sheriff death does not end the match.";
                 case Role.Deputy: return "Defend the money with the Sheriff. You can still win after the Sheriff dies.";
                 case Role.Outlaw: return "Escape with the money; either Outlaw can win for both. Your fellow Outlaw is hidden, too.";
-                case Role.Renegade: return "Eliminate the Outlaws first, then the Sheriff and Deputy. Be the last player alive. You cannot rob or escape with money.";
+                case Role.Renegade: return "Eliminate the Outlaws first, then the Sheriff and Deputy. Be the last player alive before the posse arrives after round 10. You cannot rob or escape with money.";
                 default: return "Waiting for the host to deal the roles.";
             }
         }
@@ -77,27 +78,27 @@ namespace Saloon
                 case Role.Sheriff:return new RoleGuide(
                     "Protect the money with the Deputy. Everyone knows you are the Sheriff.",
                     "<b>C at the Bar</b> · Inspect the safe. Your private report shows its condition, not the thief's name. Check again on a later turn.",
-                    "Stop the money escaping until the final round with a Law player alive, or eliminate every Outlaw and the Renegade. You cannot rob or escape with money.",
+                    "Eliminate every Outlaw and the Renegade, or survive and stop the escape until the posse arrives after round 10. You cannot rob or escape with money.",
                     "The Deputy is your ally. Shooting them also costs you 1 HP.",
                     "HOW TO PROTECT THE MONEY",
                     "1. Choose <b>Bar</b>, then Ready.\n2. On your turn, press <b>C</b> to inspect. It tells you whether the safe was touched, if new marks appeared, or money is missing. Hold <b>Tab</b> to read your private clues at any time.\n3. Hold <b>V</b> to talk. Ask what others did and compare their stories.\n4. Use your turn to shoot a suspected thief or help an ally with beer.\n5. Keep the money from escaping. The Deputy is helping you, but their role is hidden.");
                 case Role.Deputy:return new RoleGuide(
                     "Help the Sheriff protect the money. Your role is secret, even from the Sheriff.",
                     "Protect the Sheriff and stop the thieves. <b>C is Sheriff-only.</b> Use your turn to defend the money or help the Sheriff.",
-                    "You share the Sheriff's win. Keep the money safe or eliminate all criminals. You can still win after the Sheriff dies.",
+                    "You share the Sheriff's win. Survive and keep the money safe until the posse arrives after round 10, or eliminate all criminals. You can still win after the Sheriff dies.",
                     "The Sheriff is your ally. Shooting them also costs you 1 HP.",
                     "HOW TO HELP THE SHERIFF",
                     "1. Choose <b>Bar</b> to help guard the safe, then Ready.\n2. Hold <b>V</b> to talk and find out who may be stealing.\n3. Wait for your turn. Press <b>Q</b>, aim, then <b>left-click</b> to shoot an enemy.\n4. Take beer with <b>E</b>. Aim at a nearby Sheriff and press <b>G</b> to give it to them.\n5. Ask the Sheriff about their <b>C</b> inspection. You cannot inspect it yourself.\nProtect the Sheriff; do not shoot them.");
                 case Role.Outlaw:return new RoleGuide(
                     playerCount==4?"You are the only Outlaw. Steal the money and escape to win.":"Steal the money. If either Outlaw escapes with it, both Outlaws win.",
                     "Choose <b>Bar</b>. Use <b>H</b> to work on the safe or collect the money, then <b>X</b> on a later turn to start escaping.",
-                    (playerCount==4?"You must":"Either Outlaw must")+" finish an escape with the money. Killing the Sheriff alone does not win the match.",
+                    (playerCount==4?"You must":"Either Outlaw must")+" finish an escape with the money before the posse arrives after round 10. Declare by round 9. Killing the Sheriff alone does not win the match.",
                     playerCount==4?"You have no teammate in a four-player match. The Law and Renegade are your rivals.":"Your fellow Outlaw is hidden. Shooting another Outlaw also costs you 1 HP.",
                     "HOW TO TAKE THE MONEY & ESCAPE",EscapeGuide);
                 case Role.Renegade:return new RoleGuide(
                     "You have no teammate. Eliminate the Outlaws first, then the Sheriff and Deputy.",
                     "Use your turn to shoot an enemy or heal yourself. <b>H and X are Outlaw-only.</b> You do not steal money.",
-                    "Be the only player left alive. An Outlaw escaping with the money does not count as your win.",
+                    "Be the only player left alive before the posse arrives after round 10. An Outlaw escaping with the money does not count as your win.",
                     "Keep the Law alive while you fight the Outlaws. After the Outlaws are gone, turn on the Law.",
                     "OUTLAWS FIRST, THEN THE LAW",
                     "1. Hold <b>V</b> to talk and work out who the Outlaws are.\n2. Choose a room with a suspected Outlaw, then Ready.\n3. On your turn, press <b>Q</b>, aim, then <b>left-click</b> to shoot.\n4. Use <b>B</b> to heal yourself with beer when needed.\n5. Once all Outlaws are dead, eliminate the Sheriff and Deputy.\nYou win when nobody else is alive.");
@@ -109,10 +110,13 @@ namespace Saloon
         {
             if(self==null||!self.alive||view.phase==Phase.Lobby||view.phase==Phase.Finished)return "";
             if(view.phase==Phase.Discussion)
-                return self.ready?"Ready. You can unready or change your plan. Waiting for the remaining players.":"Discuss, choose a room and companion, then Ready. Hold right mouse to look around.";
+                return self.ready?"Seat reserved. Unready or change your plan to release it.":"Choose your destination privately, then Ready. Other players cannot see your room or partner.";
             if(view.phase==Phase.Choosing)return view.moneyBag?"Choose the bar. A side room cancels your escape.":view.ownRole=="Renegade"?"Find the Outlaws first. Choose someone to meet in a room.":"Choose a room or invite someone for a private word.";
             if(view.phase==Phase.Regroup)return "Remember who you saw. Decide what you want to tell the table.";
             if(view.phase==Phase.Aftermath)return "Let the dust settle.";
+            if(self.room==3)return "Left-click · Take a drag    V · Talk    WASD · Stroll. No weapons outside.";
+            if(view.duel?.stage=="blackjack")return view.duel.canHit?"Click HIT or the deck to draw. Click STAND to keep your hand. Hold right mouse to look around.":view.duel.canDeal?"Your deal. Click the deck to draw to 17.":"Cards are on the table. Dealer draws to 17; the winner opens.";
+            if(view.duel?.stage=="redealing")return "Blackjack push. A tied hand is redealt with the same dealer.";
             if(view.duel?.stage=="choosing")return "Choose Heads or Tails. First claim locks the sides; the coin decides the opening.";
             if(view.duel?.stage=="flipping")return "Let the coin land. Weapons are locked until the opening is decided.";
             if(view.duel?.waitingForOpening==true)return view.duel.firstName+" has the opening. You may respond after their action or pass.";
@@ -135,7 +139,7 @@ namespace Saloon
         public string kind;
         public string name;
         public float x, z, yaw, pitch;
-        public int poseVersion;
+        public int poseVersion,planVersion;
     }
 
     [Serializable]
@@ -145,10 +149,12 @@ namespace Saloon
         public float x, y, z, yaw, pitch;
         public bool alive, drawn, seated, sheriff, busy,ready,observer,bot;
         public float deathAge,deathX,deathY,deathZ;
-        public int shots,health,maxHealth,carriedBeer,hits;
+        public int shots,health,maxHealth,carriedBeer,hits,puffs,reloads;
+        public bool reloading;public float reloadRemaining,reloadDuration;
+        public float smokeAge;
         public float hitAge,hitX,hitY,hitZ;
         public bool drinking, robbing, moneyBag, escaping;
-        public int room, chosenRoom, poseVersion;
+        public int room, chosenRoom, poseVersion,planVersion;
         public string companion;
         public int giftSequence;
         public string giftTarget;
@@ -165,10 +171,16 @@ namespace Saloon
         public string activePlayerId, activePlayerName;
         public string[] turnOrder;
         public int round, roundLimit;
-        public bool actionAvailable;
-        public DuelView duel;
+        public int actionsRemaining,actionsInProgress,hitSequence,confirmedHealth,confirmedMaxHealth;
+        public bool confirmedKill,confirmedFriendly;
+        public float confirmedHitAge;
+        public string actionBlockReason;
+        public int posseStage,posseRoundsRemaining;
+        public bool actionAvailable,plannedRoomFull;
+        public int[] roomCapacities;
+        public DuelView duel,blackjackTable,coinTable;
         public RoomTurnView roomTurn;
-        public bool hasDuel,hasRoomTurn;
+        public bool hasDuel,hasRoomTurn,hasBlackjackTable,hasCoinTable;
         public string safeReport;
         public string[] evidence;
         public int health, ammo, beers, carriedBeer;
@@ -183,6 +195,8 @@ namespace Saloon
         {
             // JsonUtility serializes null inline classes as empty objects. Presence must
             // travel separately, or clients invent coin/turn panels that the host lacks.
+            hasCoinTable=phase==Phase.Turns&&coinTable!=null;
+            hasBlackjackTable=phase==Phase.Turns&&blackjackTable!=null;
             hasDuel=phase==Phase.Turns&&duel!=null;
             hasRoomTurn=phase==Phase.Turns&&roomTurn!=null;
             return UnityEngine.JsonUtility.ToJson(this);
@@ -192,6 +206,8 @@ namespace Saloon
         {
             var snapshot=UnityEngine.JsonUtility.FromJson<Snapshot>(json);
             if(snapshot==null)return null;
+            if(!snapshot.hasCoinTable||snapshot.phase!=Phase.Turns)snapshot.coinTable=null;
+            if(!snapshot.hasBlackjackTable||snapshot.phase!=Phase.Turns)snapshot.blackjackTable=null;
             if(!snapshot.hasDuel||snapshot.phase!=Phase.Turns)snapshot.duel=null;
             if(!snapshot.hasRoomTurn||snapshot.phase!=Phase.Turns)snapshot.roomTurn=null;
             return snapshot;

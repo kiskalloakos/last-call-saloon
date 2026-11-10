@@ -8,7 +8,7 @@ namespace Saloon
     {
         int safeProgress;
         bool verifying;
-        static readonly int[] PracticeRoomCycle={0,1,1,2};
+        static readonly int[] PracticeRoomCycle={0,1,1,2,3};
         void ResetHeist()
         {
             safeProgress=0;lastSafeWorkRound=0;pendingOutcome="";
@@ -47,7 +47,7 @@ namespace Saloon
             if(!SaloonRules.CanRob(p.role)){p.notice="Only Outlaws can escape with the money.";return;}
             if(phase!=Phase.Turns||p.room!=0||!p.bag){p.notice="Carry the money at the bar to declare an escape.";return;}
             if(p.escapeRound>0){p.notice="Escape is already pending. Survive the next action phase at the bar.";return;}
-            if(rounds.Round>=rounds.Limit){p.notice="Too late: escape needs another response round.";return;}
+            if(!SaloonPosse.CanEscape(rounds.Round)){p.notice="The posse arrives after this round. An escape needs one more round; it is too late to start.";return;}
             if(!SpendAction(p))return;
             p.escapeRound=rounds.Round;p.notice="Escape pending. Keep the bag and choose the bar next round.";
         }
@@ -56,12 +56,13 @@ namespace Saloon
             var escaped=players.Values.FirstOrDefault(p=>SaloonRules.CanRob(p.role)&&p.Alive&&p.bag&&p.room==0&&p.escapeRound>0&&rounds.Round>p.escapeRound);
             if(escaped!=null)QueueFinish("OUTLAWS WIN — MONEY ESCAPED");
         }
-        string HeistTimeout()
+        void ResolveRoundEnding()
         {
-            var living=players.Values.Where(p=>p.Alive).Select(p=>p.role).ToArray();var winner=SaloonRules.Winner(living);
-            return winner!=""?winner:living.Any(r=>r==Role.Sheriff||r==Role.Deputy)?"LAW WINS — MONEY DEFENDED":"DRAW — NO OBJECTIVE COMPLETED";
+            // A completed escape on round ten beats the arrival; terminal shots keep their result.
+            ResolveEscapes();
+            if(string.IsNullOrEmpty(pendingOutcome)&&SaloonPosse.Arrives(rounds.Round))
+                QueueFinish(SaloonPosse.ArrivalOutcome(players.Values.Where(p=>p.Alive).Select(p=>p.role)));
         }
-
         bool Enemies(Participant a,Participant b)
         {
             if(a.role==Role.Renegade)return a!=b&&(b.role==Role.Outlaw||!players.Values.Any(p=>p.Alive&&p.role==Role.Outlaw));
@@ -77,15 +78,18 @@ namespace Saloon
                 if(phase==Phase.Choosing||phase==Phase.Discussion)
                 {
                     // Keep a stable, varied plan throughout discussion; rotate it each round.
-                    // One bot tends the bar, two can meet, and one leaves a room for a human.
+                    // Rotate through the bar, paired games, and a peaceful smoke outside.
                     int choice=PracticeRoomCycle[(Array.IndexOf(bots,p)+rounds.Round-1)%PracticeRoomCycle.Length];
-                    if(rounds.Round%2==0&&choice>0)choice=3-choice;
+                    if(rounds.Round%2==0&&choice>0&&choice<3)choice=3-choice;
                     var invite=players.Values.FirstOrDefault(x=>!x.bot&&x.Alive&&x.companion==p.id&&x.chosenRoom>0);
-                    p.chosenRoom=p.bag?0:invite?.chosenRoom??choice;p.companion=p.chosenRoom>0?invite?.id:null;
-                    rounds.SetReady(p.id,true);
+                    int room=p.bag?0:invite?.chosenRoom??choice;
+                    ulong? companion=room>0?invite?.id:null;
+                    if(p.chosenRoom!=room||p.companion!=companion)SetRoomPlan(p,room,companion);
+                    if(!TryReady(p,true)){SetRoomPlan(p,0,null);TryReady(p,true);}
                     continue;
                 }
-                if(phase==Phase.Turns&&duels.TryGetValue(p.room,out var duel)&&!duel.flipping&&Time.time>=duel.choiceUntil-CoinChoiceSeconds+1)
+                if(phase==Phase.Turns&&p.room==3){if(Time.time-p.smokeAt>6)TrySmoke(p);continue;}
+                if(phase==Phase.Turns&&duels.TryGetValue(p.room,out var duel)&&!duel.flipping&&Time.time>=duel.choiceUntil-duel.coinChoiceSeconds+(p.room==1?3:1))
                     ClaimCoin(p,UnityEngine.Random.Range(0,2));
                 if(phase==Phase.Turns&&!DuelAllows(p))continue;
                 if(phase!=Phase.Turns||!rounds.CanAct(p.id,Time.time)||p.busyUntil>Time.time||Time.time<p.botThink)continue;
@@ -95,7 +99,7 @@ namespace Saloon
                 var target=targets.FirstOrDefault();
                 if(p.hp==1&&p.beer>0){OnCommand(p.id,new Command{kind="drink"});continue;}
                 bool law=p.role==Role.Sheriff||p.role==Role.Deputy;
-                if(SaloonRules.CanRob(p.role)&&p.bag&&p.escapeRound==0&&p.room==0&&rounds.Round<rounds.Limit){DeclareEscape(p);continue;}
+                if(SaloonRules.CanRob(p.role)&&p.bag&&p.escapeRound==0&&p.room==0&&SaloonPosse.CanEscape(rounds.Round)){DeclareEscape(p);continue;}
                 bool shoot=target!=null&&(law||p.role==Role.Renegade||target.bag||target.escapeRound>0||target.hp==1||p.room!=0||p.bag);
                 if(shoot)
                 {

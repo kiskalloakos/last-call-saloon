@@ -23398,7 +23398,7 @@ MonoBehaviour:
     shotInterval: 0.65
     reloadSeconds: 3.5
     drinkSeconds: 2.5
-    drawSeconds: 0.6
+    drawSeconds: 0.25
     walkSpeed: 3.5
     interactionDistance: 2.5
   PlayerName: Stranger

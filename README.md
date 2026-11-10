@@ -156,7 +156,6 @@ Sheriff, Deputy and Renegade cannot rob, collect the money or escape with it.
 2. The safe needs **three completed jobs in total**, across any players and rounds.
    Whoever finishes the third job gets the money. You cannot do all three jobs in one turn.
 3. Once you carry the money, wait for a **later turn** and press **X** to start escaping.
-   You cannot start an escape in the final round, because you need one more round to finish it.
 4. In the next Discuss & Plan, choose **Bar again**, then Ready.
    Going to a side room cancels your escape.
 5. Stay alive with the money until that round's room actions finish. **The Outlaw team wins** (just you in a 4-player match).
@@ -195,6 +194,8 @@ and derived meshes are excluded from the public repository; compiled downloads i
 Open this **SaloonPrototype** project, open `Assets/Scenes/Saloon.unity`, then press
 **Play → Solo Practice**. Four active practice players fill the other slots. They know
 roles and aim accurately: they are opponents, not passive targets or conversation bots.
+Solo practice runs locally without opening a LAN port or automatically connecting voice.
+The LAN address, port, and No Bots setting do not prevent starting a solo match.
 They still obey the host's one-action budget, ammunition, health, rooms and raycast hits.
 
 A real match needs four or five people with **No bots**, or at least one human with
@@ -203,9 +204,79 @@ UDP port (7777 by default), or create/join an online room code. All devices must
 same source/build version: use matching 0.2.10 clients for this playtest. Mixed versions are rejected with a
 clear message. A disconnect reason stays on the menu instead of being silently replaced.
 
+## Room minigames
+
+With two players in the **Coin Flip room**, both sit face to face at a felt table.
+Click **HEADS** or **TAILS** on your side of the table. The first call locks the sides;
+a gold coin flips above the felt and lands with the host's result facing up. Both players
+see the same toss. With no call, the assigned sides automatically toss after eight seconds.
+Hold right mouse to look around. The winner can immediately Q + click to shoot or Space
+to pass. Indoor spectators can watch the coin through the glass, without any controls.
+With two players in the **Blackjack room**, play a short 1v1 blackjack hand instead. The host
+randomly assigns one player as dealer and the other as player. Both stay seated opposite
+one another at a felt table. Cards slide from a physical deck onto the table; the dealer's
+hole card turns over after the player stands. Click **HIT** on the felt (or the deck)
+to draw, and **STAND** to keep your hand. The dealer clicks **DEAL** or the deck to draw
+below 17 and automatically stands on all 17s. Hold right mouse to look around.
+Aces count as 1 or 11, face cards as 10, and a two-card blackjack beats an ordinary 21.
+The dealer's second card stays hidden until the player stands. A push redeals with
+the same roles. After 20 seconds without finishing, the player automatically stands. An idle dealer draws automatically after six seconds.
+The blackjack winner can immediately press **Q** to draw and click to shoot, or press
+**Space** to pass. There is no showdown pause. A quick Q + click queues the shot through
+the normal draw animation. The opponent can respond after that action or the opening
+timeout. Blackjack does not spend either combat action.
+Practice bots play automatically. A lone room occupant needs no minigame. The Bar
+keeps its existing turn flow. The proposed beer-pouring minigame is shelved.
+
+Room and partner selections are private: other players receive no destination or
+partner choice during planning. The planner shows fixed capacity rather than public
+reservation counts. Partner preferences do not notify the chosen person; coordinate
+verbally if you want to make the same plan.
+
+Room seats are **first ready, first served**: choose Coin Flip, Blackjack, or have a smoke, then Ready
+to reserve one of its two seats. Unreadying or changing your plan releases the seat.
+A partner preference reserves only your own seat; the other person must also Ready.
+A full destination rejects further Ready requests until someone releases a seat. The Bar remains available. Reservations reset each round.
+
+Coin Flip and Blackjack are fully enclosed, with no door or doorway. Their full-width
+front glass is one-way. People
+in the main saloon can see inside, including the coin and visible blackjack cards; people inside
+see an opaque privacy pane when looking out through the glass. Both sides of the pane
+block bullets and movement. Glass is permanent and cannot be shot out. Room assignment
+places players inside at the start of the action phase. Occupants can still hear indoor
+voices and gunshots through the sealed front; the smoking area's isolation is unchanged.
+The Bar's existing layout and gameplay stay in place.
+
+**have a smoke** is a separate outdoor placeholder yard with two places; visiting alone
+is allowed. Left-click to take a drag, hold V to talk, and use WASD to stroll. The
+cigarette has an animated first-person hand, third-person arm pose, a glowing ember,
+ash, and exhaled smoke. Repeated clicks wait for the four-second drag animation.
+Weapons and saloon actions are rejected by the host outside. Smoking does not spend
+a combat action; the yard stays available for the normal action window.
+
+Indoor and outdoor players receive separate action snapshots and voice channels.
+People outside cannot see indoor avatars, hear gunshots, or hear indoor conversation;
+people indoors cannot observe or hear the smokers. Regroup restores the shared roster
+and indoor voice. The yard uses placeholder geometry for a later design pass.
+Try it with **Saloon → Play have a smoke outside**. **Saloon → Verify smoking area and
+private plans in Play mode** checks solo/pair visits, plan privacy, host weapon locks,
+first/third-person animation, area visibility, and real Vivox channel transitions
+with the verification microphone muted.
+
+This change uses network protocol `state-11`; both devices must use the updated build.
+Use **Saloon → Play coin flip at table** to try the physical coin against a bot.
+**Saloon → Verify tabletop coin flip in Play mode** checks both seats' table controls,
+the toss and landed face, spectator access, combat openings, idle fallback, and cleanup.
+Use **Saloon → Play blackjack at table** in Unity to immediately try a hand against a bot.
+**Saloon → Verify tabletop blackjack in Play mode** checks seating, card privacy, physical
+Hit/Stand/Deal raycasts, both camera views, and cleanup. Card scoring is checked by
+**Saloon → Verify round clock**; the room flow is also included in **Saloon → Verify rounds in Play mode**.
+
 ## Interface (Unity development version)
 
 Health sits at the lower left as separate HP segments and a count; ammo sits at the lower right.
+During discussion, other players' health markers and numeric HP sit above their hats,
+and the partner list also shows each player's HP.
 Room, partner, Ready and turn prompts stay at the right edge. **Sheriff: hold Tab to see your private clues alongside your role**, during discussion or room actions. Scroll to read older clues while holding Tab. Other roles can open **Clues** at the upper left during discussion.
 Hold **Tab** for role help; **Esc** opens lobby/settings. The in-game interface uses compact,
 flat slate controls with no large persistent HUD panels.
@@ -222,7 +293,7 @@ flat slate controls with no large persistent HUD panels.
 | Phase | Default length | What happens |
 |---|---:|---|
 | Discussion + planning | Until every living player is Ready | Talk, pick a room and optional companion, then Ready. Editing your plan clears Ready. Major actions are locked. |
-| Room actions | About 30 seconds, extended for setup/turn budgets | Everyone gets **one** action, following the room's coin/turn order. Different rooms proceed independently. |
+| Room actions | Up to about 30 seconds, extended for setup/turn budgets | Indoor players get **one** action, following their room's turn order. As soon as all indoor actions and timed actions finish, aftermath starts immediately. Smokers do not hold the round open. |
 | Aftermath | 3 seconds | Actions lock; players stay in their rooms while shots, hits and gun spins finish. |
 | Regroup | 3 seconds, between rounds | Everyone returns to the common table; the next discussion begins. |
 
@@ -247,20 +318,24 @@ Room and companion choices stay visible beside the discussion view. Incoming inv
 identify the player and requested room; clicking one accepts both. Ready starts room actions
 as soon as every living player has confirmed. Hold right mouse to look around while planning.
 
-### Two-player rooms: coin for the opening
+The Bar always uses a normal turn queue, including with only one or two players.
+It has no coin toss or minigame; beer, combat and safe actions remain available.
 
-Any room with exactly two living players (including the bar) starts with random opposite
+### Coin Flip room: coin for the opening
+
+Only the Coin Flip room starts with random opposite
 Heads/Tails assignments. Both can choose a side; the **first claim locks it**, giving the
-other player the opposite side. With no input, the assignments auto-flip after three seconds.
-The host rolls the coin after a 1.2-second flip; the result and opening player are visible
-only to that room. Major actions and drawing are blocked until the result.
+other player the opposite side. Coin Flip uses table controls, an eight-second call window,
+and a 2.2-second physical toss. The host rolls the result when the toss finishes. Indoor spectators
+can watch the Coin Flip table; private action permission stays with the room's players.
+Major actions and drawing are blocked until the result. Blackjack uses its card game instead.
 
 The winner gets the first move: Q to draw, then click to shoot, or another legal action/pass.
 The opponent can respond once the winner spends their action; both keep a one-action budget.
 Ignoring the opening automatically passes it after six seconds (shorter for short action
 windows), and an eliminated opener cannot block the survivor. This determines action
-**order**, not a mandatory shootout. The shared action deadline includes 4.2 extra seconds
-for coin setup, then still waits for already-started timed actions.
+**order**, not a mandatory shootout. The shared action deadline includes the longest
+coin setup window, then still waits for already-started timed actions.
 
 ### Larger rooms: ordered turns
 
@@ -294,7 +369,9 @@ aftermath; the turn order controls who **starts** an action, not a guaranteed sa
 - **Inspect safe:** Sheriff only, C at the bar; costs your action and gives a private report.
 - **Pass:** Space gives up your action this round.
 
-Drawing/holstering (Q) is free preparation, but occupies your hands for 0.6 seconds.
+Drawing/holstering (Q) is free preparation, but occupies your hands for 0.25 seconds. Clicking during a legal draw buffers one shot
+that fires as soon as the draw finishes, including at the bar and when responding after
+a minigame. Turn permissions are checked again before the buffered shot can fire.
 Looking, speaking and preparing a beer are free. Busy players cannot start another action. Beer handoffs
 fail without spending resources if the intended receiver is busy, already carrying beer,
 out of range, obstructed or in another room.
@@ -341,14 +418,13 @@ The Renegade has a separate goal: eliminate the Outlaws, then the Law, and be th
 
 | Faction | Victory |
 |---|---|
-| Sheriff + Deputy (Law) | Eliminate all Outlaws/Renegade, or keep money from escaping through the final round while at least one Law player lives. They cannot rob or escape. |
+| Sheriff + Deputy (Law) | Eliminate all Outlaws/Renegade, or survive and stop the escape until the posse arrives after round 10. They cannot rob or escape. |
 | Outlaws | Either Outlaw successfully escapes with the money; both share the faction win. |
 | Renegade | Eliminate the Outlaws first, then the Sheriff and Deputy. Win as the only survivor. Cannot rob or escape with money. |
 
 Escape is a two-round commitment:
 
-1. Carry the bag at the bar and spend an action pressing **X**. You cannot declare during
-   the final round because another response round is required.
+1. Carry the bag at the bar and spend an action pressing **X**. Declare by **round 9** so there is time to finish the escape.
 2. Regroup, discuss and choose the **bar again**. A successful assignment to a side room
    cancels the attempt. Discussion does not cancel it.
 3. Survive the **end of the next room-action phase**, still at the bar with the money.
@@ -356,12 +432,19 @@ Escape is a two-round commitment:
    defending yourself during that response phase.
 
 A hit alone does not cancel escape; elimination does. Eliminating the carrier makes the
-money available at the bar again. At the six-round limit, surviving Law wins if no escape
-has resolved. A Renegade who is the sole survivor wins immediately, after the final-shot effects.
-Otherwise, if no Law remains and no Outlaw escaped by the round limit, the result is a draw. All roles
+money available at the bar again. After round 7, distant shots, approaching hoofbeats and
+a public countdown warn everyone that the posse is coming. Rounds 8, 9 and 10 are three
+full response rounds. The posse surrounds the saloon after round 10's actions.
+An escape completed in round 10 wins before arrival; otherwise surviving Law wins.
+If no Law survives and no faction has met its objective, the posse captures the remaining
+criminals and the result is a draw. Results appear after the final aftermath animations. A Renegade who is the sole
+survivor wins immediately, after the final-shot effects. All roles
 are revealed when the match ends. A mid-match disconnect aborts it.
 
 ## Beer animation and audio
+
+Unused beer is left behind when players regroup at the end of a round. It cannot be
+carried into the next round, and discarded beer is not added back to the shared supply.
 
 Both carried/self-drunk and gifted beer are visible as mugs. Drinking raises and tilts
 the mug toward the mouth in third person, with the skinned arm reaching for its handle,
@@ -450,3 +533,31 @@ Parent Project-IDK is separate and is not modified by this prototype.
 4. Balance the safe/escape economy and soften perfect-knowledge practice AI for normal practice.
 5. Polish seated poses, hand grips, hit reactions and sound levels after the rules settle.
 6. Harden networking with build-version checks, disconnect handling and reconnect support.
+
+Verify posse timing and victory precedence with **Saloon → Verify posse arrival in Play mode**.
+
+## HUD and combat feedback
+
+The round header shows how many living indoor players still have an unspent action.
+Smokers and eliminated players do not count. With zero actions left, a separate message
+explains when a timed action is still finishing before aftermath.
+
+There is no hit-marker crosshair or shot-result popup. Shots use a larger, fading crossed-plane
+muzzle burst and a stronger barrel kick. No hit, miss, target-HP or damage-result text is
+shown; health changes are reflected by the vitality bar. Persistent control hints and
+voice-status text are removed from the HUD. Reloads use a separate positional cylinder/cartridge sound; the gunshot retains
+its sharp report. Persistent status messages explain spent turns, minigame openings,
+reloading, and other blocked actions. The HUD uses bundled Rye headings and Barlow Semi Condensed body text. Floating
+labels replace black HUD panels: role and a proper vitality bar sit at lower left,
+cartridge silhouettes and ammo at lower right, and a Sheriff badge/name at upper left.
+Menus and planning controls use light parchment with dark text and rust-red selections.
+
+Walking uses five pre-produced wooden footstep variations from Kenney Impact Sounds (CC0)
+indoors, and softer synthesized dirt outside. The original wood synthesis is removed.
+Standing uses its own input debounce so F immediately after firing is accepted. Coin
+Flip and Blackjack seats stay locked only until their minigame resolves; either player
+can then stand and dodge after spending their action.
+
+Remote footsteps are positional; your own steps stay centered. Seated, stationary,
+eliminated, stale and teleporting avatars do not trigger steps. The bundled font licenses
+are included in `Assets/Resources/Fonts`.

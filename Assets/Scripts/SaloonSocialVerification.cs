@@ -27,7 +27,7 @@ namespace Saloon
             {var dir=Eye(to)-Eye(from);from.yaw=Mathf.Atan2(dir.x,dir.z)*Mathf.Rad2Deg;from.pitch=0;from.drawn=true;from.busyUntil=0;from.ammo=6;from.nextShot=0;}
             Discussion();OnCommand(peer.id,new Command{kind="room",x=1,name=host.id.ToString()});
             var invite=PrivateSnapshot(host.id).players.First(p=>p.id==peer.id.ToString());
-            Check(invite.companion==host.id.ToString()&&invite.chosenRoom==1,"discussion invitation includes sender, recipient and requested room");
+            Check(invite.companion==""&&invite.chosenRoom==-1,"discussion choices and partners stay private to their owner");
             Broadcast();yield return new WaitForSeconds(.15f);
 #if UNITY_EDITOR
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/InvitationPreview.png"));
@@ -47,7 +47,7 @@ namespace Saloon
             OnCommand(host.id,new Command{kind="coin",x=0});OnCommand(peer.id,new Command{kind="coin",x=0});
             Check(duel.heads==host.id&&duel.claimed&&duel.flipping,"first side claim locks ownership against competing claims");
             Check(PrivateSnapshot(host.id).duel.firstId=="","coin winner is not leaked before reveal");
-            yield return new WaitForSeconds(1.3f);Check(duel.revealed,"server coin reveals after flip animation");
+            yield return new WaitForSeconds(duel.coinFlipSeconds+.1f);Check(duel.revealed,"server coin reveals after flip animation");
             var first=players[duel.first];var second=first==host?peer:host;Aim(second,first);before=second.shots;Fire(second);
             Check(second.shots==before&&rounds.CanAct(second.id,Time.time),"loser cannot bypass opening with a fire command");
             Aim(first,second);int hp=second.hp;Fire(first);Check(second.hp==hp-1,"coin winner can draw and land the opening shot");
@@ -62,10 +62,11 @@ namespace Saloon
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/MuzzleImpactPreview.png"));
 #endif
             Actions(true);duel=duels[1];duel.choiceUntil=Time.time-1;TickDuels();Check(duel.flipping,"no-input sides auto-flip");
-            yield return new WaitForSeconds(1.3f);duel.firstUntil=Time.time-1;TickDuels();
+            yield return new WaitForSeconds(duel.coinFlipSeconds+.1f);duel.firstUntil=Time.time-1;TickDuels();
             second=players[duel.first==host.id?peer.id:host.id];Check(!rounds.CanAct(duel.first,Time.time)&&DuelAllows(second),"silent opener automatically passes to prevent a stall");
-            Actions(true);duel=duels[1];duel.choiceUntil=Time.time-1;TickDuels();yield return new WaitForSeconds(1.3f);
+            Actions(true);duel=duels[1];duel.choiceUntil=Time.time-1;TickDuels();yield return new WaitForSeconds(duel.coinFlipSeconds+.1f);
             first=players[duel.first];second=first==host?peer:host;first.hp=0;Check(DuelAllows(second),"dead opener cannot block the surviving player");
+            VerifyBlackjackFlow();
             Actions(false);host.role=Role.Sheriff;peer.role=Role.Outlaw;ResetHeist();int eventsBefore=events.Count;
             InspectSafe(host);string report=host.safeReport;safeProgress=3;peer.bag=true;
             Check(PrivateSnapshot(host.id).safeReport==report&&report.Contains("money inside"),"inspection is a last-known report, not live theft telemetry");

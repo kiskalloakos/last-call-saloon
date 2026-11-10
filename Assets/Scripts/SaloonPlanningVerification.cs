@@ -33,6 +33,7 @@ namespace Saloon
             var next=PrivateSnapshot(host.id);next.round++;next.players.Single(p=>p.id==LocalId).chosenRoom=0;ApplySnapshot(next);
             Check(PlannedRoom==0&&!PlanReady&&!PlanPending,"a new discussion discards the previous local draft");
             ResetPlanDraft();Broadcast();yield return null;
+            VerifyRoomReservations();
             Debug.Log("SALOON_PLANNING PASS");VerificationPassed=VerificationFinished=true;
         }
     }
