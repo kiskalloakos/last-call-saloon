@@ -803,7 +803,9 @@ namespace Saloon
             yield return new WaitForSeconds(3.15f);Check(phase==Phase.Regroup&&players.Values.All(p=>p.room==0&&p.seat>=100),"aftermath then regroups everyone at the common table");
             yield return new WaitForSeconds(1.15f);Check(phase==Phase.Discussion&&rounds.Round==2,"regroup begins the next discussion");
             Check(host.ammo==ammo-1&&host.hp==tuning.health,"round boundaries preserve resources");
-            Check(GameObject.Find("Saloon World").GetComponentsInChildren<TextMesh>().Length==0,"no floating environment labels");
+            var world=GameObject.Find("Saloon World");var roomSigns=world.transform.Find("Minigame room signs");
+            var worldLabels=world.GetComponentsInChildren<TextMesh>();
+            Check(roomSigns!=null&&worldLabels.Length==2&&worldLabels.All(t=>t.transform.parent==roomSigns&&t.GetComponent<SaloonWorldText>()!=null),"only depth-tested minigame room signs appear in the environment");
             yield return VerifyHeist();
             yield return VerifyBeerGift();
             yield return VerifyReleaseChanges();

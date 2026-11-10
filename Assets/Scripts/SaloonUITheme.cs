@@ -18,12 +18,18 @@ namespace Saloon
             var texture=new Texture2D(1,1){hideFlags=HideFlags.HideAndDontSave};
             texture.SetPixel(0,0,color);texture.Apply();uiTextures.Add(texture);return texture;
         }
+        static void ClearScaledBackgrounds(GUIStyleState state)
+        {
+#if UNITY_EDITOR
+            state.scaledBackgrounds=null;
+#endif
+        }
         void FlatStates(GUIStyle style,Texture2D normal,Texture2D hover,Texture2D active,Color text)
         {
             style.border=new RectOffset();
-            foreach(var state in new[]{style.normal,style.focused,style.onNormal,style.onFocused}){state.background=normal;state.textColor=text;state.scaledBackgrounds=null;}
-            foreach(var state in new[]{style.hover,style.onHover}){state.background=hover;state.textColor=text;state.scaledBackgrounds=null;}
-            foreach(var state in new[]{style.active,style.onActive}){state.background=active;state.textColor=text;state.scaledBackgrounds=null;}
+            foreach(var state in new[]{style.normal,style.focused,style.onNormal,style.onFocused}){state.background=normal;state.textColor=text;ClearScaledBackgrounds(state);}
+            foreach(var state in new[]{style.hover,style.onHover}){state.background=hover;state.textColor=text;ClearScaledBackgrounds(state);}
+            foreach(var state in new[]{style.active,style.onActive}){state.background=active;state.textColor=text;ClearScaledBackgrounds(state);}
         }
         // Labels inherit hover states from Unity's skin, including in copied HUD styles.
         // Keep every state identical so only buttons visually react to the pointer.
@@ -31,7 +37,7 @@ namespace Saloon
         {
             Color color=style.normal.textColor;
             foreach(var state in new[]{style.normal,style.hover,style.active,style.focused,style.onNormal,style.onHover,style.onActive,style.onFocused})
-            {state.textColor=color;state.background=null;state.scaledBackgrounds=null;}
+            {state.textColor=color;state.background=null;ClearScaledBackgrounds(state);}
         }
         void BuildTheme()
         {
