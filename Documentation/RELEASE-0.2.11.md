@@ -13,7 +13,10 @@ Released 2026-11-10. All players should use 0.2.11.
 
 - Unity rule, round-clock, snapshot-wire and room-reservation checks passed.
 - Windows x64 and universal macOS builds succeeded with Unity 6000.5.10f1.
-- Packaged Mac gameplay checks passed, including minigames, combat, robbery, beer, privacy and round completion.
+- Packaged Mac gameplay and five-player networking checks passed, including minigames, combat, robbery, beer, privacy and round completion.
+- The published Windows ZIP passed download/checksum verification, gameplay checks and five-player networking on Windows Server 2022.
+- The separate-room, paired-room and paired-room-with-voice checks timed out during planning. The full Windows suite failed, so room-flow and voice validation remain incomplete. [Windows test logs](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42899932020).
+- Player archives were built from gameplay source in commit `22656df338b68b731f285a1dd6eb4cdfce4a234e`; subsequent documentation records the test results.
 - Both ZIP archives passed integrity checks; SHA-256 checksums are included.
 - Fixed editor-only HUD API calls that prevented standalone builds and updated the room-label check for the new minigame signs.
 

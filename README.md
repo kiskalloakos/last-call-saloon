@@ -10,6 +10,10 @@ All players must use **0.2.11**.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
 
+Windows and Mac gameplay and five-player connection checks passed.
+The Windows room-flow checks timed out during planning, including the voice scenario; their validation remains incomplete.
+See the [0.2.11 test results](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42899932020).
+
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
 
