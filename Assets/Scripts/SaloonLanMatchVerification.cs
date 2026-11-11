@@ -43,6 +43,11 @@ namespace Saloon
             if(view.phase==Phase.Lobby)return;
             if(!Game.InRoom||(!host&&Game.Connection.SnapshotAge>8+outageSeconds)){Report(false,"connection/state stream lost");return;}
             if(view.players.Length!=count||view.players.Any(p=>p.bot)||!self.alive){Report(false,"wrong roster or unexpected elimination");return;}
+            if(view.phase==Phase.Discussion&&view.round==4)
+            {
+                bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&view.players.All(p=>view.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):p.revealedRole=="");
+                Report(ok,"three rounds complete and round four started beyond the legacy cap; standing/movement, paired coin/blackjack/headshots, beer healing; outcome="+view.outcome);return;
+            }
             if(view.phase==Phase.Discussion)
             {
                 if(round!=view.round)
@@ -127,11 +132,6 @@ namespace Saloon
                 bool ok=actionSeen&&(round!=1||(stood&&moved))&&(round!=2||index>=4||self.health<SaloonHealth.Maximum);
                 if(!ok){Report(false,"round "+round+" action/movement/health not acknowledged health="+self.health+" action="+actionSeen+" stood="+stood+" moved="+moved+" sent="+actionSent+" beer="+view.carriedBeer+" notice="+view.notice);return;}
                 completedMask|=1<<round;Debug.Log("SALOON_LAN_MATCH_ROUND PASS index="+index+" round="+round+" health="+self.health);
-            }
-            if(view.phase==Phase.Discussion&&view.round==4)
-            {
-                bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&view.players.All(p=>view.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):p.revealedRole=="");
-                Report(ok,"three rounds complete and round four started beyond the legacy cap; standing/movement, paired coin/blackjack/headshots, beer healing; outcome="+view.outcome);
             }
         }
     }
