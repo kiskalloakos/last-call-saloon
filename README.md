@@ -10,7 +10,7 @@ All players must use **0.2.14**.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
 
-See [release notes and validation](Documentation/RELEASE-0.2.14.md) for packaged-game checks.
+Mac four-player no-bot tests and native Windows gameplay, room, voice-connection and LAN recovery checks passed. See [release notes and validation](Documentation/RELEASE-0.2.14.md).
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
@@ -402,18 +402,17 @@ The Bar now has a beer-pouring minigame; pouring uses the round action.
 Room and companion selections stay private to their owner. Inviting someone shares the requested room only with that person.
 Other players receive no destination or companion selection during planning.
 The planner shows fixed capacity and hides reservation counts. Incoming invitations are visible only to their intended recipient.
-A companion preference does not notify the selected person.
-Use voice communication to agree on a plan.
+Incoming invitations name the inviting player and destination. Click **Join** to accept and reserve your place. Human invitees choose whether to accept; practice players can accept automatically.
 
 Seats use **first ready, first served** reservations.
 Coin Flip, Blackjack and **Have a Smoke** each have two places.
 
 1. Select a destination.
-2. Click **Ready** to reserve your place.
+2. Choose someone to go with, or **Go Alone**. This reserves your own place and marks you Ready.
 
 Clearing Ready or changing your plan releases the place.
-A companion preference reserves only your own place.
-The other person must also set Ready.
+Inviting another human reserves your own place. The other person must accept or set Ready too.
+A requested practice companion is moved with you when the room has space; unrelated bots yield to human plans.
 A full destination rejects more Ready requests until a place becomes available.
 The Bar stays available. Reservations reset each round.
 
@@ -615,7 +614,7 @@ The shared action deadline includes the longest coin setup window and waits for 
 ### Larger rooms: ordered turns
 
 The bar uses a new random turn queue each round, including with one or two living players.
-The host maintains the turn queue and timers. The top-right turn/action panel has been removed in the current source and local 0.2.13 test builds.
+The host maintains the turn queue and timers. The top-right turn/action panel has been removed in 0.2.14.
 Each player can start one major action or pass.
 Then the next player's turn starts.
 Gun drawing and major actions are unavailable outside your turn, including for the Sheriff and practice bots.

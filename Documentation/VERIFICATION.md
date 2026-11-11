@@ -1381,3 +1381,12 @@ the sole survivor; Renegade has no money objective.
   withdrawal checks. Inspected the rendered replacement menu with an actual
   bot-generated Coin Flip invitation. Capture: SaloonPlanner-invitations.png
   in Unity's system temporary directory. Source only; no new standalone build.
+
+
+## Published 0.2.14 — 2026-11-11
+
+Built matching universal macOS and Windows x64 players from d7e983f. Mac gameplay regressions, four independent players with no bots on the LAN interface, and Metal head/mouth/window rendering checks passed. The opt-in LAN runner now actively plays the slower blackjack hand and checks its finish condition before sending a new round's plan.
+
+The published Windows ZIP passed native Windows Server 2022 validation: functional gameplay, five-player smoke, separate rooms, paired room and paired-room Vivox connection (run 43062776306); four players, five players, four with packet loss/delay and four with a 13-second interruption (run 43062772236). Every case passed. This does not verify the actual household router or each friend's Windows firewall.
+
+The GitHub Mac ZIP was downloaded, its SHA256 checked against the published checksum, extracted to Downloads/GAMES/Last Call.app, deep signature verified and launched showing 0.2.14 with NO BOTS selected. Old local 0.2.12 and ModelRoomFixes 0.2.13 output folders were removed after validation (1,980,790,080 bytes). Screenshot-only iteration evidence and project source were retained.
