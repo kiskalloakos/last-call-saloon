@@ -38,7 +38,7 @@ namespace Saloon
             Broadcast();yield return null;Check(View.phase==Phase.Aftermath&&View.remaining<=3.01f,"clients receive aftermath instead of the stale action timer");
             Setup();queue=roomTurns[0].order.Select(id=>players[id]).ToArray();
             foreach(var p in queue.Take(queue.Length-1))Pass(p);
-            var last=queue.Last();last.hp=tuning.health-1;last.beer=1;last.lastAction=-100;
+            var last=queue.Last();last.hp=tuning.health-SaloonHealth.RevolverDamage;last.beer=1;last.beerHealing=SaloonHealth.BeerHealing;last.lastAction=-100;
             float duration=tuning.drinkSeconds;tuning.drinkSeconds=.4f;OnCommand(last.id,new Command{kind="drink"});TickServer();
             Check(phase==Phase.Turns&&last.busyAction=="drink","early completion never cuts off the last player's drink");
             yield return new WaitForSeconds(.55f);
@@ -67,14 +67,14 @@ namespace Saloon
             var direction=Eye(target)-Eye(host);host.yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;host.pitch=-Mathf.Atan2(direction.y,new Vector2(direction.x,direction.z).magnitude)*Mathf.Rad2Deg;host.nextShot=0;Physics.SyncTransforms();Fire(host);
             var wire=Snapshot.FromWireJson(PrivateSnapshot(host.id).ToWireJson());
             Check(string.IsNullOrEmpty(host.notice)&&string.IsNullOrEmpty(target.notice),"a confirmed hit emits no headshot or damage toast");
-            Check(wire.hitSequence==1&&wire.confirmedHealth==tuning.health-1&&wire.confirmedMaxHealth==tuning.health&&!wire.confirmedFriendly,"confirmed headshot and resulting HP survive the wire");
+            Check(wire.hitSequence==1&&wire.confirmedHealth==tuning.health-SaloonHealth.RevolverDamage&&wire.confirmedMaxHealth==tuning.health&&!wire.confirmedFriendly,"confirmed headshot and resulting HP survive the wire");
             Check(PrivateSnapshot(target.id).hitSequence==0,"only the shooter gets their confirmation event");
             Broadcast();yield return new WaitForSeconds(.25f);
             var muzzle=ViewCamera.transform.Find("Low-poly revolver").GetComponentsInChildren<MeshFilter>(true).First(m=>m.sharedMesh!=null&&m.sharedMesh.name=="Crossed muzzle flame");
             Check(muzzle.sharedMesh.vertexCount==18,"muzzle flash has intersecting flame planes");
             Check(SaloonWeaponPose.Offset(.035f).z<-.07f&&Quaternion.Angle(Quaternion.identity,SaloonWeaponPose.Rotation(.035f))>18,"shot kick drives a stronger barrel rise and backward impulse");
             Check(wire.actionBlockReason.Contains("Action spent")&&wire.actionsRemaining==players.Count-1,"spent-action explanation and countdown agree");
-            TakeDamage(host);Broadcast();Check(HealthDelta==-1&&HealthDeltaUntil>Time.unscaledTime,"local damage raises a readable HP loss");host.hp++;Broadcast();Check(HealthDelta==1,"healing raises a readable HP gain");
+            TakeDamage(host);Broadcast();Check(HealthDelta==-SaloonHealth.RevolverDamage&&HealthDeltaUntil>Time.unscaledTime,"local damage raises a readable HP loss");host.hp+=SaloonHealth.BeerHealing;Broadcast();Check(HealthDelta==SaloonHealth.BeerHealing,"healing raises a readable HP gain");
             Window();host.drawn=true;host.ammo=2;float duration=tuning.reloadSeconds;tuning.reloadSeconds=.5f;host.lastAction=-100;OnCommand(host.id,new Command{kind="reload"});
             wire=Snapshot.FromWireJson(PrivateSnapshot(host.id).ToWireJson());
             Check(wire.players.First(p=>p.id==host.id.ToString()).reloading&&wire.players.First(p=>p.id==host.id.ToString()).reloads==1&&wire.actionBlockReason.Contains("Reloading"),"reload event and busy explanation replicate");
@@ -124,7 +124,7 @@ namespace Saloon
             foreach(int room in new[]{1,2})foreach(bool hostFirst in new[]{true,false})
             {
                 ResetHeist();outcome="";
-                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.role=Role.Deputy;p.chosenRoom=0;p.companion=null;p.busyAction="";p.busyUntil=0;p.lastAction=-100;p.lastStance=-100;p.nextShot=0;p.ammo=6;p.drawn=false;}
+                foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.role=Role.Deputy;p.chosenRoom=0;p.companion=null;p.busyAction="";p.busyUntil=0;p.lastAction=-100;p.lastStance=-100;p.nextShot=0;p.ammo=6;p.drawn=false;}
                 host.role=Role.Sheriff;peer.role=Role.Outlaw;host.chosenRoom=peer.chosenRoom=room;
                 rounds.Start(players.Keys,Time.time,30,30,1);phase=rounds.Phase;
                 foreach(var id in players.Keys)rounds.SetReady(id,true);TickServer();

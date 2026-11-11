@@ -10,6 +10,7 @@ namespace Saloon
         PlayerView state;
         GameObject model,gun,firstPersonGun,mug,firstPersonMug;
         TextMesh label,healthDots;
+        Renderer nameRenderer,healthRenderer;
         AudioSource audioSource,drinkAudio,reloadAudio;
         int lastReload;
         bool wasDrinking;int lastGift;GameObject handoffMug;
@@ -56,16 +57,16 @@ namespace Saloon
             gun=MakeGun(transform);gunSpin=gun.transform.Find("Spin pivot");
             mug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));mug.transform.SetParent(transform,false);mug.transform.localPosition=new Vector3(.28f,1.02f,.33f);mug.SetActive(false);
             var nameObject=new GameObject("Name");nameObject.transform.SetParent(transform);nameObject.transform.localPosition=new Vector3(0,2.05f,0);
-            label=nameObject.AddComponent<TextMesh>();label.characterSize=.0105f;label.fontSize=48;label.anchor=TextAnchor.MiddleCenter;SaloonWorldText.Attach(label);
+            label=nameObject.AddComponent<TextMesh>();label.characterSize=.012f;label.fontSize=48;label.anchor=TextAnchor.LowerCenter;label.alignment=TextAlignment.Center;label.lineSpacing=.85f;SaloonWorldText.Attach(label);nameRenderer=label.GetComponent<Renderer>();
             var healthObject=new GameObject("Health dots");healthObject.transform.SetParent(transform,false);healthObject.transform.localPosition=new Vector3(0,1.85f,0);
-            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.011f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.richText=true;SaloonWorldText.Attach(healthDots);
+            healthDots=healthObject.AddComponent<TextMesh>();healthDots.characterSize=.013f;healthDots.fontSize=48;healthDots.anchor=TextAnchor.MiddleCenter;healthDots.alignment=TextAlignment.Center;healthDots.richText=true;SaloonWorldText.Attach(healthDots);healthRenderer=healthDots.GetComponent<Renderer>();
             if(!game.Hosting&&initial.id!=game.LocalId)
             {
                 var collider=gameObject.AddComponent<CapsuleCollider>();collider.center=Vector3.up*.9f;collider.height=1.8f;collider.radius=.3f;
                 gameObject.AddComponent<SaloonBody>().id=ulong.Parse(initial.id);
             }
             audioSource=gameObject.AddComponent<AudioSource>();audioSource.spatialBlend=1;audioSource.minDistance=2;audioSource.maxDistance=45;
-            drinkAudio=gameObject.AddComponent<AudioSource>();drinkAudio.clip=SaloonBeerAudio.Drinking;drinkAudio.minDistance=.8f;drinkAudio.maxDistance=7;drinkAudio.rolloffMode=AudioRolloffMode.Linear;
+            drinkAudio=gameObject.AddComponent<AudioSource>();drinkAudio.playOnAwake=false;drinkAudio.clip=SaloonBeerAudio.Drinking;drinkAudio.minDistance=.8f;drinkAudio.maxDistance=7;drinkAudio.rolloffMode=AudioRolloffMode.Linear;
             thirdFlash=MakeMuzzle(gun.transform);
             reloadAudio=gameObject.AddComponent<AudioSource>();reloadAudio.playOnAwake=false;reloadAudio.minDistance=1;reloadAudio.maxDistance=12;reloadAudio.rolloffMode=AudioRolloffMode.Linear;
             lastReload=initial.reloads;
@@ -94,8 +95,12 @@ namespace Saloon
             }
             if(next.observer&&ragdoll!=null)ragdoll.Hide();
             var hitbox=GetComponent<CapsuleCollider>();if(hitbox!=null)hitbox.enabled=next.alive;
-            drinkAudio.spatialBlend=isLocal?0:1;drinkAudio.volume=isLocal?.35f:.28f;
-            if(next.drinking&&!wasDrinking){drinkAudio.pitch=Mathf.Clamp(2.5f/Mathf.Max(.2f,next.drinkDuration),.5f,3);drinkAudio.Play();}
+            drinkAudio.spatialBlend=isLocal?0:1;drinkAudio.volume=isLocal?.5f:.32f;
+            if(next.drinking&&!wasDrinking)
+            {
+                drinkAudio.pitch=Mathf.Clamp(drinkAudio.clip.length/Mathf.Max(.2f,next.drinkDuration),.25f,4);
+                drinkAudio.time=Mathf.Clamp01(1-next.drinkRemaining/Mathf.Max(.2f,next.drinkDuration))*(drinkAudio.clip.length-.01f);drinkAudio.Play();
+            }
             if(!next.drinking&&wasDrinking)drinkAudio.Stop();wasDrinking=next.drinking;
             if(next.giftSequence>lastGift)
             {
@@ -103,29 +108,28 @@ namespace Saloon
             }
             target=new Vector3(next.x,next.y,next.z);
             SetViewpoint(isLocal);
-            label.text=next.name+(!next.alive?"  ·  eliminated":"")+(next.sheriff?"\nSHERIFF":"")+(!string.IsNullOrEmpty(next.revealedRole)?"\n"+next.revealedRole:"");
+            label.text=next.name+(!next.alive?"  ·  eliminated":"")+(next.sheriff&&string.IsNullOrEmpty(next.revealedRole)?"\nSHERIFF":"")+(!string.IsNullOrEmpty(next.revealedRole)?"\n"+next.revealedRole:"");
             label.color=!next.alive?new Color(.61f,.57f,.51f):next.sheriff?new Color(1,.77f,.3f):new Color(.94f,.86f,.69f);
             if(next.health!=shownHealth||next.maxHealth!=shownMaxHealth)
             {
                 shownHealth=next.health;shownMaxHealth=next.maxHealth;
-                int count=Mathf.Clamp(next.maxHealth,1,12);
+                int count=SaloonHealth.Segments,shots=SaloonHealth.ShotsToKill(next.health);
                 var dots=new StringBuilder(count*32);
                 for(int i=0;i<count;i++)
                 {
-                    if(i>0)dots.Append("  ");
-                    dots.Append(i<next.health?"<color=#F1E4CB>●</color>":"<color=#6D665C>●</color>");
+                    dots.Append(i<shots?(shots==1?"<color=#FF6757>●</color>":"<color=#F1E4CB>●</color>"):"<color=#6D665C>●</color>");
                 }
-                dots.Append("<color=#F1E4CB>  ").Append(Mathf.Max(0,next.health)).Append(" / ").Append(next.maxHealth).Append(" HP</color>");
+                dots.Append(shots==1?"<color=#FF6757>  ":"<color=#F1E4CB>  ").Append(SaloonHealth.Percentage(next.health)).Append("</color>");
                 healthDots.text=dots.ToString();
             }
-            reloadAudio.spatialBlend=isLocal?0:1;reloadAudio.volume=isLocal?.6f:.4f;
+            reloadAudio.spatialBlend=isLocal?0:1;reloadAudio.volume=isLocal?.55f:.35f;
             if(next.reloads>lastReload&&next.reloading)
             {
                 reloadAudio.clip=SaloonGunAudio.Reload;reloadAudio.pitch=Mathf.Clamp(reloadAudio.clip.length/Mathf.Max(.2f,next.reloadDuration),.25f,4);
                 reloadAudio.time=Mathf.Clamp01(1-next.reloadRemaining/Mathf.Max(.2f,next.reloadDuration))*(reloadAudio.clip.length-.01f);reloadAudio.Play();
             }
             if(!next.reloading||!next.alive)reloadAudio.Stop();lastReload=next.reloads;
-            bool holdingBeer=next.alive&&next.room!=3&&!next.drawn&&(next.carriedBeer>0||next.drinking);
+            bool holdingBeer=next.alive&&next.room!=3&&!next.drawn&&((next.carriedBeer>0&&next.room!=0)||next.drinking);
             mug.SetActive(!local&&holdingBeer);
             if(firstPersonMug!=null)firstPersonMug.SetActive(local&&holdingBeer);
             if(next.shots>lastShot)
@@ -180,10 +184,14 @@ namespace Saloon
             motion.Pose(state.seated,Time.time-snapshotAt<.25f?walkingVelocity:Vector3.zero,lift,SaloonWeaponPose.Kick(Time.time-shotAt),state.drawn?state.pitch:0);
             // Follow the posed head, so sitting or wearing a hat cannot bury the health label.
             var healthPosition=motion.Bone(HumanBodyBones.Head).position+Vector3.up*.43f;
-            if(label!=null){label.transform.position=healthPosition+Vector3.up*.18f;label.transform.rotation=game.ViewCamera.transform.rotation;}
+            if(label!=null){label.transform.position=healthPosition;label.transform.rotation=game.ViewCamera.transform.rotation;}
             if(healthDots!=null){healthDots.transform.position=healthPosition;healthDots.transform.rotation=game.ViewCamera.transform.rotation;}
-            float labelScale=Mathf.Min(1,Vector3.Distance(game.ViewCamera.transform.position,healthPosition)/3);
+            float distance=Vector3.Distance(game.ViewCamera.transform.position,healthPosition);
+            float labelScale=Mathf.Min(1.25f,distance/3);
             label.transform.localScale=healthDots.transform.localScale=Vector3.one*labelScale;
+            // Align the actual text edges, including multiline role labels and font metrics.
+            float nameOffset=(healthRenderer.localBounds.max.y-nameRenderer.localBounds.min.y+.022f)*labelScale;
+            label.transform.position=healthPosition+game.ViewCamera.transform.up*nameOffset;
             float elapsed=Time.time-shotAt;
             bool finishingShot=state.shots>0&&elapsed<SaloonWeaponPose.Duration;
             drawAmount=Mathf.MoveTowards(drawAmount,(state.alive&&state.drawn)||finishingShot?1:0,Time.deltaTime/SaloonWeaponPose.DrawSeconds);
@@ -290,7 +298,7 @@ namespace Saloon
             return go;
         }
 
-        public void Silence(){if(audioSource!=null)audioSource.Stop();if(drinkAudio!=null)drinkAudio.Stop();}
+        public void Silence(){if(audioSource!=null)audioSource.Stop();if(drinkAudio!=null)drinkAudio.Stop();if(reloadAudio!=null)reloadAudio.Stop();}
 
         void OnDestroy(){if(handoffMug!=null)Destroy(handoffMug);if(firstPersonGun!=null)Destroy(firstPersonGun);if(firstPersonMug!=null)Destroy(firstPersonMug);}
     }

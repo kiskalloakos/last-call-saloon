@@ -14,7 +14,7 @@ namespace Saloon
             void Discussion()
             {
                 pendingOutcome="";
-                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.hitbox.enabled=true;p.beer=0;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;}
+                foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.hitbox.enabled=true;p.beer=0;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;}
                 rounds.Start(players.Keys,Time.time,30,30,6,1,1);phase=rounds.Phase;PositionEveryone(true);
             }
             void Actions(bool pair)
@@ -50,10 +50,10 @@ namespace Saloon
             yield return new WaitForSeconds(duel.coinFlipSeconds+.1f);Check(duel.revealed,"server coin reveals after flip animation");
             var first=players[duel.first];var second=first==host?peer:host;Aim(second,first);before=second.shots;Fire(second);
             Check(second.shots==before&&rounds.CanAct(second.id,Time.time),"loser cannot bypass opening with a fire command");
-            Aim(first,second);int hp=second.hp;Fire(first);Check(second.hp==hp-1,"coin winner can draw and land the opening shot");
+            Aim(first,second);int hp=second.hp;Fire(first);Check(second.hp==hp-SaloonHealth.RevolverDamage,"coin winner can draw and land the opening shot");
             int shots=first.shots;first.nextShot=0;Fire(first);Check(first.shots==shots,"opening does not grant an extra shot");
             Check(PrivateSnapshot(second.id).duel.yourTurn,"opponent gets the choice to respond after the opening");
-            Aim(second,first);Fire(second);Check(first.hp==2,"response shot follows the opening");
+            Aim(second,first);Fire(second);Check(first.hp==40,"response shot follows the opening");
             Broadcast();yield return new WaitForSeconds(.025f);
             Check(HitFlash>0,"real local damage triggers the hit flash");
             var muzzle=ViewCamera.transform.Find("Low-poly revolver/Muzzle flash");

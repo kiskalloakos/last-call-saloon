@@ -17,7 +17,8 @@ namespace Saloon
         public float regroupSeconds = 3;
         // Legacy serialized setting; positive values are ignored by the round clock.
         [UnityEngine.HideInInspector] public int roundLimit = 0;
-        public int health = 3;
+        // Health is always percentage points; old scene overrides must not restore 3 HP.
+        public int health => SaloonHealth.Maximum;
         public int cylinder = 6;
         public int sharedBeers = 8;
         public float shotInterval = .65f;
@@ -28,6 +29,21 @@ namespace Saloon
         public float robberySeconds = 3;
         public float walkSpeed = 3.5f;
         public float interactionDistance = 2.5f;
+    }
+
+    public static class SaloonHealth
+    {
+        public const int Maximum=100;
+        public const int RevolverDamage=20;
+        public const int CigaretteDamage=2*RevolverDamage;
+        public const int BeerHealing=20;
+        public const int Segments=Maximum/RevolverDamage;
+        public static int Clamp(int health)=>Math.Max(0,Math.Min(Maximum,health));
+        public static int AfterDamage(int health,int damage)=>Math.Max(0,Clamp(health)-Math.Max(0,damage));
+        public static int AfterShot(int health)=>AfterDamage(health,RevolverDamage);
+        public static int AfterBeer(int health,int healing=BeerHealing)=>health<=0?0:Math.Min(Maximum,Clamp(health)+Math.Max(0,Math.Min(BeerHealing,healing)));
+        public static int ShotsToKill(int health)=>(Clamp(health)+RevolverDamage-1)/RevolverDamage;
+        public static string Percentage(int health)=>Clamp(health)+"%";
     }
 
     public readonly struct RoleGuide
@@ -66,7 +82,7 @@ namespace Saloon
                 case Role.Sheriff: return "Survive and stop the escape until the posse arrives after round 10, or eliminate all criminals. Sheriff death does not end the match.";
                 case Role.Deputy: return "Defend the money with the Sheriff. You can still win after the Sheriff dies.";
                 case Role.Outlaw: return "Escape with the money; either Outlaw can win for both. Your fellow Outlaw is hidden, too.";
-                case Role.Renegade: return "Eliminate the Outlaws first, then the Sheriff and Deputy. Be the last player alive before the posse arrives after round 10. You cannot rob or escape with money.";
+                case Role.Renegade: return "You know everyone’s role. Eliminate the Outlaws first, then the Sheriff and Deputy. Be the last player alive before the posse arrives after round 10. You cannot rob or escape with money.";
                 default: return "Waiting for the host to deal the roles.";
             }
         }
@@ -79,29 +95,29 @@ namespace Saloon
                     "Protect the money with the Deputy. Everyone knows you are the Sheriff.",
                     "<b>C at the Bar</b> · Inspect the safe. Your private report shows its condition, not the thief's name. Check again on a later turn.",
                     "Eliminate every Outlaw and the Renegade, or survive and stop the escape until the posse arrives after round 10. You cannot rob or escape with money.",
-                    "The Deputy is your ally. Shooting them also costs you 1 HP.",
+                    "The Deputy is your ally. Shooting them also costs you 20% health.",
                     "HOW TO PROTECT THE MONEY",
                     "1. Choose <b>Bar</b>, then Ready.\n2. On your turn, press <b>C</b> to inspect. It tells you whether the safe was touched, if new marks appeared, or money is missing. Hold <b>Tab</b> to read your private clues at any time.\n3. Hold <b>V</b> to talk. Ask what others did and compare their stories.\n4. Use your turn to shoot a suspected thief or help an ally with beer.\n5. Keep the money from escaping. The Deputy is helping you, but their role is hidden.");
                 case Role.Deputy:return new RoleGuide(
-                    "Help the Sheriff protect the money. Your role is secret, even from the Sheriff.",
+                    "Help the Sheriff protect the money. The Renegade knows your role; the Sheriff does not.",
                     "Protect the Sheriff and stop the thieves. <b>C is Sheriff-only.</b> Use your turn to defend the money or help the Sheriff.",
                     "You share the Sheriff's win. Survive and keep the money safe until the posse arrives after round 10, or eliminate all criminals. You can still win after the Sheriff dies.",
-                    "The Sheriff is your ally. Shooting them also costs you 1 HP.",
+                    "The Sheriff is your ally. Shooting them also costs you 20% health.",
                     "HOW TO HELP THE SHERIFF",
-                    "1. Choose <b>Bar</b> to help guard the safe, then Ready.\n2. Hold <b>V</b> to talk and find out who may be stealing.\n3. Wait for your turn. Press <b>Q</b>, aim, then <b>left-click</b> to shoot an enemy.\n4. Take beer with <b>E</b>. Aim at a nearby Sheriff and press <b>G</b> to give it to them.\n5. Ask the Sheriff about their <b>C</b> inspection. You cannot inspect it yourself.\nProtect the Sheriff; do not shoot them.");
+                    "1. Choose <b>Bar</b> to help guard the safe, then Ready.\n2. Hold <b>V</b> to talk and find out who may be stealing.\n3. Wait for your turn. Press <b>Q</b>, aim, then <b>left-click</b> to shoot an enemy.\n4. Pour with <b>E</b>, then <b>E</b> to stop. Aim at a nearby Sheriff and press <b>G</b> to offer your poured healing.\n5. Ask the Sheriff about their <b>C</b> inspection. You cannot inspect it yourself.\nProtect the Sheriff; do not shoot them.");
                 case Role.Outlaw:return new RoleGuide(
                     playerCount==4?"You are the only Outlaw. Steal the money and escape to win.":"Steal the money. If either Outlaw escapes with it, both Outlaws win.",
                     "Choose <b>Bar</b>. Use <b>H</b> to work on the safe or collect the money, then <b>X</b> on a later turn to start escaping.",
                     (playerCount==4?"You must":"Either Outlaw must")+" finish an escape with the money before the posse arrives after round 10. Declare by round 9. Killing the Sheriff alone does not win the match.",
-                    playerCount==4?"You have no teammate in a four-player match. The Law and Renegade are your rivals.":"Your fellow Outlaw is hidden. Shooting another Outlaw also costs you 1 HP.",
+                    playerCount==4?"You have no teammate in a four-player match. The Law and Renegade are your rivals.":"Your fellow Outlaw is hidden. Shooting another Outlaw also costs you 20% health.",
                     "HOW TO TAKE THE MONEY & ESCAPE",EscapeGuide);
                 case Role.Renegade:return new RoleGuide(
-                    "You have no teammate. Eliminate the Outlaws first, then the Sheriff and Deputy.",
+                    "You know everyone’s role. Eliminate the Outlaws first, then the Sheriff and Deputy.",
                     "Use your turn to shoot an enemy or heal yourself. <b>H and X are Outlaw-only.</b> You do not steal money.",
                     "Be the only player left alive before the posse arrives after round 10. An Outlaw escaping with the money does not count as your win.",
                     "Keep the Law alive while you fight the Outlaws. After the Outlaws are gone, turn on the Law.",
                     "OUTLAWS FIRST, THEN THE LAW",
-                    "1. Hold <b>V</b> to talk and work out who the Outlaws are.\n2. Choose a room with a suspected Outlaw, then Ready.\n3. On your turn, press <b>Q</b>, aim, then <b>left-click</b> to shoot.\n4. Use <b>B</b> to heal yourself with beer when needed.\n5. Once all Outlaws are dead, eliminate the Sheriff and Deputy.\nYou win when nobody else is alive.");
+                    "1. Hold <b>Tab</b> to see everyone’s role.\n2. Choose a room with an Outlaw, then Ready.\n3. On your turn, press <b>Q</b>, aim, then <b>left-click</b> to shoot.\n4. Use <b>B</b> to heal yourself with beer when needed.\n5. Once all Outlaws are dead, eliminate the Sheriff and Deputy.\nYou win when nobody else is alive.");
                 default:return new RoleGuide("Waiting for the host to deal your role.","","","","","");
             }
         }
@@ -120,15 +136,17 @@ namespace Saloon
             if(view.duel?.stage=="choosing")return "Choose Heads or Tails. First claim locks the sides; the coin decides the opening.";
             if(view.duel?.stage=="flipping")return "Let the coin land. Weapons are locked until the opening is decided.";
             if(view.duel?.waitingForOpening==true)return view.duel.firstName+" has the opening. You may respond after their action or pass.";
+            if(view.pouring)return "E · Stop pouring near the fill line. Healing rounds up in steps of 5%, up to 20%.";
+            if(view.carriedBeer>0&&view.beerChoiceRemaining>0)return "B · Drink for +"+view.beerHealing+"% health. Aim + G · Offer. Space · Leave beer.";
             if(view.roomTurn?.spent==true)return "Your action is spent. Watch the remaining turns.";
             if(view.roomTurn!=null&&!view.roomTurn.yourTurn)return string.IsNullOrEmpty(view.roomTurn.currentId)?"The room has finished its actions.":view.roomTurn.currentName+" has the next move. Your turn follows the room order.";
             if(view.busyRemaining>0)return "Beer heals when you finish drinking. A headshot interrupts safe work.";
             if(!view.actionAvailable)return "Your action is spent. Listen, watch, and plan your next round.";
             if(view.escapePending)return "Hold the bar until this action phase ends. Protect the money.";
             if(view.moneyBag)return "X · Commit to escape, then survive the next action phase at the bar.";
-            if(view.carriedBeer>0&&view.health<self.maxHealth)return "B · Drink to recover one health. G · Offer it to someone nearby.";
+            if(view.carriedBeer>0&&view.health<self.maxHealth)return "B · Drink your poured beer. G · Offer it to someone nearby.";
             if(view.ownRole=="Renegade")return "Eliminate the Outlaws first, then the Law. Q to draw, aim and click to shoot. Be the last alive.";
-            if(self.room==0)return view.ownRole=="Sheriff"?"C · Inspect the safe privately, using your action.":view.ownRole=="Outlaw"?"H · Work the safe quietly. Three completed attempts release the money.":"Hear them out. E prepares a beer; B drinks it as your action.";
+            if(self.room==0)return view.ownRole=="Sheriff"?"C · Inspect the safe privately, using your action.":view.ownRole=="Outlaw"?"H · Work the safe quietly. Three completed attempts release the money.":"E · Pour beer as your action; E again to stop. B drinks it; G offers it.";
             return "One action. Draw with Q, then aim carefully—or hear them out.";
         }
     }
@@ -147,6 +165,7 @@ namespace Saloon
     {
         public string id, name, revealedRole,voiceId;
         public float x, y, z, yaw, pitch;
+        public bool disconnected,rematchVote;
         public bool alive, drawn, seated, sheriff, busy,ready,observer,bot;
         public float deathAge,deathX,deathY,deathZ;
         public int shots,health,maxHealth,carriedBeer,hits,puffs,reloads;
@@ -154,6 +173,7 @@ namespace Saloon
         public float smokeAge;
         public float hitAge,hitX,hitY,hitZ;
         public bool drinking, robbing, moneyBag, escaping;
+        public bool pouring;public float pourElapsed;public int beerHealing,beerStation;public float pourFlow=1;
         public int room, chosenRoom, poseVersion,planVersion;
         public string companion;
         public int giftSequence;
@@ -162,8 +182,18 @@ namespace Saloon
     }
 
     [Serializable]
+    public class KnownRole
+    {
+        public string id,name,role;
+    }
+
+    [Serializable]
     public class Snapshot
     {
+        public KnownRole[] knownRoles;
+        public string ownId,reconnectNotice;
+        public int rematchVotes,rematchRequired;
+        public bool ownRematchVote;
         public PlayerView[] players;
         public Phase phase;
         public float remaining;
@@ -183,8 +213,11 @@ namespace Saloon
         public bool hasDuel,hasRoomTurn,hasBlackjackTable,hasCoinTable;
         public string safeReport;
         public string[] evidence;
-        public int health, ammo, beers, carriedBeer;
+        public int health, ammo, beers, carriedBeer,beerHealing;
+        public bool pouring;public float pourElapsed,beerChoiceRemaining;
         public bool sandbox, moneyBag, escapePending;
+        // Recipient-only state; never included in public PlayerView records.
+        public bool cigaretteBuff;
         public bool botsEnabled;
         public int botMatchSize=5,lobbyCapacity=8;
         public int safeProgress=-1;

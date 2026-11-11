@@ -19,7 +19,7 @@ namespace Saloon
 
     public partial class SaloonGame
     {
-        bool CanWalk(Participant p)=>p.Alive&&p.seat<0&&!TableLocksSeat(p)&&(phase==Phase.Lobby||phase==Phase.Turns);
+        bool CanWalk(Participant p)=>p.Alive&&p.seat<0&&p.busyAction!="pour"&&!TableLocksSeat(p)&&(phase==Phase.Lobby||phase==Phase.Turns);
 
         // Movement runs independently of turn/action authorization, just like human input.
         void TickBotMovement(Participant p)
@@ -86,6 +86,7 @@ namespace Saloon
 
         void ToggleStance(Participant p)
         {
+            if(p.busyAction=="pour"){p.notice="Stop pouring before leaving the tap.";return;}
             if(phase!=Phase.Turns){p.notice="Stand and walk during room actions. Discussion stays at the table.";return;}
             if(p.seat>=0){Stand(p);return;}
             InteractionPoint nearest=null;float best=1.35f;

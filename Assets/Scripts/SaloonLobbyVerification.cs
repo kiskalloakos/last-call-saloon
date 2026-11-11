@@ -54,7 +54,7 @@ namespace Saloon
                 yield return Wait(()=>clients.All(c=>players[c.LocalId].voiceId=="editor-voice-"+c.LocalId),"voice identities arrive over reliable LAN commands");
                 StartMatch();Deck(count);
                 yield return Wait(()=>clients.All(c=>snapshots.TryGetValue(c,out var s)&&s.phase==Phase.Discussion&&s.players.Length==count),count+"-player discussion reaches all LAN clients");
-                Check(clients.All(c=>snapshots[c].ownRole==players[c.LocalId].role.ToString()&&snapshots[c].players.Count(p=>p.sheriff)==1&&snapshots[c].players.All(p=>p.revealedRole=="")&&!snapshots[c].botsEnabled),"private roles and no-bots mode survive the wire");
+                Check(clients.All(c=>snapshots[c].ownRole==players[c.LocalId].role.ToString()&&snapshots[c].players.Count(p=>p.sheriff)==1&&snapshots[c].players.All(p=>players[c.LocalId].role==Role.Renegade?p.revealedRole==players[ulong.Parse(p.id)].role.ToString():p.revealedRole=="")&&!snapshots[c].botsEnabled),"private roles and no-bots mode survive the wire");
                 Check(clients.All(c=>snapshots[c].players.Where(p=>p.id!=LocalId).All(p=>p.voiceId=="editor-voice-"+p.id)),"all LAN clients map each voice ID to the correct avatar");
                 var victim=players[clients[0].LocalId];TakeDamage(victim,Vector3.forward);Broadcast();
                 yield return Wait(()=>clients.All(c=>snapshots[c].players.Single(p=>p.id==victim.id.ToString()).hits==1),"every LAN client receives the victim's hit sequence");

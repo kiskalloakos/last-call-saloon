@@ -12,7 +12,7 @@ namespace Saloon
             void Check(bool ok,string text){if(!ok)throw new InvalidOperationException("Room reservation: "+text);Debug.Log("SALOON_RESERVATION_CHECK "+text);}
             SaloonRoomReservationVerification.Run();
             var host=players[Connection.LocalId];var peers=players.Values.Where(p=>p.bot).Take(2).ToArray();
-            foreach(var p in players.Values){p.hp=3;p.chosenRoom=0;p.companion=null;}
+            foreach(var p in players.Values){p.hp=60;p.chosenRoom=0;p.companion=null;}
             rounds.Start(players.Keys,Time.time,30,30,6);phase=rounds.Phase;PositionEveryone(true);Broadcast();
             ChooseRoom(2,""); // Select first, ready last: clicking a room alone reserves nothing.
             foreach(var peer in peers)

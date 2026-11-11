@@ -34,7 +34,7 @@ namespace Saloon
             VerifyRoomReservations();
             VerifyBlackjackFlow();
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);
-            foreach(var p in players.Values){p.hp=3;p.chosenRoom=0;p.companion=null;p.drawn=false;p.lastAction=-100;}
+            foreach(var p in players.Values){p.hp=60;p.chosenRoom=0;p.companion=null;p.drawn=false;p.lastAction=-100;}
             host.chosenRoom=peer.chosenRoom=2;host.companion=peer.id;peer.companion=host.id;
             rounds.Start(players.Keys,Time.time,30,30,6);foreach(var id in players.Keys)rounds.SetReady(id,true);
             rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);

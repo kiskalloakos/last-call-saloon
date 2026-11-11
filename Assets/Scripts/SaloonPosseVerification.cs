@@ -21,7 +21,7 @@ namespace Saloon
                 ResetHeist();outcome="";duels.Clear();roomTurns.Clear();
                 foreach(var p in players.Values)
                 {
-                    p.hp=3;p.deathAt=-1;p.role=Role.Deputy;p.chosenRoom=0;p.room=0;p.busyUntil=0;p.busyAction="";
+                    p.hp=60;p.deathAt=-1;p.role=Role.Deputy;p.chosenRoom=0;p.room=0;p.busyUntil=0;p.busyAction="";
                     p.lastAction=-100;p.hitbox.enabled=true;p.companion=null;
                 }
                 host.role=Role.Sheriff;robber.role=Role.Outlaw;

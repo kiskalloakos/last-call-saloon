@@ -1,5 +1,7 @@
 using System;
 using System.Text;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using Unity.Collections;
 using Unity.Netcode;
@@ -18,10 +20,32 @@ namespace Saloon
         public bool Solo { get; private set; }
         public bool Hosting => Solo || (Manager != null && Manager.IsServer);
         public bool Connected => Solo || (Manager != null && Manager.IsConnectedClient);
-        public ulong LocalId => Solo ? NetworkManager.ServerClientId : Manager != null ? Manager.LocalClientId : 0;
+        public ulong LocalId => Solo ? NetworkManager.ServerClientId : Manager != null ? (stableLocalId ?? Manager.LocalClientId) : 0;
         public string Status = "Choose solo practice, LAN, or an online room.";
         public string RoomCode = "";
         public string LastDisconnectDetails { get; private set; }="";
+        public const float ReconnectGraceSeconds=20;
+        public bool AutoReconnect;
+        public bool Reconnecting { get; private set; }
+        public float ReconnectRemaining=>Mathf.Max(0,reconnectUntil-Time.realtimeSinceStartup);
+        public Func<ulong,bool> CanResume;
+        readonly Dictionary<string,ulong> identities=new Dictionary<string,ulong>();
+        readonly Dictionary<ulong,ulong> peers=new Dictionary<ulong,ulong>();
+        string reconnectToken=Guid.NewGuid().ToString("N"),lanAddress;
+        ushort lanPort;
+        bool startedAsHost,cloud;
+        ulong? stableLocalId;
+        int recoveryGeneration;
+        float reconnectUntil;
+        public void ClosePlayer(ulong id)
+        {
+            foreach(var networkId in peers.Where(x=>x.Value==id).Select(x=>x.Key).ToArray())Manager.DisconnectClient(networkId);
+        }
+        public void ForgetPlayer(ulong id)
+        {
+            foreach(var key in identities.Where(x=>x.Value==id).Select(x=>x.Key).ToArray())identities.Remove(key);
+        }
+        void SetIdentityPayload()=>Manager.NetworkConfig.ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-15/"+Application.version+"/"+reconnectToken);
         bool disconnectRequested;
         float lastFrameAt;
         public bool Busy { get; private set; }
@@ -50,23 +74,33 @@ namespace Saloon
             Manager = go.AddComponent<NetworkManager>();
             var transport = go.AddComponent<UnityTransport>();
             transport.MaxPacketQueueSize=1024;
-            Debug.Log("SALOON_BUILD version="+Application.version+" guid="+Application.buildGUID+" platform="+Application.platform+" protocol=state-11 utc="+DateTime.UtcNow.ToString("O"));
+            Debug.Log("SALOON_BUILD version="+Application.version+" guid="+Application.buildGUID+" platform="+Application.platform+" protocol=state-15 utc="+DateTime.UtcNow.ToString("O"));
             Manager.NetworkConfig = new NetworkConfig
             {
                 NetworkTransport = transport,
                 EnableSceneManagement = false,
                 ConnectionApproval = true,
-                ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-11/"+Application.version),
+                ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-15/"+Application.version),
                 TickRate = 30,
                 ClientConnectionBufferTimeout = 15
             };
             Manager.ConnectionApprovalCallback = (request, response) =>
             {
-                bool matching=Encoding.UTF8.GetString(request.Payload)=="LastCall/state-11/"+Application.version;
-                response.Approved = matching && Accepting && Manager.ConnectedClientsIds.Count < SaloonRules.LobbyCapacity;
-                response.CreatePlayerObject = false;
-                response.Pending = false;
-                response.Reason = !matching?"Different game version. Use "+Application.version+" on both devices.":Accepting ? "The saloon lobby is full (8 players)." : "A match is in progress; join after it ends.";
+                string payload=Encoding.UTF8.GetString(request.Payload);
+                string prefix="LastCall/state-15/"+Application.version+"/";
+                string token=payload.StartsWith(prefix)?payload.Substring(prefix.Length):"";
+                bool matching=Guid.TryParseExact(token,"N",out _);
+                bool known=identities.TryGetValue(token,out ulong stable);
+                bool resume=known&&!peers.Values.Contains(stable)&&CanResume?.Invoke(stable)==true;
+                bool room=Accepting&&(!known||resume)&&identities.Count<SaloonRules.LobbyCapacity;
+                response.Approved=matching&&(resume||room);
+                response.CreatePlayerObject=false;response.Pending=false;
+                response.Reason=!matching?"Different game version. Use "+Application.version+" on both devices.":"This place is unavailable or the reconnect window has expired.";
+                if(response.Approved)
+                {
+                    if(!resume){stable=request.ClientNetworkId;identities[token]=stable;}
+                    peers[request.ClientNetworkId]=stable;
+                }
             };
             Manager.OnClientConnectedCallback += id =>
             {
@@ -75,7 +109,9 @@ namespace Saloon
                 if(id==LocalId&&receivedSnapshots==0)lastSnapshotAt=Time.unscaledTime;
                 Debug.Log("SALOON_NET joined="+id+" host="+Hosting+" time="+Time.realtimeSinceStartup.ToString("F2"));
                 Status = Hosting ? "LAN host is ready." : "Connected to the saloon.";
-                Joined?.Invoke(id);
+                if(Hosting&&!peers.ContainsKey(id))peers[id]=id;
+                if(id==Manager.LocalClientId)Reconnecting=false;
+                Joined?.Invoke(peers.TryGetValue(id,out var stable)?stable:id);
             };
             Manager.OnClientDisconnectCallback += id =>
             {
@@ -94,8 +130,15 @@ namespace Saloon
                     Status=DisconnectSummary(Manager.DisconnectEvent,reason);
                     Debug.LogWarning("SALOON_DISCONNECT_DETAILS "+LastDisconnectDetails);
                 }
-                Left?.Invoke(id);
-                if(localLost){registered=false;LostConnection?.Invoke();}
+                ulong stable=peers.TryGetValue(id,out var saved)?saved:id;
+                peers.Remove(id);Left?.Invoke(stable);
+                if(localLost)
+                {
+                    registered=false;
+                    if(AutoReconnect&&!disconnectRequested&&!startedAsHost&&receivedSnapshots>0)
+                    {if(!Reconnecting)_=Recover();}
+                    else if(!Reconnecting)LostConnection?.Invoke();
+                }
             };
             Manager.OnTransportFailure+=()=>Debug.LogError("SALOON_NET transport failure host="+Hosting+" reason="+Manager.DisconnectReason);
         }
@@ -134,7 +177,7 @@ namespace Saloon
                 {
                     reader.ReadValueSafe(out string json);
                     var cmd = JsonUtility.FromJson<Command>(json);
-                    if (cmd != null) CommandReceived?.Invoke(sender, cmd);
+                    if (cmd != null) CommandReceived?.Invoke(peers.TryGetValue(sender,out var stable)?stable:sender, cmd);
                 }
                 catch (Exception e) { Debug.LogWarning("Ignored malformed command: " + e.Message); }
             });
@@ -170,6 +213,7 @@ namespace Saloon
         {
             if (Busy || Solo || (Manager != null && Manager.IsListening)) return;
             Initialize();
+            cloud=false;startedAsHost=host;lanAddress=address;lanPort=port;SetIdentityPayload();
             Accepting=true;
             ResetStateStream();
             Manager.GetComponent<UnityTransport>().SetConnectionData(address, port, "0.0.0.0");
@@ -182,7 +226,7 @@ namespace Saloon
         {
             if (Busy || Solo || (Manager != null && Manager.IsListening)) return;
             Busy = true;
-            Initialize();
+            Initialize();cloud=true;startedAsHost=host;SetIdentityPayload();
             Accepting=true;
             ResetStateStream();
             try
@@ -246,6 +290,12 @@ namespace Saloon
         public void SendSnapshot(ulong target, Snapshot snapshot)
         {
             if(Solo&&target!=LocalId)return;
+            if(!Solo&&target!=LocalId)
+            {
+                var transportPeer=peers.FirstOrDefault(x=>x.Value==target);
+                if(!peers.ContainsKey(transportPeer.Key)||transportPeer.Value!=target)return;
+                target=transportPeer.Key;
+            }
             var packed=SaloonSnapshotWire.Encode(snapshot,out int oldBytes);uint sequence=++snapshotSequence;
             int count=(packed.Length+SaloonSnapshotWire.ChunkBytes-1)/SaloonSnapshotWire.ChunkBytes;
             if(target!=LocalId){sentSnapshots++;legacyBytes+=oldBytes;}
@@ -273,6 +323,7 @@ namespace Saloon
             var snapshot=snapshotReceiver.Accept(sequence,part,count,total,payload);
             if(!Hosting)receivedBytes+=payload.Length+SaloonSnapshotWire.HeaderBytes;
             if(snapshot==null)return;
+            if(!Hosting&&ulong.TryParse(snapshot.ownId,out var own))stableLocalId=own;
             lastSnapshotAt=Time.unscaledTime;receivedSnapshots++;SnapshotReceived?.Invoke(snapshot);
         }
 
@@ -280,7 +331,7 @@ namespace Saloon
         {
             // The first state can arrive before OnClientConnectedCallback. Reset before
             // starting the transport, so that callback cannot forget an already applied state.
-            disconnectRequested=false;LastDisconnectDetails="";lastFrameAt=Time.realtimeSinceStartup;
+            registered=false;disconnectRequested=false;LastDisconnectDetails="";lastFrameAt=Time.realtimeSinceStartup;
             snapshotReceiver.Reset();snapshotSequence=0;lastSnapshotAt=-1;
             sentBytes=legacyBytes=receivedBytes=0;sentSnapshots=receivedSnapshots=0;nextStats=Time.unscaledTime+10;
         }
@@ -295,9 +346,41 @@ namespace Saloon
             }
         }
 
+        async Task Recover()
+        {
+            Reconnecting=true;int generation=++recoveryGeneration;
+            reconnectUntil=Time.realtimeSinceStartup+ReconnectGraceSeconds;
+            string code=RoomCode;
+            try
+            {
+                while(generation==recoveryGeneration&&ReconnectRemaining>0)
+                {
+                    Status="Reconnecting — your place is reserved ("+Mathf.CeilToInt(ReconnectRemaining)+"s).";
+                    Manager.Shutdown();registered=false;
+                    while(Manager.ShutdownInProgress&&generation==recoveryGeneration)await Task.Yield();
+                    if(generation!=recoveryGeneration)return;
+                    if(cloud)
+                    {
+                        if(session!=null){try{await session.LeaveAsync();}catch(Exception e){Debug.LogWarning(e.Message);}session=null;}
+                        if(generation!=recoveryGeneration)return;
+                        await StartCloud(false,code);
+                    }
+                    else StartLan(false,lanAddress,lanPort);
+                    float attemptUntil=Time.realtimeSinceStartup+4;
+                    while(generation==recoveryGeneration&&!Connected&&Time.realtimeSinceStartup<attemptUntil&&ReconnectRemaining>0)await Task.Yield();
+                    if(generation!=recoveryGeneration){if(Connected)await Disconnect();return;}
+                    if(Connected){Reconnecting=false;Status="Reconnected to the saloon.";return;}
+                }
+            }
+            catch(Exception e){Debug.LogWarning("Reconnect failed: "+e.Message);}
+            if(generation!=recoveryGeneration)return;
+            Reconnecting=false;Status="Could not reconnect before the reserved place expired.";LostConnection?.Invoke();
+        }
+
         public async Task Disconnect()
         {
-            disconnectRequested=true;Solo=false;
+            disconnectRequested=true;recoveryGeneration++;Reconnecting=false;Solo=false;
+            stableLocalId=null;identities.Clear();peers.Clear();reconnectToken=Guid.NewGuid().ToString("N");
             try { if (session != null) await session.LeaveAsync(); }
             catch (Exception e) { Debug.LogWarning(e.Message); }
             session = null;

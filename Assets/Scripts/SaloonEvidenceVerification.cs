@@ -16,7 +16,7 @@ namespace Saloon
             void Actions()
             {
                 rounds.Start(players.Keys,Time.time,30,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;roomTurns.Clear();
-                foreach(var p in players.Values){p.controller.enabled=false;p.hp=3;p.room=1;p.busyUntil=0;p.busyAction="";p.lastAction=-100;}
+                foreach(var p in players.Values){p.controller.enabled=false;p.hp=60;p.room=1;p.busyUntil=0;p.busyAction="";p.lastAction=-100;}
                 witness.room=worker.room=0;witness.role=Role.Sheriff;worker.role=Role.Outlaw;
             }
             ResetHeist();Actions();
@@ -28,7 +28,7 @@ namespace Saloon
             Check(witness.evidence.Count==0,"brief separate glances do not accumulate into a witness clue");
             var wall=GameObject.CreatePrimitive(PrimitiveType.Cube);wall.transform.position=new Vector3(0,11.65f,1.5f);wall.transform.localScale=new Vector3(2,3,.3f);
             yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==0,"a wall blocks witnessing");Destroy(wall);yield return null;
-            witness.hp=0;yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==0,"dead players collect no clues");witness.hp=3;
+            witness.hp=0;yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==0,"dead players collect no clues");witness.hp=60;
             yield return new WaitForSeconds(.9f);
             Check(witness.evidence.Count==1&&witness.evidence[0].Contains(worker.name)&&witness.evidence[0].Contains("did not see whether"),"watching real safe work records one named observation without claiming completion");
             yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==1,"continued watching does not spam duplicate clues");

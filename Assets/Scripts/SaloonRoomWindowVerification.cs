@@ -29,6 +29,16 @@ namespace Saloon
             Check(GameObject.Find("Saloon World").GetComponentsInChildren<Transform>(true).Where(t=>t.name=="Room screen").All(t=>!t.gameObject.activeInHierarchy),"old solid front screens are removed");
             Check(SaloonStations.Name(0)=="Bar"&&RoomCapacities()[0]==5&&SaloonStations.Position(false,0,0)==new Vector3(-5,.35f,2.05f),"Bar name, capacity and stations stay unchanged");
             Check(GameObject.Find("Saloon World/Bar front").GetComponent<Collider>().enabled,"existing Bar counter remains in place");
+            for(int slot=0;slot<5;slot++)
+            {
+                var station=SaloonStations.Position(false,0,slot);
+                var forward=Quaternion.Euler(0,SaloonStations.Facing(false,0,slot),0)*Vector3.forward;
+                foreach(float x in new[]{-5f,5f})
+                {
+                    var toward=Vector3.ProjectOnPlane(new Vector3(x,0,SaloonRoomWindows.FrontZ)-station,Vector3.up);
+                    Check(Vector3.Angle(forward,toward)<90,"Bar slot "+slot+" starts facing both minigame windows");
+                }
+            }
             var probe=new GameObject("Window collision probe");var controller=probe.AddComponent<CharacterController>();controller.height=.6f;controller.radius=.18f;controller.skinWidth=.02f;
             foreach(var window in windows)
             {
@@ -62,7 +72,7 @@ namespace Saloon
 
             // Render the same physical table for the person watching from the Bar.
             var host=players[Connection.LocalId];var bots=players.Values.Where(p=>p.bot).ToArray();
-            foreach(var p in players.Values){p.hp=3;p.chosenRoom=0;p.companion=null;p.drawn=false;p.busyUntil=0;}
+            foreach(var p in players.Values){p.hp=60;p.chosenRoom=0;p.companion=null;p.drawn=false;p.busyUntil=0;}
             bots[0].chosenRoom=bots[1].chosenRoom=2;bots[2].chosenRoom=bots[3].chosenRoom=1;
             rounds.Start(players.Keys,Time.time,30,30,6);foreach(var id in players.Keys)rounds.SetReady(id,true);
             rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
@@ -105,7 +115,7 @@ namespace Saloon
         IEnumerator VerifyRoomHearing()
         {
             var host=players[Connection.LocalId];var source=players.Values.Last(p=>p.bot);
-            foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=3;p.busyUntil=0;}
+            foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=60;p.busyUntil=0;}
             host.chosenRoom=2;rounds.Start(players.Keys,Time.time,30,30,6);foreach(var id in players.Keys)rounds.SetReady(id,true);
             rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);Broadcast();yield return null;
             var turn=roomTurns[0];turn.index=Array.IndexOf(turn.order,source.id);
@@ -136,6 +146,10 @@ namespace Saloon
                 ViewCamera.transform.SetPositionAndRotation(center+Vector3.forward*.85f,Quaternion.Euler(0,180,0));
                 int visible=WindowMarkerPixels(true);
                 check(visible>50,"outside render sees the room through the pane ("+visible+" marker pixels)");
+                var barEye=SaloonStations.Position(false,0,pane.room==1?0:4)+Vector3.up*1.35f;
+                ViewCamera.transform.SetPositionAndRotation(barEye,Quaternion.LookRotation(green.transform.position-barEye));
+                int fromBar=WindowMarkerPixels(true);
+                check(fromBar>20,"Bar station sees inside "+SaloonStations.Name(pane.room)+" ("+fromBar+" marker pixels)");
                 ViewCamera.transform.SetPositionAndRotation(center+Vector3.back*.85f,Quaternion.identity);
                 pane.outside.enabled=pane.inside.enabled=false;int baseline=WindowMarkerPixels(false);
                 pane.outside.enabled=pane.inside.enabled=true;int blocked=WindowMarkerPixels(false);

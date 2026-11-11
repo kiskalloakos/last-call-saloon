@@ -14,7 +14,7 @@ namespace Saloon
             void Discussion()
             {
                 pendingOutcome="";outcome="";
-                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.hitbox.enabled=true;p.bag=false;p.escapeRound=0;p.role=Role.Outlaw;p.nextShot=0;p.ammo=6;p.lastAction=-100;p.busyUntil=0;}
+                foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.hitbox.enabled=true;p.bag=false;p.escapeRound=0;p.role=Role.Outlaw;p.nextShot=0;p.ammo=6;p.lastAction=-100;p.busyUntil=0;}
                 host.role=Role.Sheriff;
                 rounds.Start(players.Keys,Time.time,0,30,6,1,1);phase=rounds.Phase;PositionEveryone(true);
             }
@@ -48,7 +48,7 @@ namespace Saloon
             host.lastAction=-100;OnCommand(host.id,new Command{kind="pass"});
             Check(rounds.HasSpent(host.id)&&turn.index==turn.order.Length,"human can spend the final queued action");
 
-            void Shot(Role shooter,Role target,int hp=3,int targetHp=3)
+            void Shot(Role shooter,Role target,int hp=60,int targetHp=60)
             {
                 Discussion();host.role=shooter;peer.role=target;host.hp=hp;peer.hp=targetHp;
                 host.chosenRoom=peer.chosenRoom=1;host.companion=peer.id;peer.companion=host.id;
@@ -59,14 +59,14 @@ namespace Saloon
             foreach(var pair in new[]{(Role.Deputy,Role.Sheriff),(Role.Sheriff,Role.Deputy),(Role.Outlaw,Role.Outlaw)})
             {
                 Shot(pair.Item1,pair.Item2);
-                Check(host.hp==2&&peer.hp==2&&host.ammo==5&&!rounds.CanAct(host.id,Time.time),pair+" friendly shot costs shooter and target one HP, one bullet and one action");
-                host.nextShot=0;Fire(host);Check(host.hp==2&&peer.hp==2,"rejected second shot cannot apply another penalty");
+                Check(host.hp==40&&peer.hp==40&&host.ammo==5&&!rounds.CanAct(host.id,Time.time),pair+" friendly shot costs shooter and target 20% health, one bullet and one action");
+                host.nextShot=0;Fire(host);Check(host.hp==40&&peer.hp==40,"rejected second shot cannot apply another penalty");
             }
             foreach(var pair in new[]{(Role.Sheriff,Role.Outlaw),(Role.Deputy,Role.Renegade),(Role.Outlaw,Role.Deputy),(Role.Renegade,Role.Sheriff),(Role.Renegade,Role.Outlaw)})
             {
-                Shot(pair.Item1,pair.Item2);Check(host.hp==3&&peer.hp==2,pair+" enemy shot has no friendly-fire penalty");
+                Shot(pair.Item1,pair.Item2);Check(host.hp==60&&peer.hp==40,pair+" enemy shot has no friendly-fire penalty");
             }
-            Shot(Role.Deputy,Role.Sheriff,1,1);
+            Shot(Role.Deputy,Role.Sheriff,20,20);
             Check(!host.Alive&&!peer.Alive&&!host.hitbox.enabled&&!peer.hitbox.enabled&&!host.drawn&&host.hp==0&&peer.hp==0,"lethal friendly shot eliminates both players cleanly");
             Broadcast();yield return null;
             Debug.Log("SALOON_PRACTICE PASS");

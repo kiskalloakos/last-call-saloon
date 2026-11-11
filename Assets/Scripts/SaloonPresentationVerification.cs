@@ -25,7 +25,7 @@ namespace Saloon
             }
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);
             var others=players.Values.Where(p=>p!=host&&p!=peer).ToArray();
-            foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.hitbox.enabled=true;p.drawn=false;p.beer=0;p.busyUntil=0;p.lastAction=-100;}
+            foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.hitbox.enabled=true;p.drawn=false;p.beer=0;p.busyUntil=0;p.lastAction=-100;}
             host.role=Role.Sheriff;peer.role=Role.Outlaw;others[0].role=Role.Outlaw;others[1].role=Role.Deputy;others[2].role=Role.Renegade;
             rounds.Start(players.Keys,Time.time,1,120,6);phase=rounds.Phase;PositionEveryone(true);
             OnCommand(host.id,new Command{kind="ready",x=1});Check(rounds.IsReady(host.id),"Ready accepted during discussion");
@@ -59,7 +59,7 @@ namespace Saloon
             Check(SaloonWeaponPose.Kick(0)==0&&SaloonWeaponPose.Kick(.035f)>.99f&&SaloonWeaponPose.Kick(.3f)==0,"recoil rises into a short kick and fully recovers");
             for(float t=0;t<1.2f;t+=1f/60)
                 Check(Mathf.Abs(SaloonWeaponPose.Flip(t+1f/60)-SaloonWeaponPose.Flip(t))<12,"flip has no angular jump at 60 Hz");
-            host.hp=1;TakeDamage(host,-Forward(host));Broadcast();yield return new WaitForSeconds(SaloonRagdoll.ObserverDelay+.2f);
+            host.hp=20;TakeDamage(host,-Forward(host));Broadcast();yield return new WaitForSeconds(SaloonRagdoll.ObserverDelay+.2f);
             Check(IsSpectating&&CameraPlayer.alive&&CameraPlayer.id==peer.id.ToString(),"eliminated player enters a living player's POV");
             Check(View.ownRole==host.role.ToString()&&View.players.All(p=>string.IsNullOrEmpty(p.revealedRole)),"spectating does not reveal another player's hidden role");
             yield return Capture("09-spectator-pov");

@@ -14,3 +14,10 @@ https://assetstore.unity.com/packages/3d/characters/low-poly-western-starter-pac
 Standard Unity Asset Store EULA (not CC0).
 https://unity.com/legal/as-terms
 Adapted for Last Call: normalized prefab, procedural animation, jaw/grip blend shapes.
+
+CC0 recorded sound effects from Freesound — Dredile (reload), Q.K. (drinking),
+Max_Headroom (horse galloping), Resaural (distant gunshot).
+Source pages, license and processing notes: Resources/Audio/Recorded/License.txt.
+
+Revolver shot: Heathers Gunshot Effect2.wav by okieactor (Freesound #415912), CC0 1.0.
+https://freesound.org/people/okieactor/sounds/415912/

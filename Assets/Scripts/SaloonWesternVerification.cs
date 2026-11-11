@@ -57,13 +57,13 @@ namespace Saloon
             yield return new WaitForSeconds(.32f);yield return Capture("06-revolver-flip");yield return new WaitForSeconds(.9f);
             rounds.Start(players.Keys,Time.time,0,60,6);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
             turn=roomTurns[0];turn.order=new[]{hero.id}.Concat(players.Keys.Where(id=>id!=hero.id)).ToArray();turn.index=0;turn.until=Time.time+30;
-            hero.yaw=180;hero.drawn=false;hero.hp=2;hero.beer=1;hero.lastAction=-100;OnCommand(hero.id,new Command{kind="drink"});Broadcast();
+            hero.yaw=180;hero.drawn=false;hero.hp=40;hero.beer=1;hero.beerHealing=SaloonHealth.BeerHealing;hero.lastAction=-100;OnCommand(hero.id,new Command{kind="drink"});Broadcast();
             yield return new WaitForSeconds(tuning.drinkSeconds*.3f);
             Check(motion.CurrentAnimation=="Drinking"&&hero.busyAction=="drink","real drink lifts the mug and animates the character");yield return Capture("07-drinking");
             var mug=avatar.GetComponentsInChildren<Transform>().First(t=>t.name=="Mug visual");
             Check(Vector3.Distance(mug.TransformPoint(Vector3.up*.155f),motion.Mouth)<.07f,"the mug rim reaches the mouth on this skeleton");
             yield return new WaitForSeconds(tuning.drinkSeconds+.1f);
-            Check(hero.hp==3&&!PrivateSnapshot(hero.id).players.Single(p=>p.id==hero.id.ToString()).drinking,"drinking completes and returns to the seated pose");
+            Check(hero.hp==60&&!PrivateSnapshot(hero.id).players.Single(p=>p.id==hero.id.ToString()).drinking,"drinking completes and returns to the seated pose");
             externalCamera=false;RefreshViewpoint();
             Debug.Log("SALOON_WESTERN PASS same Gunman/materials, idle, host walking, bent-leg sitting, real draw/shot/flip and mug-to-mouth drinking; previews="+directory);
             VerificationPassed=VerificationFinished=true;

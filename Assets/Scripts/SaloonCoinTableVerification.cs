@@ -33,7 +33,7 @@ namespace Saloon
             void Setup()
             {
                 pendingOutcome="";
-                foreach(var p in players.Values){p.hp=3;p.role=Role.Deputy;p.chosenRoom=0;p.companion=null;p.drawn=false;p.lastAction=-100;p.nextShot=0;p.ammo=6;}
+                foreach(var p in players.Values){p.hp=60;p.role=Role.Deputy;p.chosenRoom=0;p.companion=null;p.drawn=false;p.lastAction=-100;p.nextShot=0;p.ammo=6;}
                 host.role=Role.Sheriff;peer.role=Role.Renegade;
                 host.chosenRoom=peer.chosenRoom=1;host.companion=peer.id;peer.companion=host.id;smoker.chosenRoom=3;
                 rounds.Start(players.Keys,Time.time,30,30,6);foreach(var id in players.Keys)rounds.SetReady(id,true);
@@ -92,7 +92,7 @@ namespace Saloon
             OnCommand(first.id,new Command{kind="draw"});OnCommand(first.id,new Command{kind="fire"});
             Check(first.drawn&&first.fireAfterDraw&&first.shots==shots,"Q and click queue the opening through the normal draw");
             first.busyUntil=Time.time-.01f;TickServer();
-            Check(first.shots==shots+1&&second.hp==hp-1&&DuelAllows(second),"opening shot lands across the table and releases the response");
+            Check(first.shots==shots+1&&second.hp==hp-SaloonHealth.RevolverDamage&&DuelAllows(second),"opening shot lands across the table and releases the response");
 
             Setup();d=duels[1];d.choiceUntil=Time.time-1;TickDuels();Check(d.flipping&&!d.claimed,"idle table automatically tosses the assigned sides");
             d.revealAt=Time.time-1;TickDuels();d.firstUntil=Time.time-1;TickDuels();

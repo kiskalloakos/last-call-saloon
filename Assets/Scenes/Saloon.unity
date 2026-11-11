@@ -23392,7 +23392,6 @@ MonoBehaviour:
     choosingSeconds: 15
     regroupSeconds: 3
     roundLimit: 6
-    health: 3
     cylinder: 6
     sharedBeers: 8
     shotInterval: 0.65

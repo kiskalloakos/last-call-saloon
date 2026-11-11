@@ -50,3 +50,37 @@ the public source repository. They are included only within compiled game distri
 To work from a fresh source checkout, acquire/import the pack through your own Unity
 account, then run **Saloon → Prepare Western Gunman character**. The preparation code
 creates the local runtime prefab and mouth/grip shapes. The character is not CC0.
+
+
+## Recorded sound replacement — 2026-11-11
+
+All four recordings are CC0 1.0 Universal, verified on their Freesound source pages.
+Original public HQ preview downloads are preserved in `ArtSource/Audio/Recorded/`;
+runtime PCM WAV copies, source URLs and hashes are under `Assets/Resources/Audio/Recorded/`.
+
+| Use | Recording / author | Source |
+|---|---|---|
+| Reload | Clean Revolver Reload — Dredile | [Clean Revolver Reload](https://freesound.org/people/Dredile/sounds/177863/) |
+| Drinking | Water_Drink.wav — Q.K. | [Water_Drink.wav](https://freesound.org/people/Q.K./sounds/56270/) |
+| Hoofbeats | Horse Galloping.wav — Max_Headroom | [Horse Galloping.wav](https://freesound.org/people/Max_Headroom/sounds/175356/) |
+| DistantShot | Distant Gunshot — Resaural | [Distant Gunshot](https://freesound.org/people/Resaural/sounds/541164/) |
+
+License: https://creativecommons.org/publicdomain/zero/1.0/
+
+Changes: mono conversion, loudness adjustment and short edge fades. Drinking uses
+pitch-preserving tempo adjustment to retain the full performance in the 2.5-second
+action. Horse audio has rumble filtering and an 80 ms loop crossfade. Runtime
+approach uses a gradual volume increase and distance filtering, without speeding
+up the horse recording or restarting it at every warning stage.
+Reproduce with `python3 Tools/prepare_library_audio.py` (ffmpeg required).
+
+
+### Selected revolver shot — 2026-11-11
+
+[Heathers Gunshot Effect2.wav by okieactor](https://freesound.org/people/okieactor/sounds/415912/)
+replaces the generated revolver shot. CC0 1.0 Universal, confirmed on the source
+page. Original public HQ preview: ArtSource/Audio/Recorded/RevolverShot.mp3.
+Runtime: Assets/Resources/Audio/Recorded/RevolverShot.wav. Converted to mono
+44.1 kHz PCM and level-adjusted with a short tail fade. The original layered
+blast and reverb are retained; no pitch shift or additional layers were added.
+Hashes and download URL are included in both audio source manifests.

@@ -53,7 +53,7 @@ namespace Saloon
                 }
                 if(!privacy)
                 {
-                    privacy=view.ownRole!="Unknown"&&view.players.Count(p=>p.sheriff)==1&&view.players.All(p=>p.revealedRole=="");
+                    privacy=view.ownRole!="Unknown"&&view.players.Count(p=>p.sheriff)==1&&view.players.All(p=>view.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):p.revealedRole=="");
                     if(!privacy){Report(false,"private roles/Sheriff roster invalid");return;}
                 }
                 int room=round==2&&index<4?(index<2?1:2):0;
@@ -97,9 +97,10 @@ namespace Saloon
                 else if(round==3&&initialHealth<Game.tuning.health)
                 {
                     if(view.actionAvailable&&!beerSent){Game.Act("interact");beerSent=true;nextCommand=Time.unscaledTime+.25f;}
-                    if(view.actionAvailable&&view.carriedBeer==1&&!actionSent&&Time.unscaledTime>=nextCommand){Game.Act("drink");actionSent=true;nextCommand=Time.unscaledTime+.4f;}
-                    if(actionSent&&self.health==Mathf.Min(3,initialHealth+1))actionSeen=true;
-                    if(actionSent&&!actionSeen&&view.actionAvailable&&view.carriedBeer==1&&view.busyRemaining<=0&&Time.unscaledTime>=nextCommand)
+                    if(view.pouring&&view.pourElapsed>=2.65f&&Time.unscaledTime>=nextCommand){Game.Act("stopPour");nextCommand=Time.unscaledTime+.25f;}
+                    if(view.carriedBeer==1&&!actionSent&&Time.unscaledTime>=nextCommand){Game.Act("drink");actionSent=true;nextCommand=Time.unscaledTime+.4f;}
+                    if(actionSent&&self.health==SaloonHealth.AfterBeer(initialHealth))actionSeen=true;
+                    if(actionSent&&!actionSeen&&view.beerChoiceRemaining>0&&view.carriedBeer==1&&view.busyRemaining<=0&&Time.unscaledTime>=nextCommand)
                     {Game.Act("drink");nextCommand=Time.unscaledTime+.4f;}
                 }
                 else
@@ -111,19 +112,19 @@ namespace Saloon
             // A final action may arrive in the same snapshot that advances to aftermath.
             if(actionSent)
             {
-                if(round==1||(round==2&&index>=4)||(round==3&&initialHealth>=3))actionSeen|=view.notice.StartsWith("Passed.");
+                if(round==1||(round==2&&index>=4)||(round==3&&initialHealth>=SaloonHealth.Maximum))actionSeen|=view.notice.StartsWith("Passed.");
                 else if(round==2)actionSeen|=self.shots==1&&view.ammo==5;
-                else if(round==3)actionSeen|=self.health==Mathf.Min(3,initialHealth+1);
+                else if(round==3)actionSeen|=self.health==SaloonHealth.AfterBeer(initialHealth);
             }
             if(view.phase==Phase.Aftermath&&(completedMask&(1<<round))==0)
             {
-                bool ok=actionSeen&&(round!=1||(stood&&moved))&&(round!=2||index>=4||self.health<3);
+                bool ok=actionSeen&&(round!=1||(stood&&moved))&&(round!=2||index>=4||self.health<SaloonHealth.Maximum);
                 if(!ok){Report(false,"round "+round+" action/movement/health not acknowledged health="+self.health+" action="+actionSeen+" stood="+stood+" moved="+moved+" sent="+actionSent+" beer="+view.carriedBeer+" notice="+view.notice);return;}
                 completedMask|=1<<round;Debug.Log("SALOON_LAN_MATCH_ROUND PASS index="+index+" round="+round+" health="+self.health);
             }
             if(view.phase==Phase.Discussion&&view.round==4)
             {
-                bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&view.players.All(p=>p.revealedRole=="");
+                bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&view.players.All(p=>view.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):p.revealedRole=="");
                 Report(ok,"three rounds complete and round four started beyond the legacy cap; standing/movement, paired coin/headshots, beer healing; outcome="+view.outcome);
             }
         }

@@ -17,7 +17,7 @@ namespace Saloon
             void Window(bool allBar=false)
             {
                 pendingOutcome=outcome="";
-                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.busyAction="";p.busyUntil=0;p.beer=0;p.nextShot=0;p.lastAction=-100;p.ammo=6;p.chosenRoom=0;p.companion=null;}
+                foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.busyAction="";p.busyUntil=0;p.beer=0;p.nextShot=0;p.lastAction=-100;p.ammo=6;p.chosenRoom=0;p.companion=null;}
                 for(int i=0;i<bots.Length;i++)bots[i].chosenRoom=allBar?0:PracticeRoomCycle[i];
                 rounds.Start(players.Keys,Time.time,0,120,6);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
                 foreach(var bot in bots)bot.botThink=Time.time+100;
@@ -60,11 +60,11 @@ namespace Saloon
             var aim=Eye(victim)-Eye(host);host.yaw=Mathf.Atan2(aim.x,aim.z)*Mathf.Rad2Deg;host.pitch=0;
             Check(Target(host,65)?.collider==victim.head,"the original head position is a legal shot before the dodge");
             yield return new WaitForSeconds(.25f);Fire(host);
-            Check(victim.hp==3&&host.ammo==5&&rounds.HasSpent(host.id),"autonomous bot movement dodges a real shot aimed before the sidestep");
-            victim.role=Role.Sheriff;host.role=Role.Outlaw;host.hp=2;victim.botThink=Time.time-1;int shots=victim.shots;
+            Check(victim.hp==60&&host.ammo==5&&rounds.HasSpent(host.id),"autonomous bot movement dodges a real shot aimed before the sidestep");
+            victim.role=Role.Sheriff;host.role=Role.Outlaw;host.hp=40;victim.botThink=Time.time-1;int shots=victim.shots;
             float fireUntil=Time.time+2;
             while(victim.shots==shots&&Time.time<fireUntil)yield return null;
-            Check(victim.shots==shots+1&&host.hp==1&&rounds.HasSpent(victim.id),"moving bot still draws, aims and spends one legal headshot action");
+            Check(victim.shots==shots+1&&host.hp==20&&rounds.HasSpent(victim.id),"moving bot still draws, aims and spends one legal headshot action");
             victim.busyAction="drink";victim.busyUntil=Time.time+1;yield return null;
             Check(victim.move==Vector2.zero,"bots pause their feet while drinking");
             victim.busyUntil=0;victim.busyAction="";

@@ -29,7 +29,7 @@ namespace Saloon
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);var indoor=players.Values.First(p=>p!=host&&p!=peer);
             void Plans()
             {
-                foreach(var p in players.Values){p.hp=3;p.chosenRoom=0;p.companion=null;p.puffs=0;p.smokeAt=-100;p.busyUntil=0;p.drawn=false;}
+                foreach(var p in players.Values){p.hp=60;p.chosenRoom=0;p.companion=null;p.puffs=0;p.smokeAt=-100;p.busyUntil=0;p.drawn=false;}
                 rounds.Start(players.Keys,Time.time,30,30,6);phase=rounds.Phase;PositionEveryone(true);
                 OnCommand(host.id,new Command{kind="room",x=3,name=peer.id.ToString()});
             }
@@ -58,7 +58,7 @@ namespace Saloon
             foreach(string action in new[]{"draw","fire","reload","drink","give","rob","escape","inspect","pass","interact","stance"})OnCommand(host.id,new Command{kind=action});
             host.drawn=true;Fire(host);host.drawn=false;
             Check(host.ammo==ammo&&host.shots==shots&&host.busyUntil==0&&!rounds.HasSpent(host.id),"host rejects weapons and saloon actions outside without spending a turn");
-            indoor.shots+=2;indoor.hp=1;
+            indoor.shots+=2;indoor.hp=20;
             var quiet=Snapshot.FromWireJson(PrivateSnapshot(host.id).ToWireJson());
             Check(quiet.players.All(p=>p.id!=indoor.id.ToString()),"indoor gunshots and damage cannot enter the outdoor snapshot");
             rounds.Tick(Time.time,id=>true);Check(rounds.Phase==Phase.Turns,"smokers can relax while indoor players still have actions");

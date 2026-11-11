@@ -2,22 +2,20 @@
 
 For role instructions, refer to [Your role, in simple words](#your-role-in-simple-words).
 
-Test release **0.2.11**, dated 2026-11-10, is available for Windows x64 and macOS (Intel and Apple Silicon).
-All players must use **0.2.11**.
+Test release **0.2.12**, dated 2026-11-11, is available for Windows x64 and macOS (Intel and Apple Silicon).
+All players must use **0.2.12**.
 
-1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.11/LastCall-Windows-0.2.11.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.11/LastCall-macOS-0.2.11.zip).
+1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.12/LastCall-Windows-0.2.12.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.12/LastCall-macOS-0.2.12.zip).
 2. Extract all files from the ZIP file.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
 
-Windows and Mac gameplay and five-player connection checks passed.
-The Windows room-flow checks timed out during planning, including the voice scenario; their validation remains incomplete.
-See the [0.2.11 test results](https://github.com/kiskalloakos/last-call-saloon/actions/runs/42899932020).
+See [release notes and validation](Documentation/RELEASE-0.2.12.md) for this version.
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
 
-This release adds Coin Flip and Blackjack tables, room reservations, a smoking area, posse arrival, and updated combat sounds and HUD.
+This release adds countertop beer pouring with a held tap and adjustable flow, normal mouse look during discussion with a P-key planner, percentage health, the cigarette damage buff, recorded audio, and rematch/reconnect improvements.
 
 This release includes these features:
 
@@ -43,7 +41,7 @@ This test release includes planner corrections and more disconnect information.
 ## Four devices on LAN
 
 1. Connect all four computers to the same local network. Do not use guest Wi-Fi that isolates devices.
-2. Start **0.2.11 on every computer**.
+2. Start **0.2.12 on every computer**.
 3. Select **LOCAL / LAN** on each computer.
 4. On the host computer, select **NO BOTS**.
 5. Keep port **7777**.
@@ -88,10 +86,10 @@ All living players must be ready.
 There is no discussion countdown or separate timer for room selection.
 A plan change clears that player's Ready status.
 
-Hold the right mouse button to look around during planning.
+Mouse look stays active during discussion. Press P to open or close the room planner; Space readies your plan.
 Practice players set their own Ready status.
 They use the bar and side rooms, change plans each round and accept invitations unless they carry the money.
-A headshot against an ally removes 1 HP from the shooter and 1 HP from the target.
+A headshot against an ally removes 20% health from the shooter and 20% health from the target.
 The Sheriff and Deputy are allies. The Outlaws are allies.
 
 The upper-left display always identifies the Sheriff.
@@ -143,7 +141,7 @@ Bot settings cannot change during a match.
 Hold **Tab** to see your role and objective.
 Tab also works when Discuss & Plan is open.
 The upper-left corner always identifies the Sheriff.
-All other roles are secret.
+The Renegade knows everyone’s role. All other roles remain secret from the other players.
 
 At the start of each round, select a room.
 If necessary, select a companion for that room.
@@ -178,7 +176,7 @@ You and the Deputy win if you eliminate every Outlaw and the Renegade.
 You also win if you prevent escape until the last round and at least one of you stays alive.
 **H and X do not work for you**.
 Only Outlaws can rob, collect money or escape with it.
-A headshot against the Deputy also removes **1 HP from you**.
+A headshot against the Deputy also removes **20% health from you**.
 
 ### Deputy — help the Sheriff
 
@@ -197,7 +195,7 @@ The game does not automatically identify you to the Sheriff.
 You cannot rob or escape with the money.
 **C does not work for you**. Only the Sheriff can inspect the safe.
 You share the Sheriff's victory conditions, including if the Sheriff dies.
-A headshot against the Sheriff also removes **1 HP from you**.
+A headshot against the Sheriff also removes **20% health from you**.
 
 ### Outlaw — steal the money and escape
 
@@ -220,11 +218,13 @@ To defend yourself:
 2. Aim at an enemy's head.
 3. Click the left mouse button to shoot.
 
-A headshot against another Outlaw also removes **1 HP from you**.
+A headshot against another Outlaw also removes **20% health from you**.
 The Sheriff's death alone does not give you victory.
 Your team must escape with the money.
 
 ### Renegade — eliminate the Outlaws, then the Law
+
+You know everyone’s role from the start. Hold **Tab** to see the complete role roster, including players in other rooms. Roles also appear above visible players for you.
 
 You have **no ally**.
 Your objective is to be the **last player alive**.
@@ -242,8 +242,8 @@ To shoot:
 4. Click the left mouse button to shoot.
 5. If necessary, press **R** to reload on a later turn.
 
-At the bar, **E** takes a beer without an action cost.
-**B** uses your action to drink it and restore 1 HP.
+At the bar, hold **E** to pour as your action; release it to stop.
+**B** drinks the poured beer, restoring its shown healing (5–20%).
 **H and X do not work for you**.
 You cannot rob, collect money or escape with it.
 You win when everyone else is dead.
@@ -284,20 +284,20 @@ The safe does not require another three work actions.
 | **F**, then **WASD** | F makes you stand. WASD moves you during room actions. F near an empty seat makes you sit. |
 | **Q**, then **left-click** | Q draws your gun. A left-click shoots at your aim point. A miss also uses your action. |
 | **R** | Reloads your drawn gun. Uses your action. |
-| **E** at the bar | Takes one beer before you use your action. The pickup has no action cost. |
-| **B** | Drinks your beer to restore **1 HP**. Uses your action. |
-| Aim at a nearby player, then **G** | Gives that player your beer. They drink automatically. Uses your action. |
+| **E** at the bar | Hold to pour as your action; release to stop. |
+| **B** | Drinks your poured beer for its shown **5–20% healing**, included in the pour action. |
+| Aim at a nearby player, then **G** | Gives them your poured beer, preserving its healing. Included in the pour action. |
 | **Space** during Discuss & Plan | Sets or clears Ready. |
 | **Space** during your action turn | Passes and gives up your action for this round. |
 | Hold **V** | Sends your microphone audio. |
-| Hold **right mouse** during Discuss & Plan | Lets you look around with the planning panel open. |
+| **P** during Discuss & Plan | Opens/closes the planner. Mouse look is active when it is closed. |
 
-Everyone starts with **3 HP**.
-Only a **headshot** removes **1 HP** from the target.
-A headshot against an ally also removes **1 HP from the shooter**.
+Everyone starts with **100% health**.
+An unbuffed **headshot** removes **20 percentage points** from the target. Five unbuffed headshots eliminate a player at 100%; a cigarette-buffed headshot removes 40 points.
+A headshot against an ally also removes **20% health from the shooter**.
 The Sheriff and Deputy are allies. The two Outlaws are allies.
 
-At **0 HP**, your body moves back, falls and rests on the floor.
+At **0% health**, your body moves back, falls and rests on the floor.
 Your camera briefly follows the body.
 Then you watch other players.
 Your body disappears when spectator mode starts.
@@ -330,7 +330,7 @@ The default port is **7777**.
 For online play, create or join with a room code.
 
 All devices must use the same source or build version.
-Use **0.2.11** clients for this playtest.
+Use **0.2.12** clients for this playtest.
 The game rejects mixed versions with a message.
 The disconnect reason stays on the menu.
 It is not replaced silently.
@@ -387,7 +387,7 @@ Blackjack does not use either player's combat action.
 Practice bots play automatically.
 A player alone in a room does not need a minigame.
 The Bar keeps its normal turn sequence.
-The proposed beer-pouring minigame is on hold.
+The Bar now has a beer-pouring minigame; pouring uses the round action.
 
 ### Private plans and room capacity
 
@@ -436,6 +436,10 @@ It also has a glowing end, ash and exhaled smoke.
 Repeated clicks wait for the four-second smoking animation to finish.
 The host rejects weapons and saloon actions outside.
 Smoking does not use a combat action.
+
+Entering the smoking area grants one **cigarette damage buff**. It stays until your next fired revolver shot, including a miss or body hit. A damaging headshot with the buff removes **40 percentage points** instead of 20. Repeated visits do not stack buffs. The buff survives regroup and later rounds until used; death, a new match or returning to the lobby clears it.
+
+Your HUD shows **CIGARETTE BUFF · NEXT SHOT 40%** while it is ready. Other players and spectators do not receive your buff status. Friendly-fire hits deal 40 points to the target when buffed; the shooter’s normal 20-point penalty stays the same.
 The yard stays available for the normal action window.
 
 Indoor and outdoor players receive separate action snapshots and voice channels.
@@ -454,7 +458,7 @@ Use **Saloon → Play have a smoke outside** to try the yard.
 - Visibility between areas.
 - Actual Vivox channel changes, with the verification microphone muted.
 
-This change uses network protocol `state-11`.
+The current network protocol is `state-14`; all players must use the same build.
 Both devices must use the updated build.
 
 Use **Saloon → Play coin flip at table** to play against a bot.
@@ -472,15 +476,18 @@ Use **Saloon → Play blackjack at table** in Unity to play against a bot.
 
 ## Interface (Unity development version)
 
-The lower-left display shows health segments and the HP count.
+The development source uses 0–100% health. Each unbuffed revolver headshot removes 20 percentage points; five unbuffed hits eliminate a player at full health. A cigarette buff raises the next shot’s damage to 40 points. Beer restores the poured amount, rounded up to 5, 10, 15 or 20 points and capped at 100% health.
+
+The lower-left display shows five 20% health segments, the exact percentage.
 The lower-right display shows ammunition.
-During discussion, health markers and HP numbers appear above other players' hats.
-The companion list also shows each player's HP.
+Five tightly spaced health markers and exact percentages appear above visible players' hats during discussion and room actions.
+The companion list also shows each player's health percentage.
 Room, companion, Ready and turn messages appear at the right edge.
 
 For the Sheriff, hold **Tab** to see private clues beside your role during discussion or room actions.
 Scroll while holding Tab to read older clues.
-Other roles can open **Clues** at the upper left during discussion.
+There is no separate Clues button or drawer for any role.
+The Renegade can hold **Tab** to see everyone’s role.
 Hold **Tab** for role instructions.
 Press **Esc** to open the lobby or settings.
 The interface uses small, flat slate controls without large permanent HUD panels.
@@ -559,7 +566,7 @@ Room and companion selections stay visible beside the discussion view.
 Incoming invitations identify the player and requested room.
 Click an invitation to accept both.
 Room actions start when every living player confirms Ready.
-Hold the right mouse button to look around during planning.
+Mouse look stays active during discussion. Press P to open or close the room planner; Space readies your plan.
 
 The Bar always uses a normal turn queue, including with one or two players.
 It has no coin toss or minigame.
@@ -593,13 +600,13 @@ The shared action deadline includes the longest coin setup window and waits for 
 
 ### Larger rooms: ordered turns
 
-With **three or more living players**, the bar uses a new random turn queue each round.
+The bar uses a new random turn queue each round, including with one or two living players.
 The HUD shows the active player, their timer and the room order.
 Each player can start one major action or pass.
 Then the next player's turn starts.
 Gun drawing and major actions are unavailable outside your turn, including for the Sheriff and practice bots.
 
-All players can look, talk and prepare one beer while they wait.
+All players can look, talk and walk while they wait. Pouring starts only on your turn.
 After an action, the display shows “Action spent”.
 It does not offer another turn.
 
@@ -619,20 +626,26 @@ It does not guarantee protection while health restores.
 |---|---|
 | **Shoot** | Fires one aimed bullet. A miss also uses your action and ammunition. |
 | **Reload** | Refills the six-shot cylinder in 3.5 seconds. Reserve ammunition is unlimited. |
-| **Prepare beer (free)** | E takes beer at a bar station before you use your action. Shared stock starts at eight. You can carry one beer and take one per round. |
-| **Drink** | B consumes your beer in 2.5 seconds. It restores one HP, to a maximum of three. Uses your action. |
-| **Give beer** | G sends beer to a nearby living player in the same room who has free hands. Uses your action. |
+| **Pour beer** | Hold your tap handle or E to pour; release to stop. Uses your action and one beer from the shared stock of eight. One pour per round; full-health players cannot pour. |
+| **Drink poured beer** | B drinks in 2.5 seconds, restoring the shown 5–20 percentage points, capped at 100%. Included in the pour action. |
+| **Give poured beer** | Aim + G sends the same healing amount to a nearby living player with free hands. Included in the pour action. |
 | **Work the safe / collect the money** | H at a bar station. Outlaws only. Refer to the robbery section. |
 | **Declare escape** | X at a bar station while carrying the money. Outlaws only. Refer to the victory section. |
 | **Inspect safe** | C at the bar. Sheriff only. Uses your action and gives a private report. |
 | **Pass** | Space gives up your action for this round. |
 
-After taking a beer, B can drink it or G can give it away in the same round.
+After pouring, choose B to drink, aim + G to give it away, or Space to leave it.
+You have six seconds to choose; unclaimed beer stays at the bar without healing.
+Fill near the line for 20% healing. Partial pours round up in 5% steps: 1 → 5, 11 or 12 → 15, and 17 → 20.
+Overflow wastes beer. The tap closes automatically after 4.5 seconds.
+Full-health players can watch, move and use another action. Injured players may skip pouring and shoot instead.
+Hold the actual tap handle to pour and release to stop. Scroll while holding it to open or close the valve and change the real flow rate. Click the filled mug to drink.
+Mouse look stays active normally at the Bar; no right mouse hold or beer pop-up is used.
 To give beer, aim at the intended recipient before pressing G.
 
 The beer travels for 0.65 seconds.
 The recipient then drinks automatically for 2.5 seconds.
-This uses **your** action. The recipient keeps their action, but their hands stay occupied until the drink finishes.
+The pour already used **your** action; the handoff costs no additional action. The recipient keeps their action, but their hands stay occupied until the drink finishes.
 
 A recipient at full health still drinks.
 Maximum health does not increase.
@@ -643,18 +656,18 @@ A click during a permitted draw stores one shot until drawing finishes.
 This also applies at the bar and after a minigame.
 The game checks turn permission again before firing the stored shot.
 
-Looking, speaking and preparing a beer have no action cost.
+Looking, speaking and walking have no action cost. Pouring uses your action.
 A busy player cannot start another action.
 A beer transfer fails without resource use if the recipient is busy, carries beer or is out of range.
 An obstruction also prevents transfer.
 It also fails if the recipient is in another room.
 
-Everyone starts with three HP.
-**Only headshots cause damage: 1 HP**.
+Everyone starts with 100% health.
+**Only headshots cause damage: 20 percentage points normally, 40 with a cigarette buff**.
 Body hits and misses use one bullet and your action.
 They cause no damage or penalty for shooting an ally.
 
-At zero HP, a player is **eliminated**.
+At 0% health, a player is **eliminated**.
 An eliminated player cannot move, act, revive or return during the match.
 Eliminated players use a separate voice channel.
 A new match resets everyone.
@@ -746,7 +759,11 @@ Results appear after the final aftermath animations.
 
 A Renegade who is the sole survivor wins after the final-shot effects.
 All roles are shown when the match ends.
-A disconnect during a match stops the match.
+Disconnected players keep their place for 20 seconds. The client automatically tries to reconnect to the same LAN or online room, retaining its role, health, inventory, position and round participation. The match continues during this grace period. If a player does not return in time, the match is aborted and the reserved place is released.
+
+Results show the outcome and every player’s role and survival status. Each human player can vote for a rematch or withdraw their vote. Unanimous votes start another match in the same room; bots do not vote and reserved disconnected players block the next match. **Return everyone to lobby** lets any player bring the whole group back to the existing lobby to change settings or wait for players. Reconnecting requires the original running client; restarting the app or losing the host is not supported.
+
+Use **Saloon → Verify rematch and reconnect in Play mode** to exercise the four-player UDP flow, including reconnect preservation and reservation expiry.
 
 ## Beer animation and audio
 
@@ -774,8 +791,8 @@ Both views show a brief muzzle flash and light.
 Camera effects do not change the host's aiming ray or move your seated position.
 A **non-lethal headshot does not cancel** a normal or given drink.
 Health restores when the drink timer finishes.
-For example, a shot reduces a player from 2 HP to 1 HP.
-The completed drink restores health to 2 HP.
+For example, a shot reduces a player from 40% to 20%.
+A perfectly poured drink restores health to 40%; a 5% pour restores it to 25%.
 
 A lethal headshot cancels drinking. Beer cannot revive a player.
 Damage still interrupts safe work.
@@ -821,7 +838,7 @@ Their difficulty is not balanced for normal play.
 | F / WASD | Stand or sit near an empty seat / walk and dodge inside your room during actions. |
 | Mouse / right mouse | Look / reduce the aiming field of view. |
 | Q / left click / R | Draw or holster / shoot / reload. |
-| E / B / G | Take beer at the bar / drink / give beer to the player at your aim point. |
+| E / B / G | Pour or stop at the bar / drink poured beer / offer it to the player at your aim point. |
 | H / X (Outlaw only) | Work on the safe or collect money / declare escape. |
 | Space / C | Set or clear Ready during discussion / inspect the safe as Sheriff at the bar. |
 | Space during actions / hold Tab | Pass / read your private role and objective. |
@@ -856,7 +873,7 @@ A line at the bottom gives private suggestions for your phase and role.
 It is not a public event log.
 
 The host runs the simulation and sends a separate snapshot to each player.
-The game has no host migration, reconnection during a match, matchmaking, prediction or production anti-cheat.
+The game has no host migration, reconnect after restarting the app, matchmaking, prediction or production anti-cheat.
 Bots deliberately receive private role information on the host.
 This alpha is for trusted private groups.
 
@@ -876,7 +893,7 @@ This prototype does not change it.
 7. Balance safe work and escape requirements.
 8. Reduce practice AI role knowledge for normal practice.
 9. Improve seated poses, hand grips, hit reactions and sound levels after the rules stabilize.
-10. Improve networking with build-version checks, disconnect handling and reconnection support.
+10. Improve networking with build-version checks, disconnect handling and reconnection support (20-second reconnection is implemented; host migration remains future work).
 
 Run **Saloon → Verify posse arrival in Play mode** to check posse timing and victory priority.
 
@@ -916,3 +933,8 @@ Other players' footsteps use positional audio.
 Your own footsteps stay centered.
 Seated, stationary, eliminated, stale and teleporting characters do not trigger footsteps.
 The bundled font licenses are in `Assets/Resources/Fonts`.
+
+
+Revolver shots, reload, drinking and approaching-posse audio in the development source now use CC0
+recordings from Freesound. Source links, authors and processing notes are in
+[asset sources](Documentation/ASSET-SOURCES.md#recorded-sound-replacement--2026-11-11).

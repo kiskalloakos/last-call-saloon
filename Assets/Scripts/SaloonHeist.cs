@@ -91,16 +91,20 @@ namespace Saloon
                 if(phase==Phase.Turns&&p.room==3){if(Time.time-p.smokeAt>6)TrySmoke(p);continue;}
                 if(phase==Phase.Turns&&duels.TryGetValue(p.room,out var duel)&&!duel.flipping&&Time.time>=duel.choiceUntil-duel.coinChoiceSeconds+(p.room==1?3:1))
                     ClaimCoin(p,UnityEngine.Random.Range(0,2));
+                if(phase==Phase.Turns&&p.busyAction=="pour")
+                {if(Time.time-p.pourStarted>=p.botPourSeconds)OnCommand(p.id,new Command{kind="interact"});continue;}
+                if(phase==Phase.Turns&&p.beerChoiceUntil>Time.time&&p.beer>0)
+                {OnCommand(p.id,new Command{kind="drink"});continue;}
                 if(phase==Phase.Turns&&!DuelAllows(p))continue;
                 if(phase!=Phase.Turns||!rounds.CanAct(p.id,Time.time)||p.busyUntil>Time.time||Time.time<p.botThink)continue;
                 if(p.botThink==0){p.botThink=Time.time+1.2f+(p.id%5)*.4f;continue;}
                 p.lastAction=-100;
                 var targets=players.Values.Where(x=>x.Alive&&x.room==p.room&&Enemies(p,x)).OrderByDescending(x=>x.bag||x.escapeRound>0).ThenBy(x=>x.hp).ToArray();
                 var target=targets.FirstOrDefault();
-                if(p.hp==1&&p.beer>0){OnCommand(p.id,new Command{kind="drink"});continue;}
+                if(p.hp<=SaloonHealth.RevolverDamage&&p.beer>0){OnCommand(p.id,new Command{kind="drink"});continue;}
                 bool law=p.role==Role.Sheriff||p.role==Role.Deputy;
                 if(SaloonRules.CanRob(p.role)&&p.bag&&p.escapeRound==0&&p.room==0&&SaloonPosse.CanEscape(rounds.Round)){DeclareEscape(p);continue;}
-                bool shoot=target!=null&&(law||p.role==Role.Renegade||target.bag||target.escapeRound>0||target.hp==1||p.room!=0||p.bag);
+                bool shoot=target!=null&&(law||p.role==Role.Renegade||target.bag||target.escapeRound>0||target.hp<=SaloonHealth.RevolverDamage||p.room!=0||p.bag);
                 if(shoot)
                 {
                     // Commit to a head position before firing, giving a moving player time to dodge.
@@ -128,7 +132,7 @@ namespace Saloon
             void Window()
             {
                 pendingOutcome="";
-                foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=3;p.deathAt=-1;p.controller.enabled=false;p.hitbox.enabled=true;}
+                foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=60;p.deathAt=-1;p.controller.enabled=false;p.hitbox.enabled=true;}
                 rounds.Start(players.Keys,Time.time-1,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear(); // Isolate heist commands; group authorization has its own fixture.
             }
             ResetHeist();tuning.robberySeconds=.2f;Window();
@@ -154,7 +158,7 @@ namespace Saloon
             BeginRobbery(robber);Check(!rounds.CanAct(robber.id,Time.time),"robbery consumes the single action");
             yield return new WaitForSeconds(.3f);Check(safeProgress==1,"timer completion advances one safe step");
             Window();BeginRobbery(robber);witness.drawn=true;witness.yaw=90;witness.pitch=0;witness.nextShot=0;witness.lastAction=-100;Fire(witness);
-            Check(robber.hp==2&&robber.busyAction=="","real shot interrupts the working player");
+            Check(robber.hp==40&&robber.busyAction=="","real shot interrupts the working player");
             yield return new WaitForSeconds(.3f);Check(safeProgress==1,"interruption grants no safe progress");
             Window();BeginRobbery(robber);yield return new WaitForSeconds(.3f);Check(safeProgress==2,"progress persists across action windows");
             Window();BeginRobbery(robber);yield return new WaitForSeconds(.3f);Check(safeProgress==3&&robber.bag,"third completed work action collects the money");
@@ -188,11 +192,11 @@ namespace Saloon
             ResetHeist();Window();renegade.drawn=true;renegade.ammo=6;renegade.nextShot=0;renegade.botThink=Time.time-1;
             foreach(var p in players.Values.Where(p=>p.bot&&p!=renegade))p.botThink=Time.time+100;
             int lawHealth=witness.hp+outsider.hp;int outlawHealth=robber.hp+otherRobber.hp;shots=renegade.shots;
-            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&robber.hp+otherRobber.hp==outlawHealth-1&&witness.hp+outsider.hp==lawHealth&&renegade.busyAction!="rob","practice Renegade attacks Outlaws first and never robs");
+            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&robber.hp+otherRobber.hp==outlawHealth-SaloonHealth.RevolverDamage&&witness.hp+outsider.hp==lawHealth&&renegade.busyAction!="rob","practice Renegade attacks Outlaws first and never robs");
             Window();robber.hp=otherRobber.hp=0;robber.hitbox.enabled=otherRobber.hitbox.enabled=false;
             renegade.drawn=true;renegade.ammo=6;renegade.nextShot=0;renegade.botThink=Time.time-1;outsider.botThink=Time.time+100;
             lawHealth=witness.hp+outsider.hp;shots=renegade.shots;
-            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&witness.hp+outsider.hp==lawHealth-1,"practice Renegade turns on the Law after all Outlaws are dead");
+            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&witness.hp+outsider.hp==lawHealth-SaloonHealth.RevolverDamage,"practice Renegade turns on the Law after all Outlaws are dead");
             tuning.robberySeconds=3;Debug.Log("SALOON_HEIST PASS");
         }
 #endif
@@ -204,9 +208,9 @@ namespace Saloon
             void Window()
             {
                 pendingOutcome="";
-                foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=3;p.deathAt=-1;p.hitbox.enabled=true;}
+                foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=60;p.deathAt=-1;p.hitbox.enabled=true;}
                 rounds.Start(players.Keys,Time.time-1,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear();
-                giver.beer=1;giver.yaw=90;giver.pitch=0;giver.lastAction=-100;recipient.beer=0;recipient.hp=1;recipient.yaw=-90;
+                giver.beer=1;giver.beerHealing=SaloonHealth.BeerHealing;giver.yaw=90;giver.pitch=0;giver.lastAction=-100;recipient.beer=0;recipient.hp=20;recipient.yaw=-90;
             }
             tuning.handoffSeconds=.15f;tuning.drinkSeconds=.4f;Window();Give(giver);
             Check(giver.beer==0&&recipient.busyAction=="giftDrink"&&!rounds.CanAct(giver.id,Time.time),"handoff spends giver action and beer");
@@ -214,14 +218,14 @@ namespace Saloon
             Check(!PrivateSnapshot(recipient.id).players.First(p=>p.id==recipient.id.ToString()).drinking,"recipient waits for beer arrival");
             yield return new WaitForSeconds(.23f);
             Check(PrivateSnapshot(recipient.id).players.First(p=>p.id==recipient.id.ToString()).drinking,"recipient begins synchronized first/third person drinking after arrival");
-            yield return new WaitForSeconds(.4f);Check(recipient.hp==2&&recipient.busyAction=="","received beer heals one HP after drinking completes");
+            yield return new WaitForSeconds(.4f);Check(recipient.hp==40&&recipient.busyAction=="","received beer heals 20% health after drinking completes (health="+recipient.hp+", quality="+recipient.drinkHealing+", busy="+recipient.busyAction+")");
             Window();Give(giver);yield return new WaitForSeconds(.2f);
             var shooter=players.Values.First(p=>p.bot&&p!=recipient);shooter.drawn=true;shooter.ammo=6;shooter.nextShot=0;
             var direction=Eye(recipient)-Eye(shooter);shooter.yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;shooter.pitch=0;
             Fire(shooter);Check(recipient.hp==0&&recipient.busyAction=="","shot interrupts gifted beer");
             yield return new WaitForSeconds(.5f);Check(recipient.hp==0,"interrupted gift never heals or revives");
             var sound=SaloonBeerAudio.Drinking;var wave=new float[sound.samples];sound.GetData(wave,0);
-            Check(wave.All(v=>!float.IsNaN(v)&&Mathf.Abs(v)<=1)&&wave.Any(v=>Mathf.Abs(v)>.02f),"procedural drinking sound contains valid audible samples");
+            Check(wave.All(v=>!float.IsNaN(v)&&Mathf.Abs(v)<=1)&&wave.Any(v=>Mathf.Abs(v)>.02f),"recorded drinking sound contains valid audible samples");
             Check(SaloonBeerAudio.Handoff.length>.1f,"handoff clink generated");
             tuning.handoffSeconds=.65f;tuning.drinkSeconds=2.5f;
 #if UNITY_EDITOR
@@ -236,13 +240,13 @@ namespace Saloon
             Check((remoteMug.localRotation*Vector3.up).z<-.8f,"third-person rim tips toward the drinker, not away");
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/BeerThirdPersonPreview.png"));
             yield return new WaitForSeconds(1.9f);
-            Window();giver.beer=0;giver.hp=1;recipient.beer=1;recipient.hp=3;recipient.yaw=-90;recipient.lastAction=-100;
+            Window();giver.beer=0;giver.hp=20;recipient.beer=1;recipient.beerHealing=SaloonHealth.BeerHealing;recipient.hp=60;recipient.yaw=-90;recipient.lastAction=-100;
             Give(recipient);yield return new WaitForSeconds(1.5f);
             var localMug=ViewCamera.transform.Find("Mug visual");
             Check(localMug!=null&&localMug.gameObject.activeInHierarchy&&localMug.localPosition.y>-.18f&&avatars[giver.id.ToString()].GetComponents<AudioSource>().Any(a=>a.clip==sound&&a.isPlaying&&a.spatialBlend==0),"local recipient sees raised first-person mug and hears drinking audio");
             Check((localMug.localRotation*Vector3.up).z<-.8f,"first-person rim tips toward the camera, not the mug base");
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/BeerFirstPersonPreview.png"));
-            yield return new WaitForSeconds(1.9f);Check(giver.hp==2,"bot-to-human gift heals after first-person animation");
+            yield return new WaitForSeconds(1.9f);Check(giver.hp==40,"bot-to-human gift heals after first-person animation");
 #endif
             Debug.Log("SALOON_BEER PASS");
         }

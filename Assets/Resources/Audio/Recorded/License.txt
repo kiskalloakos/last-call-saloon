@@ -1,0 +1,29 @@
+Last Call — downloaded sound recordings
+
+All five source recordings are CC0 1.0 Universal (public-domain dedication).
+Free to copy, adapt and redistribute, including in commercial games.
+License: https://creativecommons.org/publicdomain/zero/1.0/
+
+Reload: Clean Revolver Reload by Dredile
+https://freesound.org/people/Dredile/sounds/177863/
+
+Drinking: Water_Drink.wav by Q.K.
+https://freesound.org/people/Q.K./sounds/56270/
+
+Hoofbeats: Horse Galloping.wav by Max_Headroom
+https://freesound.org/people/Max_Headroom/sounds/175356/
+
+DistantShot: Distant Gunshot by Resaural
+https://freesound.org/people/Resaural/sounds/541164/
+
+Obtained 2026-11-11 from Freesound public high-quality previews.
+Runtime copies: mono PCM WAV, normalized levels, short edge fades.
+Drinking: full performance fitted to 2.5 seconds with pitch-preserving tempo adjustment.
+Hoofbeats: low-frequency rumble removed and an 80 ms loop crossfade.
+No synthesized or AI-generated replacement audio.
+Source files and checksums: ArtSource/Audio/Recorded/sources.json.
+Preparation: python3 Tools/prepare_library_audio.py (ffmpeg required).
+
+RevolverShot: Heathers Gunshot Effect2.wav by okieactor
+https://freesound.org/people/okieactor/sounds/415912/
+CC0 1.0 Universal. Original layered recording retained; level adjustment and short tail fade only.

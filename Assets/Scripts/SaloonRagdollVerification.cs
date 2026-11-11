@@ -21,7 +21,7 @@ namespace Saloon
             void Window(int room=0)
             {
                 pendingOutcome="";outcome="";externalCamera=false;
-                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.deathDirection=Vector3.zero;p.hitbox.enabled=true;p.busyUntil=0;p.drawn=false;p.shots=0;p.nextShot=0;p.lastAction=-100;p.ammo=6;p.chosenRoom=0;p.companion=null;}
+                foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.deathDirection=Vector3.zero;p.hitbox.enabled=true;p.busyUntil=0;p.drawn=false;p.shots=0;p.nextShot=0;p.lastAction=-100;p.ammo=6;p.chosenRoom=0;p.companion=null;}
                 host.role=Role.Sheriff;victim.role=Role.Outlaw;others[0].role=Role.Outlaw;others[1].role=Role.Deputy;others[2].role=Role.Renegade;
                 host.chosenRoom=victim.chosenRoom=room;
                 others[0].chosenRoom=others[1].chosenRoom=room==0?1:0;others[2].chosenRoom=room==0?2:0;
@@ -31,7 +31,7 @@ namespace Saloon
             }
             void Shoot(Participant shooter,Participant target)
             {
-                duels[shooter.room].first=shooter.id;target.hp=1;shooter.drawn=true;shooter.nextShot=0;
+                duels[shooter.room].first=shooter.id;target.hp=20;shooter.drawn=true;shooter.nextShot=0;
                 var direction=Eye(target)-Eye(shooter);shooter.yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;shooter.pitch=0;
                 Fire(shooter);Broadcast();
             }

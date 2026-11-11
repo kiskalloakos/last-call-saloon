@@ -12,7 +12,7 @@ namespace Saloon
             void Check(bool ok,string text){if(!ok)throw new InvalidOperationException("Blackjack flow: "+text);Debug.Log("SALOON_BLACKJACK_CHECK "+text);}
             SaloonBlackjackVerification.Run();
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);var outsider=players.Values.First(p=>p!=host&&p!=peer);
-            foreach(var p in players.Values){p.hp=3;p.chosenRoom=0;p.companion=null;p.drawn=false;p.lastAction=-100;p.nextShot=0;p.busyUntil=0;}
+            foreach(var p in players.Values){p.hp=60;p.chosenRoom=0;p.companion=null;p.drawn=false;p.lastAction=-100;p.nextShot=0;p.busyUntil=0;}
             void Setup(int room)
             {
                 host.chosenRoom=peer.chosenRoom=room;host.companion=peer.id;peer.companion=host.id;
@@ -62,7 +62,7 @@ namespace Saloon
             Check(player.drawn&&player.fireAfterDraw&&player.shots==shots,"winner may immediately Q and click; shot waits only for the normal draw animation");
             player.busyUntil=Time.time-.01f;TickServer();
             Check(player.shots==shots+1,"queued opening shot fires when the draw finishes (time="+Time.time+", busy="+player.busyUntil+", queued="+player.fireAfterDraw+")");
-            Check(dealer.hp==hp-1&&DuelAllows(dealer),"queued opening shot lands and releases the opponent's response");
+            Check(dealer.hp==hp-SaloonHealth.RevolverDamage&&DuelAllows(dealer),"queued opening shot lands and releases the opponent's response");
             Setup(2);d=duels[2];d.readyAt=0;d.blackjack=Find(h=>h.Complete&&h.Winner==1);d.revealed=false;TickBlackjack(d);
             var opener=players[d.first];var responder=players[d.first==d.a?d.b:d.a];
             OnCommand(opener.id,new Command{kind="pass"});

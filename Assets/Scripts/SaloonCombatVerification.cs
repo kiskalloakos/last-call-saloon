@@ -27,7 +27,7 @@ namespace Saloon
             void Window()
             {
                 pendingOutcome="";outcome="";
-                foreach(var p in players.Values){p.hp=3;p.hits=0;p.hitAt=-10;p.deathAt=-1;p.beer=0;p.hitbox.enabled=true;p.busyUntil=0;p.busyAction="";p.drawn=false;p.ammo=6;p.shots=0;p.lastAction=-100;p.nextShot=0;p.chosenRoom=0;p.companion=null;}
+                foreach(var p in players.Values){p.hp=60;p.hits=0;p.hitAt=-10;p.deathAt=-1;p.beer=0;p.hitbox.enabled=true;p.busyUntil=0;p.busyAction="";p.drawn=false;p.ammo=6;p.shots=0;p.lastAction=-100;p.nextShot=0;p.chosenRoom=0;p.companion=null;}
                 host.role=Role.Sheriff;hero.role=Role.Outlaw;others[0].role=Role.Deputy;others[1].role=Role.Outlaw;others[2].role=Role.Renegade;
                 host.chosenRoom=hero.chosenRoom=1;
                 rounds.Start(players.Keys,Time.time,0,120,6);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
@@ -62,7 +62,7 @@ namespace Saloon
             var spine=motion.Bone(HumanBodyBones.Spine);var resting=spine.rotation;var bodyPosition=hero.body.transform.position;
             var aim=Eye(hero)-Eye(host);host.yaw=Mathf.Atan2(aim.x,aim.z)*Mathf.Rad2Deg;host.pitch=0;host.drawn=true;
             duels[1].first=host.id;host.lastAction=-100;OnCommand(host.id,new Command{kind="fire"});Broadcast();yield return new WaitForSeconds(.08f);
-            Check(hero.hp==2&&hero.hits==1&&host.shots==1,"a real legal shot records one authoritative hit and one HP damage");
+            Check(hero.hp==40&&hero.hits==1&&host.shots==1,"a real legal shot records one authoritative hit and 20% health damage");
             Check(motion.HitAmount>.5f&&Quaternion.Angle(resting,spine.rotation)>7&&avatar.DamageFlashVisible,"the victim visibly flinches and flashes after a non-lethal shot");
             var wire=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(PrivateSnapshot(host.id),out _)).players.Single(p=>p.id==hero.id.ToString());
             Check(wire.hits==1&&wire.hitAge<.3f&&Vector3.Dot(new Vector3(wire.hitX,wire.hitY,wire.hitZ),Forward(host))>.99f,"hit sequence, age and direction survive the network wire");
@@ -73,9 +73,9 @@ namespace Saloon
             Check(motion.HitAmount==0&&!avatar.DamageFlashVisible&&Quaternion.Angle(resting,spine.rotation)<1.5f,"the hit animation settles back to the original pose");
             Check(hero.body.transform.position==bodyPosition,"hit reactions never move authoritative seats or collision bodies");
             yield return Capture("06-recovered",false);
-            hero.hp=3;TakeDamage(hero,Vector3.right);Broadcast();yield return new WaitForSeconds(.08f);
+            hero.hp=60;TakeDamage(hero,Vector3.right);Broadcast();yield return new WaitForSeconds(.08f);
             Check(hero.hits==2&&motion.HitAmount>.5f,"another hit restarts the directional reaction");yield return Capture("07-side-flinch",false);
-            yield return new WaitForSeconds(.75f);hero.hp=1;TakeDamage(hero,-Forward(hero));Broadcast();yield return new WaitForSeconds(.1f);
+            yield return new WaitForSeconds(.75f);hero.hp=20;TakeDamage(hero,-Forward(hero));Broadcast();yield return new WaitForSeconds(.1f);
             Check(!hero.Alive&&avatar.DeathBody!=null&&avatar.DeathBody.BodyCount==11&&avatar.CorpseVisible,"lethal damage hands over to the existing ragdoll");
             externalCamera=false;ViewCamera.fieldOfView=78;RefreshViewpoint();
             Destroy(lightObject);

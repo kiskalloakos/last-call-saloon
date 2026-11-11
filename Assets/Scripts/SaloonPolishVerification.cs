@@ -14,7 +14,7 @@ namespace Saloon
             void Window(int limit=6)
             {
                 pendingOutcome="";outcome="";ResetHeist();
-                foreach(var p in players.Values){p.hp=3;p.deathAt=-1;p.role=Role.Deputy;p.hitbox.enabled=true;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;p.ammo=6;p.shots=0;}
+                foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.role=Role.Deputy;p.hitbox.enabled=true;p.chosenRoom=0;p.companion=null;p.lastAction=-100;p.nextShot=0;p.ammo=6;p.shots=0;}
                 rounds.Start(players.Keys,Time.time-3,1,30,limit,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
             }
             void Aim(Participant from,Participant to)
@@ -32,7 +32,7 @@ namespace Saloon
 #endif
             turn.until=Time.time-1;var timedOut=turn.order[turn.index];TickDuels();Check(!rounds.CanAct(timedOut,Time.time)&&turn.index==1,"idle bar turn passes automatically");
             while(turn.order[turn.index]!=host.id)Pass(players[turn.order[turn.index]]);
-            Aim(host,peer);Fire(host);Check(host.shots==1&&peer.hp==2,"Sheriff gets exactly one legal bar shot on their turn");
+            Aim(host,peer);Fire(host);Check(host.shots==1&&peer.hp==40,"Sheriff gets exactly one legal bar shot on their turn");
             host.nextShot=0;Fire(host);Check(host.shots==1&&host.ammo==5,"repeated Sheriff clicks cannot shoot the rest of the bar");
             Check(PrivateSnapshot(host.id).roomTurn.spent,"bar HUD distinguishes a spent action from a pending turn");
             var position=host.body.transform.position;TickServer();Check(phase==Phase.Aftermath&&host.body.transform.position==position&&host.drawn,"last action enters aftermath without moving or holstering");
@@ -45,7 +45,7 @@ namespace Saloon
 #endif
             yield return new WaitForSeconds(2.75f);Check(phase==Phase.Regroup,"non-final round regroups only after three seconds");
 
-            Window(1);host.role=Role.Outlaw;host.hp=1;peer.role=Role.Sheriff;
+            Window(1);host.role=Role.Outlaw;host.hp=20;peer.role=Role.Sheriff;
             turn=roomTurns[0];turn.order=new[]{host.id,peer.id}.Concat(players.Keys.Where(id=>id!=host.id&&id!=peer.id)).ToArray();
             Broadcast();yield return new WaitForSeconds(.1f);
             Aim(host,peer);Fire(host);Aim(peer,host);Fire(peer);
@@ -56,7 +56,7 @@ namespace Saloon
             Check(host.body.transform.position==position,"dead player retains their seat during terminal aftermath");
             yield return new WaitForSeconds(2.9f);Check(phase==Phase.Finished&&outcome=="LAW WINS","terminal result appears after three seconds");
             Check(PrivateSnapshot(host.id).players.All(p=>!string.IsNullOrEmpty(p.revealedRole)),"terminal result reveals roles after the delay");
-            Window();host.role=Role.Renegade;peer.role=Role.Sheriff;peer.hp=1;
+            Window();host.role=Role.Renegade;peer.role=Role.Sheriff;peer.hp=20;
             var defeated=players.Values.Where(p=>p!=host&&p!=peer).ToArray();
             for(int i=0;i<defeated.Length;i++){defeated[i].role=i<2?Role.Outlaw:Role.Deputy;defeated[i].hp=0;defeated[i].hitbox.enabled=false;}
             turn=roomTurns[0];turn.order=new[]{host.id,peer.id}.Concat(defeated.Select(p=>p.id)).ToArray();

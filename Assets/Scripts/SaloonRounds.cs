@@ -40,6 +40,8 @@ namespace Saloon
         public void BeginAftermath(float now){Phase=Phase.Aftermath;Deadline=now+3;}
         public bool TrySpend(ulong id,float now,float duration=0)
         {if(!CanAct(id,now))return false;spent[id]=now+Math.Max(0,duration);return true;}
+        // Pouring reserves its follow-up sip/offer inside the same action.
+        public void SetCompletion(ulong id,float until){if(spent.ContainsKey(id))spent[id]=until;}
         public void Tick(float now,Func<ulong,bool> alive,Func<ulong,bool> hasAction=null)
         {
             if(Phase==Phase.Discussion)
