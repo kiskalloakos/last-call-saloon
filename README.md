@@ -10,7 +10,8 @@ All players must use **0.2.12**.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
 
-See [release notes and validation](Documentation/RELEASE-0.2.12.md) for this version.
+Windows and Mac gameplay and five-player connection checks passed.
+The Windows room-flow/voice checks still time out during planning. See [release notes and validation](Documentation/RELEASE-0.2.12.md).
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.

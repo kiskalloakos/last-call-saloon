@@ -17,4 +17,10 @@ Extract the complete archive. Windows requires the data folder beside Last Call.
 
 ## Validation
 
-Both platform builds succeeded with Unity 6000.5.10f1. The packaged Mac app passed the functional gameplay suite. Both ZIP archives passed integrity checks; SHA-256 checksums are provided. Multiplayer and native Windows runner results will be recorded after validation.
+- Unity 6000.5.10f1 built Windows x64 and universal macOS (Intel/Apple Silicon) successfully.
+- Final packaged Mac gameplay and five-player networking/privacy checks passed.
+- The published Windows ZIP passed checksum verification, native gameplay and five-player networking on Windows Server 2022.
+- The separate-room, paired-room and paired-room-with-voice Windows checks timed out in discussion/planning. Their validation remains incomplete; the full Windows suite therefore failed. This timeout also occurred in 0.2.11. [Windows results and logs](https://github.com/kiskalloakos/last-call-saloon/actions/runs/43029960758).
+- Both ZIPs passed integrity checks. GitHub's asset digests match the final local files.
+- Game binaries match source commit `56780fbd83ed14430d45a520c112edc5a7d9c538` (tag `v0.2.12`). The automated privacy fixture now respects the Renegade's intentionally revealed role knowledge.
+- The previous local 0.2.11 build folder and its archives were moved to macOS Trash. Current build outputs, logs and checksums are in `Builds/0.2.12/`.
