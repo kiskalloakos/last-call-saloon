@@ -55,7 +55,7 @@ namespace Saloon
             foreach(var mesh in motion.GetComponentsInChildren<SkinnedMeshRenderer>(true))
             {int shape=mesh.sharedMesh.GetBlendShapeIndex(SaloonGunGrip.Shape);if(shape>=0)mesh.SetBlendShapeWeight(shape,65);}
             Lift=SaloonSmoking.Lift(age);
-            var rest=transform.TransformPoint(new Vector3(.30f,state.seated?.75f:1.0f,.28f));
+            var rest=transform.TransformPoint(new Vector3(.30f,state.seated?.75f:1.0f-(state.crouched?SaloonMovement.CrouchDrop:0),.28f));
             var mouth=motion.Mouth+transform.forward*.018f+transform.right*.015f;
             third.transform.position=Vector3.Lerp(rest,mouth,Lift);
             third.transform.rotation=transform.rotation*Quaternion.Euler(Mathf.Lerp(-25,8,Lift),-22,0);

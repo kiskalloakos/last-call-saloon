@@ -43,10 +43,10 @@ namespace Saloon
         public void Tick(float speech,bool allowed,float delta)
         {
             if(opening==null)Initialize();
-            if(!allowed){Silence();return;}
+            if(!allowed||!(speech>0)||float.IsInfinity(speech)){Silence();return;}
             float time=Time.unscaledTime;
             float flap=.5f+.34f*Mathf.Sin(time*22+PhaseOffset)+.16f*Mathf.Sin(time*37+PhaseOffset*1.7f);
-            float target=speech>0?(.2f+.8f*Mathf.Clamp01(flap))*Mathf.Lerp(.6f,1,Mathf.Clamp01(speech)):0;
+            float target=(.2f+.8f*Mathf.Clamp01(flap))*Mathf.Sqrt(Mathf.Clamp01(speech));
             OpenAmount=Mathf.MoveTowards(OpenAmount,target,Mathf.Min(delta,.1f)*(target>OpenAmount?18:12));
             if(shape>=0)FaceRenderer.SetBlendShapeWeight(shape,OpenAmount*100);
             opening.SetActive(OpenAmount>.015f);

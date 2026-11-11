@@ -6,12 +6,13 @@ namespace Saloon
         public static Vector3 Position(bool gather,int room,int slot)
         {
             if(gather){float a=slot*Mathf.PI*2/5;return new Vector3(Mathf.Sin(a)*1.25f,.08f,-.5f+Mathf.Cos(a)*1.25f);}
-            if(room==3)return SaloonSmokingArea.Center+new Vector3(slot==0?-.9f:.9f,0,0);
+            if(room==3)return SaloonSmokingArea.Center+new Vector3(0,0,slot==0?-.9f:.9f);
             if(room==0)return new Vector3(-5+slot*1.5f,.35f,2.05f);
             return new Vector3((room==1?-5:5)+(slot==0?-1.04f:1.04f),.08f,-3.8f);
         }
         public static float Facing(bool gather,int room,int slot)
         {
+            if(!gather&&room==3)return 90; // Both smokers arrive facing the sunset.
             var position=Position(gather,room,slot);
             if(!gather&&room==0)
             {
@@ -25,6 +26,6 @@ namespace Saloon
             var center=room==3&&!gather?SaloonSmokingArea.Center:gather?new Vector3(0,.08f,-.5f):new Vector3(room==1?-5:5,.08f,-3.8f);
             return Quaternion.LookRotation(center-position).eulerAngles.y;
         }
-        public static string Name(int room)=>room==1?"Coin Flip":room==2?"Blackjack":room==3?"have a smoke":"Bar";
+        public static string Name(int room)=>room==1?"Coin Flip":room==2?"Blackjack":room==3?"Have a Smoke":"Bar";
     }
 }

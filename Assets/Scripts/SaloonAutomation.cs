@@ -39,6 +39,7 @@ namespace Saloon
             Game.AutomatedInput=!mode.StartsWith("preview");
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if(mode=="presentation"){Game.HostLan(true);StartCoroutine(Game.VerifyPresentation());return;}
+            if(mode=="model-room-fixes"){Game.tuning.turnSeconds=120;Game.HostLan(true);StartCoroutine(VerifyModelRoomFixes());return;}
             if(mode=="roles"){Game.HostLan(true);StartCoroutine(Game.VerifyRoleDeals());return;}
             if(mode=="tab-input"){Game.AutomatedInput=false;Game.HostLan(true);return;}
 #endif
@@ -54,11 +55,18 @@ namespace Saloon
             Debug.Log("SALOON_ROOMS "+(ok?"PASS":"FAIL")+" mode="+mode+" "+detail);
             reported=true;resultCode=ok?0:8;quitAfter=Time.unscaledTime+(Game.Hosting?1:.5f);
         }
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
+        System.Collections.IEnumerator VerifyModelRoomFixes()
+        {
+            yield return Game.VerifyModelRoomFixes();
+            Application.Quit(Game.VerificationPassed?0:8);
+        }
+#endif
         static string Arg(string[] args,string key){int i=Array.IndexOf(args,key);return i>=0&&i+1<args.Length?args[i+1]:null;}
         void Update()
         {
             if(string.IsNullOrEmpty(mode))return;
-            if(mode=="functional"||mode=="presentation"||mode=="roles")return;
+            if(mode=="functional"||mode=="presentation"||mode=="roles"||mode=="model-room-fixes")return;
             if(reported){if(Time.unscaledTime>=quitAfter)Application.Quit(resultCode);return;}
             if(mode=="tab-input")
             {

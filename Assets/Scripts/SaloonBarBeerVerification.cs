@@ -21,8 +21,8 @@ namespace Saloon
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);
             MenuOpen=false;Broadcast();
             Check(View.phase==Phase.Discussion&&!RoomPlannerOpen&&!NeedsPointer,"discussion begins with ordinary mouse look");
-            ToggleRoomPlanner();Check(RoomPlannerOpen&&NeedsPointer,"P opens the planner with a usable cursor");
-            ToggleRoomPlanner();Check(!RoomPlannerOpen&&!NeedsPointer,"P closes the planner and returns to mouse look");
+            ToggleRoomPlanner();Check(RoomPlannerOpen&&NeedsPointer,"planner opens with a usable cursor");
+            ToggleRoomPlanner();Check(!RoomPlannerOpen&&!NeedsPointer,"planner closes and returns to mouse look");
             float drink=tuning.drinkSeconds,handoff=tuning.handoffSeconds;
             void Window()
             {

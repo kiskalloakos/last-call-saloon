@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -26,7 +26,10 @@ namespace Saloon
             var wire=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(PrivateSnapshot(Connection.LocalId),out _));
             Check(wire.players.Single(p=>p.id==hero.id.ToString()).voiceId=="editor-speaker-a","voice identity survives the compressed snapshot");
             Check(SaloonVoice.SpeechStrength(false,1,false)==0&&SaloonVoice.SpeechStrength(true,1,true)==0,"silence and mute suppress speech even with energy present");
-            Check(SaloonVoice.SpeechStrength(true,0,false)>0&&SaloonVoice.SpeechStrength(true,.05,false)>SaloonVoice.SpeechStrength(true,.001,false),"voice activity has a fallback and responds to louder speech");
+            Check(SaloonVoice.SpeechStrength(true,0,false)==0&&SaloonVoice.SpeechStrength(true,.000001,false)==0,"a lingering speech flag cannot animate silent audio or background noise");
+            Check(SaloonVoice.SpeechStrength(true,.05,false)>SaloonVoice.SpeechStrength(true,.001,false),"mouth strength follows actual voice energy");
+            Check(SaloonVoice.FreshSpeechStrength(true,.05,false,SaloonVoice.SpeechTimeout+.01f)==0&&SaloonVoice.FreshSpeechStrength(true,.05,false,.05f)>0,"stale energy expires while fresh audio still animates");
+            Check(SaloonVoice.SpeechStrength(true,double.NaN,false)==0&&SaloonVoice.SpeechStrength(true,double.PositiveInfinity,false)==0&&SaloonVoice.SpeechStrength(true,-1,false)==0,"invalid energy cannot animate the mouth");
             Voice.PreviewSpeech=new Dictionary<string,float>{{hero.voiceId,0}};Broadcast();yield return new WaitForSeconds(.3f);
             var mouth=avatars[hero.id.ToString()].GetComponentInChildren<SaloonSpeechMouth>(true);
             var otherMouth=avatars[other.id.ToString()].GetComponentInChildren<SaloonSpeechMouth>(true);
@@ -36,7 +39,13 @@ namespace Saloon
             var center=mouth.HeadBone.TransformPoint(mouth.MouthPosition)+Vector3.up*.06f;
             externalPosition=center+new Vector3(.14f,.04f,.65f);externalRotation=Quaternion.LookRotation(center-externalPosition);
             IEnumerator Capture(string name)
-            {yield return null;yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(directory,"speech-"+name+".png"));yield return null;}
+            {
+                yield return null;
+                if(Application.isEditor&&Application.isBatchMode)
+                    WindowPreview(externalPosition,externalPosition+externalRotation*Vector3.forward,ViewCamera.fieldOfView,"speech-"+name);
+                else {yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(directory,"speech-"+name+".png"));}
+                yield return null;
+            }
             yield return Capture("01-quiet");float low=1,high=0;
             for(int i=0;i<35;i++)
             {
@@ -48,8 +57,9 @@ namespace Saloon
             Voice.PreviewSpeech[hero.voiceId]=1;
             for(int i=0;i<30&&mouth.OpenAmount<.65f;i++)yield return null;
             yield return Capture("02-talking");
-            Voice.PreviewSpeech[hero.voiceId]=0;yield return new WaitForSeconds(.2f);
-            Check(mouth.OpenAmount==0&&!mouth.MouthVisible&&mouth.FaceRenderer.GetBlendShapeWeight(shape)==0,"speech stops promptly and restores the original closed face");
+            Voice.PreviewSpeech[hero.voiceId]=SaloonVoice.SpeechStrength(true,0,false);
+            mouth.Tick(Voice.PreviewSpeech[hero.voiceId],true,1f/60);
+            Check(mouth.OpenAmount==0&&!mouth.MouthVisible&&mouth.FaceRenderer.GetBlendShapeWeight(shape)==0,"zero audio energy closes the mouth in the same frame even if speech detection stays true");
             yield return Capture("03-stopped");
             Voice.PreviewSpeech[hero.voiceId]=1;hero.busyAction="drink";hero.busyUntil=Time.time+1;Broadcast();yield return new WaitForSeconds(.15f);
             Check(mouth.OpenAmount==0&&!mouth.MouthVisible,"drinking takes priority over mouth flapping");

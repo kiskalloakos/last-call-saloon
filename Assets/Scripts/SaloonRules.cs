@@ -126,12 +126,13 @@ namespace Saloon
         {
             if(self==null||!self.alive||view.phase==Phase.Lobby||view.phase==Phase.Finished)return "";
             if(view.phase==Phase.Discussion)
-                return self.ready?"Seat reserved. Unready or change your plan to release it.":"Choose your destination privately, then Ready. Other players cannot see your room or partner.";
+                return self.ready?"Seat reserved. Unready or change your plan to release it.":"Choose your destination privately, then Ready. Only the person you invite sees that invitation.";
             if(view.phase==Phase.Choosing)return view.moneyBag?"Choose the bar. A side room cancels your escape.":view.ownRole=="Renegade"?"Find the Outlaws first. Choose someone to meet in a room.":"Choose a room or invite someone for a private word.";
             if(view.phase==Phase.Regroup)return "Remember who you saw. Decide what you want to tell the table.";
             if(view.phase==Phase.Aftermath)return "Let the dust settle.";
             if(self.room==3)return "Left-click · Take a drag    V · Talk    WASD · Stroll. No weapons outside.";
-            if(view.duel?.stage=="blackjack")return view.duel.canHit?"Click HIT or the deck to draw. Click STAND to keep your hand. Hold right mouse to look around.":view.duel.canDeal?"Your deal. Click the deck to draw to 17.":"Cards are on the table. Dealer draws to 17; the winner opens.";
+            if(view.duel?.stage=="blackjack")return view.duel.canHit?"Choose Hit or Stand.":view.duel.canDeal?"Your deal.":"Watch the cards.";
+            if(view.duel?.stage=="result")return "Get ready. F to stand, WASD to dodge. Weapons unlock after the result pause.";
             if(view.duel?.stage=="redealing")return "Blackjack push. A tied hand is redealt with the same dealer.";
             if(view.duel?.stage=="choosing")return "Choose Heads or Tails. First claim locks the sides; the coin decides the opening.";
             if(view.duel?.stage=="flipping")return "Let the coin land. Weapons are locked until the opening is decided.";
@@ -157,16 +158,17 @@ namespace Saloon
         public string kind;
         public string name;
         public float x, z, yaw, pitch;
-        public int poseVersion,planVersion;
+        public bool crouch;
+        public int poseVersion,planVersion,invitationVersion;
     }
 
     [Serializable]
     public class PlayerView
     {
         public string id, name, revealedRole,voiceId;
-        public float x, y, z, yaw, pitch;
+        public float x, y, z, yaw, pitch,bodyYaw;
         public bool disconnected,rematchVote;
-        public bool alive, drawn, seated, sheriff, busy,ready,observer,bot;
+        public bool alive, drawn, seated, crouched, sheriff, busy,ready,observer,bot;
         public float deathAge,deathX,deathY,deathZ;
         public int shots,health,maxHealth,carriedBeer,hits,puffs,reloads;
         public bool reloading;public float reloadRemaining,reloadDuration;
@@ -188,9 +190,17 @@ namespace Saloon
     }
 
     [Serializable]
+    public class RoomInvitation
+    {
+        public string fromId,fromName;
+        public int room,planVersion;
+    }
+
+    [Serializable]
     public class Snapshot
     {
         public KnownRole[] knownRoles;
+        public RoomInvitation[] invitations;
         public string ownId,reconnectNotice;
         public int rematchVotes,rematchRequired;
         public bool ownRematchVote;

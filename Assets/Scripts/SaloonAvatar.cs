@@ -25,6 +25,7 @@ namespace Saloon
         public SaloonSmokingVisual SmokingVisual=>smoking;
         SaloonSpeechMouth speechMouth;
         Vector3 walkingVelocity;
+        float lookYaw,lookPitch;
         Transform rightArm,rightForearm,rightHand,gunSpin,firstGunSpin;
         Quaternion handBasis;Vector3 handGrip;
         SaloonGunGrip gunGrip;
@@ -36,12 +37,13 @@ namespace Saloon
         SaloonFootsteps footsteps;
         SaloonRagdoll ragdoll;
         public SaloonRagdoll DeathBody=>ragdoll;
-        public bool CorpseVisible=>state!=null&&!state.alive&&!state.observer&&model.activeSelf;
+        public bool CorpseVisible=>state!=null&&!state.alive&&model.activeSelf;
 
         public void Initialize(SaloonGame owner,PlayerView initial,int colorIndex)
         {
             footsteps=gameObject.AddComponent<SaloonFootsteps>();
             game=owner;state=initial;drawAmount=initial.drawn?1:0;target=new Vector3(initial.x,initial.y,initial.z);transform.position=target;
+            transform.rotation=Quaternion.Euler(0,initial.bodyYaw,0);lookYaw=initial.yaw;lookPitch=initial.pitch;
             var prefab=Resources.Load<GameObject>(SaloonCharacterMotion.ResourcePath);
             if(prefab==null)throw new System.InvalidOperationException("Prepare the Western Gunman character from the Saloon menu.");
             model=Instantiate(prefab,transform);model.name="Western Gunman";
@@ -77,6 +79,7 @@ namespace Saloon
         {
             var nextPosition=new Vector3(next.x,next.y,next.z);
             bool placed=next.poseVersion!=state.poseVersion||(nextPosition-target).sqrMagnitude>2;
+            if(placed){transform.rotation=Quaternion.Euler(0,next.bodyYaw,0);lookYaw=next.yaw;lookPitch=next.pitch;}
             walkingVelocity=placed?Vector3.zero:(nextPosition-target)/Mathf.Max(.03f,Time.time-snapshotAt);
             if(placed)transform.position=nextPosition;
             if(next.hits<lastHit||(!state.alive&&next.alive)){hitReaction.Clear();motion.ClearHit();}
@@ -88,13 +91,16 @@ namespace Saloon
             state=next;local=isLocal;snapshotAt=Time.time;
             if(!next.alive||next.observer||next.drinking){speechMouth.Silence();gunGrip.Release();}
             if(next.alive&&ragdoll!=null){ragdoll.Restore();ragdoll=null;}
-            if(!next.alive&&!next.observer&&ragdoll==null)
+            if(!next.alive&&ragdoll==null)
             {
                 model.SetActive(true);ragdoll=model.AddComponent<SaloonRagdoll>();
                 ragdoll.Launch(new Vector3(next.deathX,next.deathY,next.deathZ));
             }
-            if(next.observer&&ragdoll!=null)ragdoll.Hide();
-            var hitbox=GetComponent<CapsuleCollider>();if(hitbox!=null)hitbox.enabled=next.alive;
+            var hitbox=GetComponent<CapsuleCollider>();if(hitbox!=null)
+            {
+                hitbox.height=next.crouched?SaloonMovement.CrouchingHeight:SaloonMovement.StandingHeight;
+                hitbox.center=Vector3.up*(hitbox.height*.5f);hitbox.enabled=next.alive;
+            }
             drinkAudio.spatialBlend=isLocal?0:1;drinkAudio.volume=isLocal?.5f:.32f;
             if(next.drinking&&!wasDrinking)
             {
@@ -138,7 +144,7 @@ namespace Saloon
                 audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);shotAt=Time.time;muzzleUntil=Time.time+.09f;
                 var tracer=new GameObject("Shot trail");tracer.layer=SaloonSmokingArea.IndoorLayer;var line=tracer.AddComponent<LineRenderer>();
                 line.sharedMaterial=SaloonWorld.Material("Shot trail",new Color(1,.7f,.3f));line.startWidth=.018f;line.endWidth=.003f;line.positionCount=2;
-                var eye=target+Vector3.up*(next.seated?1.35f:1.65f);var dir=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
+                var eye=target+Vector3.up*SaloonMovement.EyeHeight(next.seated,next.crouched);var dir=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
                 var weapon=local&&firstPersonGun!=null?firstPersonGun:gun;
                 line.SetPosition(0,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip));line.SetPosition(1,SaloonRoomWindows.ClipShotTrail(eye,dir,20));Destroy(tracer,.055f);
             }
@@ -148,13 +154,14 @@ namespace Saloon
         public void SetViewpoint(bool isViewpoint)
         {
             local=isViewpoint;
-            model.SetActive(!state.observer&&(!local||!state.alive));
+            model.SetActive(!local||!state.alive);
             label.gameObject.SetActive(!state.observer&&(!local||!state.alive));healthDots.gameObject.SetActive(!local&&state.alive);
             if(local&&state.alive&&firstPersonGun==null)
             {
                 firstPersonGun=MakeGun(game.ViewCamera.transform);firstGunSpin=firstPersonGun.transform.Find("Spin pivot");
                 firstPersonMug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));firstPersonMug.transform.SetParent(game.ViewCamera.transform,false);
                 flash=MakeMuzzle(firstPersonGun.transform);
+                SaloonViewmodel.Attach(game.ViewCamera,firstPersonGun);
             }
         }
 
@@ -178,10 +185,13 @@ namespace Saloon
                 return;
             }
             transform.position=Vector3.Lerp(transform.position,target,1-Mathf.Exp(-Time.deltaTime*22));
-            transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,state.yaw,0),Time.deltaTime*18);
+            float lookBlend=1-Mathf.Exp(-Time.deltaTime*25);
+            transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,state.bodyYaw,0),lookBlend);
+            lookYaw=Mathf.LerpAngle(lookYaw,state.yaw,lookBlend);lookPitch=Mathf.Lerp(lookPitch,state.pitch,lookBlend);
             float progress=1-Mathf.Clamp01((state.drinkRemaining-(Time.time-snapshotAt))/Mathf.Max(.01f,state.drinkDuration));
             float lift=state.drinking?Mathf.SmoothStep(0,1,Mathf.Min(progress/.2f,(1-progress)/.2f)):0;
-            motion.Pose(state.seated,Time.time-snapshotAt<.25f?walkingVelocity:Vector3.zero,lift,SaloonWeaponPose.Kick(Time.time-shotAt),state.drawn?state.pitch:0);
+            float headYaw=Mathf.DeltaAngle(transform.eulerAngles.y,lookYaw);
+            motion.Pose(state.seated,Time.time-snapshotAt<.25f?walkingVelocity:Vector3.zero,lift,SaloonWeaponPose.Kick(Time.time-shotAt),lookPitch,headYaw,state.crouched);
             // Follow the posed head, so sitting or wearing a hat cannot bury the health label.
             var healthPosition=motion.Bone(HumanBodyBones.Head).position+Vector3.up*.43f;
             if(label!=null){label.transform.position=healthPosition;label.transform.rotation=game.ViewCamera.transform.rotation;}
@@ -198,20 +208,22 @@ namespace Saloon
             float spin=SaloonWeaponPose.Flip(elapsed);
             var shotRotation=SaloonWeaponPose.Rotation(elapsed);var shotOffset=SaloonWeaponPose.Offset(elapsed);
             var drawOffset=SaloonWeaponPose.DrawOffset(drawAmount);var drawRotation=SaloonWeaponPose.DrawRotation(drawAmount);
-            gun.transform.localRotation=Quaternion.Euler(state.pitch,0,0)*shotRotation*drawRotation;
-            gun.transform.localPosition=new Vector3(.25f,state.seated?.91f:1.20f,.44f)+shotOffset+drawOffset;
+            var aimRotation=Quaternion.Euler(lookPitch,lookYaw,0)*shotRotation*drawRotation;
+            gun.transform.rotation=aimRotation;
+            float crouchDrop=motion.CrouchingBlend*SaloonMovement.CrouchDrop;
+            gun.transform.localPosition=new Vector3(.25f,(state.seated?.91f:1.20f)-crouchDrop,.44f)+shotOffset+drawOffset;
             gunSpin.localRotation=Quaternion.Euler(spin,0,0);
             bool weaponVisible=state.room!=3&&!state.drinking&&(drawAmount>.001f||finishingShot);
             if(weaponVisible)
-                gunGrip.Pose(gun.transform,transform.rotation*Quaternion.Euler(state.pitch,0,0)*shotRotation*drawRotation,drawAmount);
+                gunGrip.Pose(gun.transform,aimRotation,drawAmount);
             else gunGrip.Release();
-            mug.transform.localPosition=Vector3.Lerp(new Vector3(.28f,state.seated?.80f:1.02f,.33f),new Vector3(.06f,state.seated?.96f:1.30f,.38f),lift);
+            mug.transform.localPosition=Vector3.Lerp(new Vector3(.28f,state.seated?.80f:1.02f-(state.crouched?SaloonMovement.CrouchDrop:0),.33f),new Vector3(.06f,state.seated?.96f:1.30f-crouchDrop,.38f),lift);
             // +Y is the mug's rim. Negative pitch brings the rim toward the drinker (-Z).
             mug.transform.localRotation=Quaternion.Euler(-65*lift,0,-10*lift);
             if(lift>0)
             {
                 var sipOrigin=motion.Mouth-mug.transform.rotation*(Vector3.up*.155f);
-                mug.transform.position=Vector3.Lerp(transform.TransformPoint(new Vector3(.28f,state.seated?.80f:1.02f,.33f)),sipOrigin,lift);
+                mug.transform.position=Vector3.Lerp(transform.TransformPoint(new Vector3(.28f,state.seated?.80f:1.02f-(state.crouched?SaloonMovement.CrouchDrop:0),.33f)),sipOrigin,lift);
             }
             if(mug.activeInHierarchy&&rightArm!=null&&rightForearm!=null&&rightHand!=null)
             {
@@ -248,8 +260,8 @@ namespace Saloon
             {
                 var recipient=game.View?.players?.FirstOrDefault(p=>p.id==targetId);
                 if(recipient==null)break;
-                Vector3 from=local?game.ViewCamera.transform.TransformPoint(new Vector3(.23f,-.30f,.43f)):transform.TransformPoint(new Vector3(.28f,state.seated?.80f:1.02f,.33f));
-                Vector3 to=targetId==game.LocalId?game.ViewCamera.transform.TransformPoint(new Vector3(.23f,-.30f,.43f)):new Vector3(recipient.x,recipient.y,recipient.z)+Quaternion.Euler(0,recipient.yaw,0)*new Vector3(.28f,recipient.seated?.80f:1.02f,.33f);
+                Vector3 from=local?game.ViewCamera.transform.TransformPoint(new Vector3(.23f,-.30f,.43f)):transform.TransformPoint(new Vector3(.28f,state.seated?.80f:1.02f-(state.crouched?SaloonMovement.CrouchDrop:0),.33f));
+                Vector3 to=targetId==game.LocalId?game.ViewCamera.transform.TransformPoint(new Vector3(.23f,-.30f,.43f)):new Vector3(recipient.x,recipient.y,recipient.z)+Quaternion.Euler(0,recipient.yaw,0)*new Vector3(.28f,recipient.seated?.80f:1.02f-(recipient.crouched?SaloonMovement.CrouchDrop:0),.33f);
                 float amount=Mathf.SmoothStep(0,1,elapsed/duration);offered.transform.position=Vector3.Lerp(from,to,amount)+Vector3.up*Mathf.Sin(amount*Mathf.PI)*.13f;
                 offered.transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,recipient.yaw,0),amount);
                 yield return null;

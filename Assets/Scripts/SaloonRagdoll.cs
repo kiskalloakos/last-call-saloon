@@ -25,6 +25,7 @@ namespace Saloon
         public Vector3 Center=>hips!=null?hips.position:transform.position+Vector3.up*.4f;
         public int BodyCount=>bodies.Count;
         public float Speed=>hips!=null?hips.linearVelocity.magnitude:0;
+        public bool Settled=>frozen;
 
         public void Launch(Vector3 direction)
         {
@@ -107,11 +108,16 @@ namespace Saloon
 
         void FixedUpdate()
         {
-            // Let it land, then hold the resting pose for the observer transition.
+            // Keep the fallen pose for the rest of the match, independently of spectating.
             if(!frozen&&Time.time-started>2.2f&&Center.y<.55f&&Speed<.8f)Freeze();
         }
-        void Freeze(){foreach(var body in bodies){body.linearVelocity=Vector3.zero;body.angularVelocity=Vector3.zero;body.isKinematic=true;}frozen=true;}
-        public void Hide(){if(!frozen)Freeze();foreach(var collider in colliders)collider.enabled=false;gameObject.SetActive(false);}
+        void Freeze()
+        {
+            foreach(var body in bodies){body.linearVelocity=Vector3.zero;body.angularVelocity=Vector3.zero;body.isKinematic=true;}
+            // A resting body stays visible without blocking seats, movement or interactions.
+            foreach(var collider in colliders)collider.enabled=false;
+            frozen=true;
+        }
         public void Restore()
         {
             if(!frozen)Freeze();foreach(var collider in colliders){collider.enabled=false;Destroy(collider);}

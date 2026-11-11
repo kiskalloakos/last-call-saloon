@@ -154,13 +154,13 @@ public static class SaloonProject
             Debug.Log("SALOON_RELEASE_BUILD PASS "+target+" "+report.summary.totalSize+" bytes");
         }
     }
-    public const string ReleaseVersion="0.2.12";
+    public const string ReleaseVersion="0.2.14";
     [MenuItem("Saloon/Build current downloadable release")]
     public static void BuildCurrentRelease()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
         EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
-        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="12";AssetDatabase.SaveAssets();
+        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="14";AssetDatabase.SaveAssets();
         foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
         {
             bool mac=target==BuildTarget.StandaloneOSX;
@@ -169,6 +169,22 @@ public static class SaloonProject
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
             if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Release build failed: "+target+" "+report.summary.result);
             Debug.Log("SALOON_CURRENT_RELEASE PASS version="+ReleaseVersion+" target="+target+" size="+report.summary.totalSize);
+        }
+    }
+
+    [MenuItem("Saloon/Build local head and room fixes (Mac and Windows)")]
+    public static void BuildModelRoomFixes()
+    {
+        if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
+        EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
+        PlayerSettings.bundleVersion="0.2.13";PlayerSettings.macOS.buildNumber="13";AssetDatabase.SaveAssets();
+        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
+        {
+            string path="Builds/ModelRoomFixes-2026-11-11/"+(target==BuildTarget.StandaloneOSX?"macOS/Last Call.app":"Windows/Last Call.exe");
+            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
+            if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Local fixes build failed: "+target+" "+report.summary.result);
+            Debug.Log("SALOON_MODEL_ROOM_BUILD PASS target="+target+" path="+path);
         }
     }
 

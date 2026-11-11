@@ -81,10 +81,24 @@ public static class SaloonEditorIteration
     [MenuItem("Saloon/Verify Renegade role knowledge in Play mode")]
     public static void RunKnowledge(){Begin("knowledge");}
 
+    [MenuItem("Saloon/Verify head movement, speech and build windows in Play mode")]
+    public static void RunModelRoomFixes(){Begin("model-room-fixes");}
+
+    [MenuItem("Saloon/Verify crouching and weapon clipping in Play mode")]
+    public static void RunCrouch(){Begin("crouch");}
+
+    [MenuItem("Saloon/Verify sunset overlook and silent outdoor walking")]
+    public static void RunSunset(){Begin("sunset");}
+
     static void Begin(string mode)
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before verifying.");
         SaloonProject.OpenForEditing();SessionState.SetString(Mode,mode);SessionState.SetBool(Pending,true);EditorApplication.EnterPlaymode();
+        if(mode=="blackjack"||mode=="coin"||mode=="planning")
+        {
+            var gameView=Type.GetType("UnityEditor.GameView,UnityEditor");
+            if(gameView!=null)EditorWindow.GetWindow(gameView).Focus();
+        }
     }
 
     [MenuItem("Saloon/Verify percentage health in Play mode")]
@@ -101,7 +115,7 @@ public static class SaloonEditorIteration
             bool lobby=mode=="rematch"||mode=="lobby"||mode=="disconnect"||mode=="recovery";
             if(lobby)game.SetBotsEnabled(false);
             if(mode!="solo")game.HostLan(!lobby);
-            game.StartCoroutine(mode=="libraryaudio"?game.VerifyLibraryAudio():mode=="cigarettebuff"?game.VerifyCigaretteBuff():mode=="health"?game.VerifyPercentageHealth():mode=="knowledge"?game.VerifyRenegadeKnowledge():mode=="rematch"?game.VerifyRematchAndReconnect():mode=="solo"?game.VerifySoloPractice():mode=="coin"?game.VerifyTabletopCoin():mode=="smoking"?game.VerifySmoking():mode=="windows"?game.VerifyRoomWindows():mode=="blackjack"?game.VerifyTabletopBlackjack():mode=="evidence"?game.VerifyEvidence():mode=="recovery"?game.VerifyLanRecovery():mode=="disconnect"?game.VerifyDisconnectDetails():mode=="planning"?game.VerifyPlanningDraft():mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
+            game.StartCoroutine(mode=="sunset"?game.VerifySunsetOverlook():mode=="crouch"?game.VerifyCrouchAndWeapon():mode=="model-room-fixes"?game.VerifyModelRoomFixes():mode=="libraryaudio"?game.VerifyLibraryAudio():mode=="cigarettebuff"?game.VerifyCigaretteBuff():mode=="health"?game.VerifyPercentageHealth():mode=="knowledge"?game.VerifyRenegadeKnowledge():mode=="rematch"?game.VerifyRematchAndReconnect():mode=="solo"?game.VerifySoloPractice():mode=="coin"?game.VerifyTabletopCoin():mode=="smoking"?game.VerifySmoking():mode=="windows"?game.VerifyRoomWindows():mode=="blackjack"?game.VerifyTabletopBlackjack():mode=="evidence"?game.VerifyEvidence():mode=="recovery"?game.VerifyLanRecovery():mode=="disconnect"?game.VerifyDisconnectDetails():mode=="planning"?game.VerifyPlanningDraft():mode=="botmovement"?game.VerifyBotMovement():mode=="roomactions"?game.VerifyRoomActions():mode=="combat"?game.VerifyHitReactionsAndGrip():mode=="speech"?game.VerifyTalkingMouths():mode=="western"?game.VerifyWesternCharacter():mode=="lobby"?game.VerifyEditorLobby():mode=="ragdoll"?game.VerifyEditorRagdoll():game.VerifyEditorRoleCardsAndDraw());
         }
         bool timeout=EditorApplication.timeSinceStartup-started>100;
         if(!game.VerificationFinished&&!timeout)return;
@@ -110,6 +124,6 @@ public static class SaloonEditorIteration
         Debug.Log(game.VerificationPassed&&!timeout?"SALOON_EDITOR_ITERATION PASS":"SALOON_EDITOR_ITERATION FAIL");
         bool passed=game.VerificationPassed&&!timeout;
         SessionState.SetBool(Pending,false);running=cleaning=false;EditorApplication.ExitPlaymode();
-        if(Application.isBatchMode&&(SessionState.GetString(Mode,"")=="knowledge"||SessionState.GetString(Mode,"")=="rematch"||SessionState.GetString(Mode,"")=="solo"||SessionState.GetString(Mode,"")=="coin"||SessionState.GetString(Mode,"")=="blackjack"||SessionState.GetString(Mode,"")=="planning"||SessionState.GetString(Mode,"")=="windows"||SessionState.GetString(Mode,"")=="smoking"))EditorApplication.Exit(passed?0:1);
+        if(Application.isBatchMode&&(SessionState.GetString(Mode,"")=="sunset"||SessionState.GetString(Mode,"")=="crouch"||SessionState.GetString(Mode,"")=="ragdoll"||SessionState.GetString(Mode,"")=="model-room-fixes"||SessionState.GetString(Mode,"")=="speech"||SessionState.GetString(Mode,"")=="western"||SessionState.GetString(Mode,"")=="combat"||SessionState.GetString(Mode,"")=="knowledge"||SessionState.GetString(Mode,"")=="rematch"||SessionState.GetString(Mode,"")=="solo"||SessionState.GetString(Mode,"")=="coin"||SessionState.GetString(Mode,"")=="blackjack"||SessionState.GetString(Mode,"")=="planning"||SessionState.GetString(Mode,"")=="windows"||SessionState.GetString(Mode,"")=="smoking"))EditorApplication.Exit(passed?0:1);
     }
 }

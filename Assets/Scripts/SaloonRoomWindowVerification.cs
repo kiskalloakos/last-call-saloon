@@ -1,4 +1,4 @@
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Collections;
 using System.IO;
@@ -9,6 +9,7 @@ namespace Saloon
 {
     public partial class SaloonGame
     {
+#if UNITY_EDITOR
         public IEnumerator VerifyRoomWindows()
         {
             verifying=true;AutomatedInput=true;VerificationFinished=VerificationPassed=false;
@@ -82,7 +83,7 @@ namespace Saloon
             Check(!watching.blackjackTable.canHit&&!watching.blackjackTable.canDeal&&!watching.blackjackTable.yourTurn,"watching players receive no blackjack controls or opening permissions");
             Broadcast();yield return new WaitForSeconds(1.7f);
             Check(BlackjackTable.Visible&&BlackjackTable.CardCount==4&&BlackjackTable.HiddenCount==1,"outside viewer sees the physical cards through the window");
-            Check(BlackjackTable.GetComponentsInChildren<SaloonBlackjackTarget>().All(t=>!t.GetComponent<Collider>().enabled),"outside viewer cannot click another room's cards");
+            Check(BlackjackTable.transform.Find("Blackjack cards").GetComponentsInChildren<Collider>().All(c=>!c.enabled),"outside viewer has no clickable table controls");
             externalCamera=true;RefreshViewpoint();
             WindowPreview(new Vector3(5,1.75f,1.2f),new Vector3(5,1.55f,-3.8f),72,"outside");
             WindowPreview(new Vector3(5,1.7f,-3.25f),new Vector3(5,1.7f,-1),78,"inside");
@@ -127,6 +128,7 @@ namespace Saloon
             Debug.Log("SALOON_WINDOW_CHECK enclosed room still plays a saloon gunshot through the glass");
             yield return null;
         }
+#endif
         void CheckWindowRendering(SaloonRoomWindow pane,Action<bool,string> check)
         {
             var greenMaterial=new Material(Shader.Find("Unlit/Color")){color=new Color(.02f,1,.02f)};

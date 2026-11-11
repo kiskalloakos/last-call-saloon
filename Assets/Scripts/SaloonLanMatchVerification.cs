@@ -86,6 +86,12 @@ namespace Saloon
                 else if(round==2&&index<4)
                 {
                     if(view.duel?.stage=="choosing")Game.ChooseCoin(index%2);
+                    // Play through the real, slower blackjack decisions instead of waiting for human timeouts.
+                    if(Time.unscaledTime>=nextCommand)
+                    {
+                        if(view.duel?.canHit==true){Game.ChooseBlackjack("stand");nextCommand=Time.unscaledTime+.3f;}
+                        else if(view.duel?.canDeal==true){Game.ChooseBlackjack("deal");nextCommand=Time.unscaledTime+.3f;}
+                    }
                     var target=view.players.FirstOrDefault(p=>p.name=="LAN-"+(index^1));if(target==null)return;
                     var direction=new Vector3(target.x-self.x,target.y-self.y,target.z-self.z);
                     float yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg,pitch=-Mathf.Atan2(direction.y,new Vector2(direction.x,direction.z).magnitude)*Mathf.Rad2Deg;
@@ -125,7 +131,7 @@ namespace Saloon
             if(view.phase==Phase.Discussion&&view.round==4)
             {
                 bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&view.players.All(p=>view.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):p.revealedRole=="");
-                Report(ok,"three rounds complete and round four started beyond the legacy cap; standing/movement, paired coin/headshots, beer healing; outcome="+view.outcome);
+                Report(ok,"three rounds complete and round four started beyond the legacy cap; standing/movement, paired coin/blackjack/headshots, beer healing; outcome="+view.outcome);
             }
         }
     }

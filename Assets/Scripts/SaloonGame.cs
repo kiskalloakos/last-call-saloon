@@ -14,10 +14,10 @@ namespace Saloon
         public SaloonCoinTable CoinTable { get; private set; }
         public SaloonBeerTaps BeerTaps { get; private set; }
         public bool AtBeerBar=>View?.phase==Phase.Turns&&Self?.room==0&&Self.alive;
-        public bool PlayingCoin=>View?.phase==Phase.Turns&&Self?.room==1&&View.duel?.game=="coin"&&View.duel.stage!="playing";
+        public bool PlayingCoin=>View?.phase==Phase.Turns&&Self?.room==1&&View.duel?.game=="coin"&&(View.duel.stage=="choosing"||View.duel.stage=="flipping");
         public bool PlayingTableGame=>PlayingBlackjack||PlayingCoin;
         public bool OutsideForSmoke=>Self!=null&&Self.room==3&&SaloonPrivacy.Separated(View.phase);
-        public bool PlayingBlackjack=>View?.phase==Phase.Turns&&View.duel?.game=="blackjack"&&View.duel.stage!="playing";
+        public bool PlayingBlackjack=>View?.phase==Phase.Turns&&View.duel?.game=="blackjack"&&(View.duel.stage=="dealing"||View.duel.stage=="blackjack"||View.duel.stage=="redealing");
         public Snapshot View { get; private set; }
         public Camera ViewCamera { get; private set; }
         public string PlayerName = "Stranger", Address = "127.0.0.1", Port = "7777", JoinCode = "";
@@ -71,7 +71,7 @@ namespace Saloon
             public CapsuleCollider hitbox,solid;
             public SphereCollider head;
             public Vector2 move;
-            public float yaw,pitch,lastInput,lastAction,nextShot,busyUntil,vertical;
+            public float yaw,pitch,bodyYaw,lastInput,lastAction,nextShot,busyUntil,vertical;
             public float lastStance=-100;
             public int reloads,headshots,confirmedHealth,confirmedMaxHealth;
             public bool confirmedKill,confirmedFriendly;public float confirmedAt=-100;
@@ -82,7 +82,7 @@ namespace Saloon
             public int planVersion;
             public bool fireAfterDraw;
             public bool cigaretteBuff;
-            public bool drawn,bot,bag;
+            public bool drawn,bot,bag,crouched,crouchHeld;
             public int escapeRound;
             public float botThink,drinkReady,giftUntil;
             public float botAimAt=-1;public Vector3 botAim;
@@ -232,6 +232,7 @@ namespace Saloon
                 p.cigaretteBuff=false;
                 p.beerChoiceUntil=0;p.pourStarted=0;p.beerHealing=0;p.beer=0;
                 p.reloads=p.headshots=0;p.confirmedAt=-100;p.hits=0;p.hitAt=-10;p.hitDirection=Vector3.zero;p.role=Role.Unknown;p.hp=tuning.health;p.ammo=tuning.cylinder;p.seat=-1;p.drawn=false;p.busyUntil=0;p.busyAction="";p.move=Vector2.zero;p.deathAt=-1;p.notice="";p.poseVersion++;
+                p.crouched=p.crouchHeld=false;UpdateCrouch(p);
                 p.controller.enabled=false;p.body.transform.position=SaloonWorld.Spawns[index++%SaloonWorld.Spawns.Length];p.controller.enabled=true;p.hitbox.enabled=true;
             }
         }
@@ -283,6 +284,7 @@ namespace Saloon
                 p.cigaretteBuff=false;
                 p.beerChoiceUntil=0;p.pourStarted=0;p.beerHealing=0;p.beer=0;
                 p.reloads=p.headshots=0;p.confirmedAt=-100;p.hits=0;p.hitAt=-10;p.hitDirection=Vector3.zero;p.role=deck[index];p.hp=tuning.health;p.ammo=tuning.cylinder;p.beer=0;p.beerPickupRound=-1;p.drawn=false;p.seat=-1;p.busyUntil=0;p.busyAction="";p.move=Vector2.zero;p.vertical=0;p.shots=0;p.notice="";p.nextShot=0;p.lastAction=-100;
+                p.crouched=p.crouchHeld=false;UpdateCrouch(p);
                 p.deathAt=-1;p.deathDirection=Vector3.zero;p.puffs=0;p.smokeAt=-100;
                 p.controller.enabled=false;p.body.transform.position=SaloonWorld.Spawns[index++%SaloonWorld.Spawns.Length];p.controller.enabled=true;p.hitbox.enabled=true;
             }
@@ -303,7 +305,7 @@ namespace Saloon
             if(Self!=null&&Self.name==CleanName(PlayerName))helloSent=true;
             if(!MenuOpen&&!ShowRole&&Self?.alive==true)
             {
-                if(View?.phase==Phase.Discussion&&Input.GetKeyDown(KeyCode.P))ToggleRoomPlanner();
+                if(View?.phase==Phase.Discussion&&Input.GetMouseButtonDown(1))ToggleRoomPlanner();
                 if(View?.phase==Phase.Discussion&&Input.GetKeyDown(KeyCode.Space)){ToggleReady();RoomPlannerOpen=false;SyncPointer();}
                 if(!PlayingTableGame&&Input.GetKeyDown(KeyCode.F))Act("stance");
                 if(AtBeerBar)
@@ -338,14 +340,13 @@ namespace Saloon
             }
             if(!AutomatedInput&&Time.unscaledTime>=nextInput)
             {
-                var move=!MenuOpen&&!ShowRole&&Cursor.lockState==CursorLockMode.Locked?new Vector2(Input.GetAxisRaw("Horizontal"),Input.GetAxisRaw("Vertical")):Vector2.zero;
-                Connection.Send(new Command{kind="input",x=move.x,z=move.y,yaw=yaw,pitch=pitch,poseVersion=Self?.poseVersion??-1});nextInput=Time.unscaledTime+.033f;
+                bool movementInput=!MenuOpen&&!ShowRole&&Cursor.lockState==CursorLockMode.Locked;
+                var move=movementInput?new Vector2(Input.GetAxisRaw("Horizontal"),Input.GetAxisRaw("Vertical")):Vector2.zero;
+                Connection.Send(new Command{kind="input",x=move.x,z=move.y,crouch=movementInput&&(Input.GetKey(KeyCode.LeftControl)||Input.GetKey(KeyCode.RightControl)),yaw=yaw,pitch=pitch,poseVersion=Self?.poseVersion??-1});nextInput=Time.unscaledTime+.033f;
             }
             BeerTaps.HandlePourInput();
             if(Hosting)TickServer();
             UpdateCamera();SaloonSmokingArea.ApplyCamera(ViewCamera,externalCamera?SaloonSmokingArea.Contains(externalPosition):CameraPlayer?.room==3);
-            if(!MenuOpen&&!ShowRole&&Self?.alive==true&&PlayingBlackjack)BlackjackTable.HandlePointer();
-            if(!MenuOpen&&!ShowRole&&Self?.alive==true&&PlayingCoin)CoinTable.HandlePointer();
             UpdateInteractionHint();
         }
 
@@ -362,7 +363,7 @@ namespace Saloon
             TickEvidence();
             foreach(var p in players.Values)
             {
-                UpdatePlayerColliders(p);
+                UpdateCrouch(p);UpdatePlayerColliders(p);
                 if(!p.Alive)continue;
                 TickBeer(p);
                 if(p.bot&&!verifying)TickBotMovement(p);
@@ -376,6 +377,7 @@ namespace Saloon
                     p.busyUntil=0;p.busyAction="";
                     if(fire&&CanFinishDrawShot(p))Fire(p);
                 }
+                p.bodyYaw=SaloonCharacterMotion.FollowBody(p.bodyYaw,p.yaw,CanWalk(p)&&p.move.sqrMagnitude>.01f,Mathf.Min(Time.deltaTime,.05f));
                 if(p.seat<0)
                 {
                     if(Time.time-p.lastInput>.3f)p.move=Vector2.zero;
@@ -383,6 +385,7 @@ namespace Saloon
                     if(!p.controller.enabled)continue;
                     p.vertical=p.controller.isGrounded?-1:p.vertical-20*Time.deltaTime;
                     float speed=p.busyUntil>Time.time?tuning.walkSpeed*.35f:tuning.walkSpeed;
+                    if(p.crouched)speed*=SaloonMovement.CrouchSpeed;
                     if(!CanWalk(p))world=Vector3.zero;
                     p.controller.Move((world*speed+Vector3.up*p.vertical)*Mathf.Min(Time.deltaTime,.05f));
                     if(phase==Phase.Turns)
@@ -434,11 +437,12 @@ namespace Saloon
                 while(!gather&&players.Values.Any(dead=>!dead.Alive&&!ObserverReady(dead)&&!dead.gatherStation&&dead.room==p.room&&dead.seat==100+slots[p.room]))slots[p.room]++;
                 int slot=gather?homeSlot:slots[p.room]++;p.gatherStation=gather;p.beerStation=!gather&&p.room==0?slot:-1;
                 Vector3 position=SaloonStations.Position(gather,p.room,slot);float facing=SaloonStations.Facing(gather,p.room,slot);
+                p.crouched=p.crouchHeld=false;UpdateCrouch(p);
                 p.controller.enabled=false;p.body.transform.position=position;p.seat=!gather&&p.room==3?-1:100+slot;p.move=Vector2.zero;
                 p.notice=gather?"":(p.room==0&&p.chosenRoom!=0?SaloonStations.Name(p.chosenRoom)+" was full. Assigned to Bar.":"Assigned to "+SaloonStations.Name(p.room)+".");
                 p.botMoveWorld=Vector3.zero;p.botRoamAt=gather?0:Time.time+.2f+(p.id%5)*.12f;
                 p.botAimAt=-1;p.botThink=gather?0:Time.time+1.2f+(p.id%5)*.4f;
-                p.lastStance=-100;p.yaw=facing;p.pitch=0;p.poseVersion++;UpdatePlayerColliders(p);p.drawn=false;p.fireAfterDraw=false;p.busyAction="";p.busyUntil=0;
+                p.lastStance=-100;p.yaw=p.bodyYaw=facing;p.pitch=0;p.poseVersion++;UpdatePlayerColliders(p);p.drawn=false;p.fireAfterDraw=false;p.busyAction="";p.busyUntil=0;
                 if(p.seat<0)p.controller.enabled=true;
                 if(gather){p.chosenRoom=0;p.companion=null;}
             }
@@ -458,7 +462,12 @@ namespace Saloon
             if(p.busyUntil>Time.time)return p.busyAction=="pour"?"Pouring · E to stop near the fill line.":p.busyAction=="reload"?"Reloading — wait for the cylinder to finish.":p.busyAction=="drink"||p.busyAction=="giftDrink"?"Drinking — wait for the sip to finish.":"Finish your current action first.";
             if(rounds.HasSpent(p.id))return "Action spent. One action per round; you can still move and dodge.";
             if(Time.time>=rounds.Deadline)return "The action deadline has passed.";
-            if(!DuelAllows(p))return roomTurns.ContainsKey(p.room)?"Wait for your turn at this table.":duels.TryGetValue(p.room,out var duel)&&!duel.revealed?"Finish the room minigame before acting.":"Your opponent has the opening action. Wait for their shot or pass.";
+            if(!DuelAllows(p))
+            {
+                if(roomTurns.ContainsKey(p.room))return "Wait for your turn at this table.";
+                if(duels.TryGetValue(p.room,out var duel))
+                    return !duel.revealed?"Finish the room minigame before acting.":Time.time<duel.combatAt?"Get ready. You can stand and dodge before weapons unlock.":"Your opponent has the opening action. Wait for their shot or pass.";
+            }
             return "";
         }
         bool SpendAction(Participant p,float duration=0)
@@ -490,6 +499,7 @@ namespace Saloon
             if(cmd.kind=="input")
             {
                 if(!Finite(cmd.x)||!Finite(cmd.z)||!Finite(cmd.yaw)||!Finite(cmd.pitch)||cmd.poseVersion!=p.poseVersion)return;
+                p.crouchHeld=cmd.crouch;
                 p.move=CanWalk(p)?Vector2.ClampMagnitude(new Vector2(cmd.x,cmd.z),1):Vector2.zero;p.yaw=Mathf.Repeat(cmd.yaw,360);p.pitch=Mathf.Clamp(cmd.pitch,-75,75);p.lastInput=Time.time;return;
             }
             if(cmd.kind=="ready")
@@ -497,14 +507,24 @@ namespace Saloon
                 if(phase==Phase.Discussion&&p.Alive&&AcceptPlanCommand(p,cmd))TryReady(p,cmd.x>0);
                 return;
             }
-            if(cmd.kind=="room")
+            if(cmd.kind=="room"||cmd.kind=="planReady")
             {
                 if((phase!=Phase.Choosing&&phase!=Phase.Discussion)||!p.Alive||(phase==Phase.Choosing&&Time.time>=rounds.Deadline))return;
                 int room=(int)cmd.x;if(room<0||room>3||!AcceptPlanCommand(p,cmd))return;
                 ulong? companion=null;
                 if(!string.IsNullOrEmpty(cmd.name)&&ulong.TryParse(cmd.name,out var companionId)&&companionId!=p.id&&players.TryGetValue(companionId,out var other)&&other.Alive)companion=companionId;
-                SetRoomPlan(p,room,companion);p.notice="Choose Ready to reserve your seat.";return;
+                SetRoomPlan(p,room,companion);
+                if(Sandbox&&(!verifying||cmd.kind=="planReady"))PlanPracticeBots();
+                if(cmd.kind=="planReady")
+                {
+                    if(companion.HasValue&&players[companion.Value].bot&&(players[companion.Value].chosenRoom!=room||players[companion.Value].companion!=p.id))
+                        p.notice=players[companion.Value].name+" can't join right now. Choose someone else or go on your own.";
+                    else TryReady(p,true);
+                }
+                else p.notice="Choose Ready to reserve your seat.";
+                return;
             }
+            if(cmd.kind=="acceptInvite"||cmd.kind=="joinInvite"){AcceptRoomInvitation(p,cmd,cmd.kind=="joinInvite");return;}
             if(p.room==3&&SaloonPrivacy.Separated(phase))
             {if(cmd.kind=="smoke")TrySmoke(p);else p.notice="Left-click to smoke. No weapons or saloon actions outside.";return;}
             if(cmd.kind=="coin"){ClaimCoin(p,(int)cmd.x);return;}
@@ -555,7 +575,7 @@ namespace Saloon
             return string.IsNullOrWhiteSpace(cleaned)?"Stranger":cleaned;
         }
 
-        Vector3 Eye(Participant p)=>p.body.transform.position+Vector3.up*(p.seat>=0?1.35f:1.65f);
+        Vector3 Eye(Participant p)=>p.body.transform.position+Vector3.up*SaloonMovement.EyeHeight(p.seat>=0,p.crouched);
         Vector3 Forward(Participant p)=>Quaternion.Euler(p.pitch,p.yaw,0)*Vector3.forward;
         RaycastHit? Target(Participant p,float distance)
         {
@@ -699,7 +719,7 @@ namespace Saloon
             if(!players.TryGetValue(recipient,out var own))return null;
             return new Snapshot
             {
-                players=players.Values.Where(p=>SaloonPrivacy.ShareActivity(phase,own.room,p.room)).Select(p=>new PlayerView{id=p.id.ToString(),name=p.name,voiceId=p.voiceId,x=p.body.transform.position.x,y=p.body.transform.position.y,z=p.body.transform.position.z,yaw=p.yaw,pitch=p.pitch,alive=p.Alive,ready=rounds.IsReady(p.id),drawn=p.drawn,seated=p.seat>=0,sheriff=p.role==Role.Sheriff,busy=p.busyUntil>Time.time&&(p.busyAction!="rob"||own.id==p.id),shots=p.shots,reloads=p.reloads,reloading=p.busyAction=="reload"&&p.busyUntil>Time.time,reloadRemaining=Mathf.Max(0,p.busyUntil-Time.time),reloadDuration=tuning.reloadSeconds,health=p.hp,maxHealth=tuning.health,carriedBeer=p.beer,beerHealing=p.beerHealing,beerStation=p.beerStation,pouring=p.busyAction=="pour",pourFlow=p.pourFlow,pourElapsed=p.busyAction=="pour"?Mathf.Clamp(Time.time-p.pourStarted,0,SaloonBeerPour.MaxSeconds):0,drinking=(p.busyAction=="drink"||(p.busyAction=="giftDrink"&&Time.time>=p.drinkReady))&&p.busyUntil>Time.time,
+                players=players.Values.Where(p=>SaloonPrivacy.ShareActivity(phase,own.room,p.room)).Select(p=>new PlayerView{id=p.id.ToString(),name=p.name,voiceId=p.voiceId,x=p.body.transform.position.x,y=p.body.transform.position.y,z=p.body.transform.position.z,yaw=p.yaw,pitch=p.pitch,bodyYaw=p.bodyYaw,alive=p.Alive,ready=rounds.IsReady(p.id),drawn=p.drawn,seated=p.seat>=0,crouched=p.crouched,sheriff=p.role==Role.Sheriff,busy=p.busyUntil>Time.time&&(p.busyAction!="rob"||own.id==p.id),shots=p.shots,reloads=p.reloads,reloading=p.busyAction=="reload"&&p.busyUntil>Time.time,reloadRemaining=Mathf.Max(0,p.busyUntil-Time.time),reloadDuration=tuning.reloadSeconds,health=p.hp,maxHealth=tuning.health,carriedBeer=p.beer,beerHealing=p.beerHealing,beerStation=p.beerStation,pouring=p.busyAction=="pour",pourFlow=p.pourFlow,pourElapsed=p.busyAction=="pour"?Mathf.Clamp(Time.time-p.pourStarted,0,SaloonBeerPour.MaxSeconds):0,drinking=(p.busyAction=="drink"||(p.busyAction=="giftDrink"&&Time.time>=p.drinkReady))&&p.busyUntil>Time.time,
                     hits=p.hits,hitAge=p.hits>0?Mathf.Max(0,Time.time-p.hitAt):99,hitX=p.hitDirection.x,hitY=p.hitDirection.y,hitZ=p.hitDirection.z,
                     observer=ObserverReady(p),bot=p.bot,disconnected=p.disconnectedUntil>0,rematchVote=p.rematchVote,deathAge=!p.Alive&&p.deathAt>=0?Time.time-p.deathAt:0,deathX=p.deathDirection.x,deathY=p.deathDirection.y,deathZ=p.deathDirection.z,
                     drinkRemaining=(p.busyAction=="drink"||p.busyAction=="giftDrink")?Mathf.Max(0,p.busyUntil-Time.time):0,
@@ -710,6 +730,7 @@ namespace Saloon
                     moneyBag=own.id==p.id&&SaloonRules.CanRob(p.role)&&p.bag,escaping=own.id==p.id&&SaloonRules.CanRob(p.role)&&p.escapeRound>0,room=p.room,chosenRoom=own.id==p.id?p.chosenRoom:-1,companion=own.id==p.id?p.companion?.ToString()??"":"",poseVersion=p.poseVersion,planVersion=own.id==p.id?p.planVersion:0,
                     puffs=p.room==3&&SaloonPrivacy.Separated(phase)?p.puffs:0,smokeAge=p.room==3&&SaloonPrivacy.Separated(phase)&&p.puffs>0?Time.time-p.smokeAt:100,revealedRole=phase==Phase.Finished||own.role==Role.Renegade?p.role.ToString():""}).ToArray(),
                 knownRoles=own.role==Role.Renegade?players.Values.Select(p=>new KnownRole{id=p.id.ToString(),name=p.name,role=p.role.ToString()}).ToArray():Array.Empty<KnownRole>(),
+                invitations=InvitationsFor(own),
                 ownId=recipient.ToString(),rematchVotes=players.Values.Count(p=>!p.bot&&p.rematchVote),rematchRequired=HumanCount,ownRematchVote=own.rematchVote,
                 reconnectNotice=string.Join(" · ",players.Values.Where(p=>p.disconnectedUntil>0).Select(p=>p.name+" reconnecting ("+Mathf.CeilToInt(p.disconnectedUntil-Time.realtimeSinceStartup)+"s)")),
                 phase=phase,remaining=MatchActive&&phase!=Phase.Discussion?Mathf.Max(0,rounds.Deadline-Time.time):0,
@@ -776,21 +797,20 @@ namespace Saloon
             if(externalCamera){ViewCamera.transform.SetPositionAndRotation(externalPosition,externalRotation);return;}
             if(UpdateDeathCamera())return;
             var self=CameraPlayer;if(self==null)return;
-            var target=new Vector3(self.x,self.y+(self.seated?1.35f:1.65f),self.z);
+            var target=new Vector3(self.x,self.y+SaloonMovement.EyeHeight(self.seated,self.crouched),self.z);
             if(cameraCut||(ViewCamera.transform.position-target).sqrMagnitude>9)ViewCamera.transform.position=target;
             else ViewCamera.transform.position=Vector3.SmoothDamp(ViewCamera.transform.position,target,ref cameraVelocity,.045f);
             var rotation=Quaternion.Euler(IsSpectating?self.pitch:pitch,IsSpectating?self.yaw:yaw,0)*(IsSpectating?Quaternion.identity:CameraImpact());
             ViewCamera.transform.rotation=IsSpectating&&!cameraCut?Quaternion.Slerp(ViewCamera.transform.rotation,rotation,1-Mathf.Exp(-Time.deltaTime*20)):rotation;
             cameraCut=false;
-            ViewCamera.fieldOfView=Mathf.Lerp(ViewCamera.fieldOfView,!MenuOpen&&!IsSpectating&&View.phase!=Phase.Discussion&&Input.GetMouseButton(1)?60:78,Time.deltaTime*12);
+            ViewCamera.fieldOfView=78;
         }
 
         void UpdateInteractionHint()
         {
             InteractionHint="";if(Self==null||!Self.alive)return;
             if(OutsideForSmoke){InteractionHint="Left-click · Take a drag     V · Talk     WASD · Stroll";return;}
-            if(PlayingCoin){InteractionHint=CoinTable.PointerHint;return;}
-            if(PlayingBlackjack){InteractionHint=BlackjackTable.PointerHint;return;}
+            if(PlayingTableGame)return;
             if(AtBeerBar){InteractionHint=BeerTaps.HintForRay(new Ray(ViewCamera.transform.position,ViewCamera.transform.forward));return;}
             if(View.phase==Phase.Turns)
             {InteractionHint="";return;}

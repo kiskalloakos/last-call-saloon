@@ -49,7 +49,7 @@ namespace Saloon
                 foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);Broadcast();
             }
             Go(false);yield return null;
-            Check(host.room==3&&host.seat<0&&host.controller.enabled&&Vector3.Distance(host.body.transform.position,SaloonSmokingArea.Center)<2,"solo smoker is placed standing in the outdoor placeholder");
+            Check(host.room==3&&host.seat<0&&host.controller.enabled&&Vector3.Distance(host.body.transform.position,SaloonSmokingArea.Center)<2,"solo smoker is placed standing on the sunset deck");
             var outside=PrivateSnapshot(host.id);var inside=PrivateSnapshot(indoor.id);
             Check(outside.players.Length==1&&outside.players[0].id==host.id.ToString()&&outside.blackjackTable==null,"solo outside snapshot contains no indoor activities or table state");
             Check(inside.players.All(p=>p.id!=host.id.ToString()),"indoor clients receive no outdoor avatar or smoking updates");

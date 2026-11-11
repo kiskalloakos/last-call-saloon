@@ -49,7 +49,12 @@ namespace Saloon
                         await Until(()=>VivoxService.Instance.IsInjectingAudio,5,"Audio injection start");
                         Debug.Log("SALOON_VOICE_INJECTION started");
                         await Task.Delay(12000);
-                        VivoxService.Instance.StopAudioInjection();
+                        if(VivoxService.Instance.IsInjectingAudio)VivoxService.Instance.StopAudioInjection();
+                        string stopped=Arg(args,"-saloonStopFile");
+                        if(!string.IsNullOrEmpty(stopped))File.WriteAllText(stopped,"Audio injection stopped");
+                        // Keep the participant connected while the receiver checks silence,
+                        // so leaving the channel cannot hide a stuck speaking animation.
+                        await Task.Delay(1800);
                         Debug.Log("SALOON_VOICE_AUDIO PASS injected test speech");
                     }
                     else
@@ -62,7 +67,17 @@ namespace Saloon
                             return peak>.001;
                         },20,"Decoded remote voice audio");
                         Debug.Log("SALOON_VOICE_AUDIO PASS received energy="+peak.ToString("0.0000"));
-                        await Task.Delay(600);
+                        var speaker=VivoxService.Instance.ActiveChannels[Game.Voice.Channel].First(p=>!p.IsSelf);
+                        await Until(()=>Game.Voice.SpeechLevel(speaker.PlayerId)>.05f,10,"Fresh remote audio drives the mouth");
+                        string stopped=Arg(args,"-saloonStopFile");
+                        if(!string.IsNullOrEmpty(stopped))await Until(()=>File.Exists(stopped),20,"Sender stops injection");
+                        await Until(()=>speaker.AudioEnergy<=.00001,5,"Injected speech stops while participant stays connected");
+                        if(Game.Voice.SpeechLevel(speaker.PlayerId)!=0)throw new Exception("Silent remote audio left the mouth speaking.");
+                        await Task.Delay(100);
+                        var remote=Game.View.players.Single(p=>p.voiceId==speaker.PlayerId);
+                        var mouth=GameObject.Find("Avatar "+remote.name).GetComponentInChildren<SaloonSpeechMouth>(true);
+                        if(mouth.OpenAmount!=0||mouth.MouthVisible)throw new Exception("The rendered mouth remained open after live voice stopped.");
+                        Debug.Log("SALOON_VOICE_STOP PASS silent connected participant has zero mouth activity");
                     }
                 }
                 await Game.Voice.Leave();await Game.Connection.Disconnect();

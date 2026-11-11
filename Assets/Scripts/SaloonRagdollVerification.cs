@@ -26,19 +26,27 @@ namespace Saloon
                 host.chosenRoom=victim.chosenRoom=room;
                 others[0].chosenRoom=others[1].chosenRoom=room==0?1:0;others[2].chosenRoom=room==0?2:0;
                 rounds.Start(players.Keys,Time.time,0,120,6);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
-                var duel=duels[room];duel.claimed=duel.flipping=duel.revealed=true;duel.first=host.id;duel.result="HEADS";duel.firstUntil=Time.time+30;
+                if(duels.TryGetValue(room,out var duel))
+                {duel.claimed=duel.flipping=duel.revealed=true;duel.first=host.id;duel.result="HEADS";duel.firstUntil=Time.time+30;}
                 Broadcast();
             }
             void Shoot(Participant shooter,Participant target)
             {
-                duels[shooter.room].first=shooter.id;target.hp=20;shooter.drawn=true;shooter.nextShot=0;
+                if(duels.TryGetValue(shooter.room,out var duel))duel.first=shooter.id;
+                else
+                {
+                    var turn=roomTurns[shooter.room];turn.order=new[]{shooter.id}.Concat(turn.order.Where(id=>id!=shooter.id)).ToArray();turn.index=0;turn.until=Time.time+30;
+                }
+                target.hp=20;shooter.drawn=true;shooter.nextShot=0;
                 var direction=Eye(target)-Eye(shooter);shooter.yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;shooter.pitch=0;
                 Fire(shooter);Broadcast();
             }
             System.Collections.IEnumerator Capture(string name,Vector3 center,Vector3? offset=null)
             {
                 externalCamera=true;externalPosition=center+(offset??new Vector3(.5f,1.3f,-3));externalRotation=Quaternion.LookRotation(center-externalPosition);
-                yield return null;yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(directory,name+".png"));yield return null;
+                yield return null;
+                WindowPreview(externalPosition,center,ViewCamera.fieldOfView,name);
+                yield return null;
             }
             Window();yield return new WaitForSeconds(.2f);Shoot(host,victim);yield return new WaitForSeconds(.08f);
             var avatar=avatars[victim.id.ToString()];var rag=avatar.DeathBody;
@@ -53,17 +61,30 @@ namespace Saloon
             Check(rag.Center.y<.65f&&rag.Speed<1&&avatar.CorpseVisible&&!ObserverReady(victim),"body lands and rests before spectator mode");
             yield return Capture("death-02-on-floor",rag.Center);
             yield return new WaitForSeconds(1.1f);Broadcast();yield return null;
-            Check(ObserverReady(victim)&&!avatar.CorpseVisible&&rag.GetComponentsInChildren<Collider>(true).All(c=>!c.enabled),"body and its physics disappear on the shared observer transition");
-            yield return Capture("death-03-body-removed",rag.Center);
+            Check(ObserverReady(victim)&&avatar.CorpseVisible&&rag.Settled&&rag.GetComponentsInChildren<Collider>(true).All(c=>!c.enabled),"body remains on the ground after observer mode with resting physics and no blocking colliders");
+            var resting=rag.Center;Broadcast();yield return new WaitForSeconds(.2f);
+            Check(avatar.CorpseVisible&&Vector3.Distance(resting,rag.Center)<.01f,"later snapshots preserve the fallen pose");
+            yield return Capture("death-03-body-retained",rag.Center);
+            var corpseState=PrivateSnapshot(host.id).players.Single(p=>p.id==victim.id.ToString());
+            var lateAvatar=new GameObject("Late observer corpse probe").AddComponent<SaloonAvatar>();
+            lateAvatar.Initialize(this,corpseState,0);lateAvatar.Apply(corpseState,false);
+            Check(corpseState.observer&&lateAvatar.CorpseVisible&&lateAvatar.DeathBody!=null,"receiving an already-spectating player still creates their corpse");
+            Destroy(lateAvatar.gameObject);
 
             Window();yield return new WaitForSeconds(.2f);Shoot(victim,host);yield return new WaitForSeconds(.15f);
             Check(!Self.alive&&!IsSpectating&&!View.actionAvailable&&avatars[LocalId].CorpseVisible,"local death shows the body and locks actions before observer mode");
             Check(Vector3.Distance(ViewCamera.transform.position,Eye(host))>.7f,"death camera pulls out to follow the ragdoll");
-            yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(directory,"death-local-camera.png"));
+            WindowPreview(ViewCamera.transform.position,ViewCamera.transform.position+ViewCamera.transform.forward,ViewCamera.fieldOfView,"death-local-camera");
             yield return new WaitForSeconds(SaloonRagdoll.ObserverDelay+.1f);Broadcast();yield return null;
-            Check(IsSpectating&&CameraPlayer.alive&&!avatars[LocalId].CorpseVisible,"observer POV starts as the local body disappears");
+            Check(IsSpectating&&CameraPlayer.alive&&avatars[LocalId].CorpseVisible,"observer POV starts while the local body remains visible");
+            var localCorpse=avatars[LocalId].DeathBody;var corpsePosition=localCorpse.Center;
+            string previous=ViewpointId;CycleSpectator(1);Broadcast();yield return null;
+            Check(IsSpectating&&ViewpointId!=previous&&CameraPlayer.alive&&avatars[LocalId].CorpseVisible,"switching spectator targets keeps the corpse visible");
             var oldSeat=host.body.transform.position;foreach(var p in players.Values.Where(p=>p.Alive))p.chosenRoom=0;
-            PositionEveryone(false);Check(players.Values.Any(p=>p.Alive&&p.body.transform.position==oldSeat),"the vanished body no longer reserves a seat");
+            PositionEveryone(true);Broadcast();yield return null;
+            Check(avatars[LocalId].CorpseVisible&&Vector3.Distance(corpsePosition,localCorpse.Center)<.01f,"regrouping leaves the dead body in its original resting place");
+            PositionEveryone(false);Broadcast();yield return null;
+            Check(players.Values.Any(p=>p.Alive&&p.body.transform.position==oldSeat)&&avatars[LocalId].CorpseVisible,"the fallen body remains visible while its former seat can be reused");
             Window(1);yield return new WaitForSeconds(.2f);Shoot(host,victim);yield return new WaitForSeconds(2.4f);
             rag=avatars[victim.id.ToString()].DeathBody;
             Check(rag!=null&&rag.Center.y<.65f&&rag.Speed<1,"side-room ragdoll also lands on the floor after hitting the room wall");

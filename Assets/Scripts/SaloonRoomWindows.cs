@@ -16,7 +16,7 @@ namespace Saloon
     public static class SaloonRoomWindows
     {
         public const float FrontZ=-1.7f,Bottom=.08f,Top=2.85f,Width=3.8f,RoomHeight=4.1f;
-        const int LayoutVersion=2;
+        const int LayoutVersion=3;
         public static void Apply()
         {
             var world=GameObject.Find("Saloon World");if(world==null)return;
@@ -42,10 +42,9 @@ namespace Saloon
             var timber=SaloonWorld.Material("Window walnut frame",new Color(.24f,.135f,.075f),.25f);
             timber.mainTexture=Resources.Load<Texture2D>("Art/LowPoly/Textures/WoodPlanks");
             var brass=SaloonWorld.Material("Window brass trim",new Color(.59f,.42f,.19f),.6f);
-            var clear=SaloonWorld.Material("Glass · outside sees into room",new Color(.30f,.48f,.49f,.10f),.92f);
-            clear.SetFloat("_Mode",2);clear.SetInt("_SrcBlend",(int)BlendMode.SrcAlpha);clear.SetInt("_DstBlend",(int)BlendMode.OneMinusSrcAlpha);
-            clear.SetInt("_ZWrite",0);clear.EnableKeyword("_ALPHABLEND_ON");clear.DisableKeyword("_ALPHATEST_ON");clear.DisableKeyword("_ALPHAPREMULTIPLY_ON");
-            clear.SetOverrideTag("RenderType","Transparent");clear.renderQueue=(int)RenderQueue.Transparent;
+            var glassShader=Resources.Load<Shader>("Shaders/SaloonWindowGlass");
+            if(glassShader==null)throw new System.InvalidOperationException("Missing room window glass shader.");
+            var clear=new Material(glassShader){name="Glass · outside sees into room",color=new Color(.30f,.48f,.49f,.10f)};
             var privacy=SaloonWorld.Material("Glass · opaque from room interior",new Color(.10f,.17f,.18f),.94f);
             privacy.SetFloat("_Metallic",.65f);
             for(int room=1;room<=2;room++)

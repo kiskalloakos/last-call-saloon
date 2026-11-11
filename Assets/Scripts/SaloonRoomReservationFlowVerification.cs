@@ -10,6 +10,7 @@ namespace Saloon
         void VerifyRoomReservations()
         {
             void Check(bool ok,string text){if(!ok)throw new InvalidOperationException("Room reservation: "+text);Debug.Log("SALOON_RESERVATION_CHECK "+text);}
+            bool sandbox=Sandbox;Sandbox=false; // This fixture verifies human first-Ready priority.
             SaloonRoomReservationVerification.Run();
             var host=players[Connection.LocalId];var peers=players.Values.Where(p=>p.bot).Take(2).ToArray();
             foreach(var p in players.Values){p.hp=60;p.chosenRoom=0;p.companion=null;}
@@ -37,7 +38,7 @@ namespace Saloon
             OnCommand(peers[0].id,new Command{kind="ready",x=1});
             Check(rounds.IsReady(peers[0].id),"released seat is immediately available to another player");
             Check(SaloonStations.Name(1)=="Coin Flip"&&SaloonStations.Name(2)=="Blackjack","planner and assignment names describe their minigames");
-            Debug.Log("SALOON_RESERVATIONS PASS");
+            Sandbox=sandbox;Debug.Log("SALOON_RESERVATIONS PASS");
         }
 #endif
     }

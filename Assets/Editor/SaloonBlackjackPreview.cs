@@ -15,7 +15,7 @@ public static class SaloonBlackjackPreview
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before starting a new blackjack preview.");
         SaloonProject.OpenForEditing();SessionState.SetBool(Pending,true);EditorApplication.EnterPlaymode();
     }
-    [MenuItem("Saloon/Play have a smoke outside")]
+    [MenuItem("Saloon/Play Have a Smoke outside")]
     public static void Smoke()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode first.");

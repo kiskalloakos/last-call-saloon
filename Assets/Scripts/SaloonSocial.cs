@@ -35,10 +35,11 @@ namespace Saloon
     public partial class SaloonGame
     {
         const float CoinChoiceSeconds=3,CoinFlipSeconds=1.2f;
+        const float TableReactionSeconds=4,TableOpeningSeconds=10;
         class Duel
         {
             public ulong a,b,heads,first;
-            public float choiceUntil,revealAt,firstUntil;
+            public float choiceUntil,revealAt,firstUntil,combatAt;
             public float coinChoiceSeconds=CoinChoiceSeconds,coinFlipSeconds=CoinFlipSeconds;
             public bool claimed,flipping,revealed;
             public string result;
@@ -82,7 +83,7 @@ namespace Saloon
                 foreach(var p in pair)
                 {
                     var other=pair.First(x=>x.id!=p.id);var direction=other.body.transform.position-p.body.transform.position;
-                    p.yaw=Quaternion.LookRotation(direction).eulerAngles.y;p.pitch=0;p.poseVersion++;
+                    p.yaw=p.bodyYaw=Quaternion.LookRotation(direction).eulerAngles.y;p.pitch=0;p.poseVersion++;
                 }
                 var duel=new Duel{a=pair[0].id,b=pair[1].id,heads=pair[UnityEngine.Random.Range(0,2)].id,choiceUntil=Time.time+CoinChoiceSeconds};
                 duels[group.Key]=duel;
@@ -119,11 +120,12 @@ namespace Saloon
                 {
                     bool heads=UnityEngine.Random.Range(0,2)==0;duel.result=heads?"HEADS":"TAILS";
                     duel.first=heads?duel.heads:(duel.heads==duel.a?duel.b:duel.a);duel.revealed=true;
-                    duel.firstUntil=Time.time+Mathf.Min(6,tuning.turnSeconds*.4f);
+                    duel.combatAt=Time.time+TableReactionSeconds;
+                    duel.firstUntil=duel.combatAt+TableOpeningSeconds;
+                    rounds.EnsureDeadline(duel.firstUntil+Mathf.Max(10,tuning.turnSeconds)+1);
                     if(players[duel.a].room==1)
                     {
                         foreach(ulong id in new[]{duel.a,duel.b}){players[id].pitch=0;players[id].poseVersion++;players[id].lastAction=-100;}
-                        players[duel.first].notice="You won the coin toss. Q to draw, click to shoot, or Space to pass.";
                         Broadcast();
                     }
                 }
@@ -136,7 +138,7 @@ namespace Saloon
         {
             if(roomTurns.TryGetValue(p.room,out var turn))return turn.index<turn.order.Length&&turn.order[turn.index]==p.id;
             if(!duels.TryGetValue(p.room,out var duel))return true;
-            if(!duel.revealed)return false;
+            if(!duel.revealed||Time.time<duel.combatAt)return false;
             return p.id==duel.first||!players[duel.first].Alive||!rounds.CanAct(duel.first,Time.time);
         }
         void AdvanceRoomTurn(int room)
@@ -169,13 +171,13 @@ namespace Saloon
             if(d.blackjack!=null)return PrivateBlackjack(p,d,opening);
             return new DuelView{game="coin",coinAId=d.a.ToString(),coinBId=d.b.ToString(),headsId=d.heads.ToString(),coinRound=rounds.Round,coinDuration=d.coinFlipSeconds,
                 coinElapsed=d.revealed?d.coinFlipSeconds:d.flipping?Mathf.Clamp(d.coinFlipSeconds-(d.revealAt-Time.time),0,d.coinFlipSeconds):0,canChooseCoin=!d.flipping&&!d.claimed&&Time.time<d.choiceUntil,
-                stage=!d.flipping?"choosing":!d.revealed?"flipping":"playing",
+                stage=!d.flipping?"choosing":!d.revealed?"flipping":Time.time<d.combatAt?"result":"playing",
                 opponent=players[p.id==d.a?d.b:d.a].name,headsName=players[d.heads].name,
                 tailsName=players[d.heads==d.a?d.b:d.a].name,side=p.id==d.heads?"HEADS":"TAILS",result=d.result??"",
                 firstId=d.revealed?d.first.ToString():"",firstName=d.revealed?players[d.first].name:"",
                 yourTurn=d.revealed&&DuelAllows(p)&&rounds.CanAct(p.id,Time.time),
                 waitingForOpening=opening&&p.id!=d.first,
-                remaining=Mathf.Max(0,(!d.flipping?d.choiceUntil:!d.revealed?d.revealAt:opening?d.firstUntil:rounds.Deadline)-Time.time)};
+                remaining=Mathf.Max(0,(!d.flipping?d.choiceUntil:!d.revealed?d.revealAt:Time.time<d.combatAt?d.combatAt:opening?d.firstUntil:rounds.Deadline)-Time.time)};
         }
         DuelView PublicCoinTable()
         {

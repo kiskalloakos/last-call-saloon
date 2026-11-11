@@ -47,23 +47,21 @@ namespace Saloon
             // The synchronous flow checks replace many hands without a phase transition.
             // Start this visual fixture clean, as the real discussion/aftermath transition does.
             d.blackjack=Hand();BlackjackTable.ClearHand();Broadcast();MenuOpen=false;
-            yield return new WaitForSeconds(1.8f);Broadcast();yield return null;
+            yield return new WaitForSeconds(BlackjackDealSeconds+.2f);Broadcast();yield return null;
             Check(BlackjackTable.Visible&&BlackjackTable.CardCount==4&&BlackjackTable.HiddenCount==1,"four physical cards dealt with one hidden hole card (visible="+BlackjackTable.Visible+", cards="+BlackjackTable.CardCount+", hidden="+BlackjackTable.HiddenCount+")");
             Check(host.seat>=0&&peer.seat>=0&&Mathf.Abs(host.body.transform.position.x-peer.body.transform.position.x)>2,"players sit across a clear table");
             Check(Vector3.Dot(Forward(host),Forward(peer))<-.5f,"seated players face one another");
             bool InFrame(Vector3 point){var v=ViewCamera.WorldToViewportPoint(point);return v.z>0&&v.x>.01f&&v.x<.99f&&v.y>.01f&&v.y<.99f;}
             Check(InFrame(Eye(peer))&&InFrame(SaloonBlackjackTable.Center),"opponent and tabletop visible from seated camera");
-            void RayCheck(string action)
-            {
-                var target=BlackjackTable.GetComponentsInChildren<SaloonBlackjackTarget>().First(t=>t.action==action&&t.GetComponent<Collider>().enabled);
-                var position=target.GetComponent<Collider>().bounds.center;Physics.SyncTransforms();
-                Check(InFrame(position),action+" target fits the seated view");
-                var ray=new Ray(ViewCamera.transform.position,position-ViewCamera.transform.position);
-                Check(BlackjackTable.ActionForRay(ray)==action,action+" is selected by raycasting the actual table");
-            }
-            RayCheck("hit");RayCheck("stand");
+            Check(BlackjackTable.transform.Find("Blackjack cards").GetComponentsInChildren<TextMesh>().Length==0,"table has no hand totals, labels or instructions");
+            Check(BlackjackTable.transform.Find("Blackjack cards").GetComponentsInChildren<Collider>().All(c=>!c.enabled),"card controls are on screen rather than on the felt");
+            Check(PrivateDuel(host).canHit&&!PrivateDuel(peer).canHit,"Hit and Stand are available only to the player");
             CaptureBlackjack("player");
-            OnCommand(host.id,new Command{kind="blackjack",name="stand"});Broadcast();yield return new WaitForSeconds(.7f);
+            if(!Application.isBatchMode)
+            {
+                yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(Path.GetTempPath(),"SaloonBlackjack-screen.png"));yield return null;
+            }
+            OnCommand(host.id,new Command{kind="blackjack",name="stand"});Broadcast();yield return new WaitForSeconds(BlackjackInputSeconds+.1f);
             Check(BlackjackTable.HiddenCount==0,"dealer hole card flips face up after stand");
             d.nextInputAt=0;int before=d.blackjack.Dealer.Count;
             OnCommand(host.id,new Command{kind="blackjack",name="deal"});
@@ -72,7 +70,7 @@ namespace Saloon
             Check(d.blackjack.Dealer.Count==before+1,"dealer can deal the next physical card");
             d.dealer=host.id;DealBlackjack(d);d.blackjack=Hand();d.blackjack.Stand();d.readyAt=0;d.nextInputAt=0;d.nextCardAt=Time.time+30;
             Broadcast();yield return new WaitForSeconds(1.6f);Broadcast();yield return null;
-            RayCheck("deal");CaptureBlackjack("dealer");
+            CaptureBlackjack("dealer");
             Check(PrivateDuel(host).canDeal&&!PrivateDuel(peer).canDeal,"dealer controls are private to the correct seat");
             rounds.BeginAftermath(Time.time);phase=rounds.Phase;Broadcast();yield return null;
             Check(!BlackjackTable.Visible&&BlackjackTable.CardCount==0,"phase change clears cards and table input");

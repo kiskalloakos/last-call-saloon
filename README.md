@@ -2,21 +2,20 @@
 
 For role instructions, refer to [Your role, in simple words](#your-role-in-simple-words).
 
-Test release **0.2.12**, dated 2026-11-11, is available for Windows x64 and macOS (Intel and Apple Silicon).
-All players must use **0.2.12**.
+Test release **0.2.14**, dated 2026-11-11, is available for Windows x64 and macOS (Intel and Apple Silicon).
+All players must use **0.2.14**.
 
-1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.12/LastCall-Windows-0.2.12.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.12/LastCall-macOS-0.2.12.zip).
+1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.14/LastCall-Windows-0.2.14.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.14/LastCall-macOS-0.2.14.zip).
 2. Extract all files from the ZIP file.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
 
-Windows and Mac gameplay and five-player connection checks passed.
-The Windows room-flow/voice checks still time out during planning. See [release notes and validation](Documentation/RELEASE-0.2.12.md).
+See [release notes and validation](Documentation/RELEASE-0.2.14.md) for packaged-game checks.
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
 
-This release adds countertop beer pouring with a held tap and adjustable flow, normal mouse look during discussion with a P-key planner, percentage health, the cigarette damage buff, recorded audio, and rematch/reconnect improvements.
+This release adds independent head movement, synchronized speech animation, visible room windows, persistent bodies while spectating, a right-click discussion planner with invitations, cleaner HUDs, and slower blackjack and coin-flip pacing. It also includes crouching, updated weapon movement, and the sunset overlook.
 
 This release includes these features:
 
@@ -42,7 +41,7 @@ This test release includes planner corrections and more disconnect information.
 ## Four devices on LAN
 
 1. Connect all four computers to the same local network. Do not use guest Wi-Fi that isolates devices.
-2. Start **0.2.12 on every computer**.
+2. Start **0.2.14 on every computer**.
 3. Select **LOCAL / LAN** on each computer.
 4. On the host computer, select **NO BOTS**.
 5. Keep port **7777**.
@@ -72,8 +71,13 @@ The mug moves to the mouth during a drink.
 The transition between standing and sitting does not compress the character.
 Ragdoll deaths remain available.
 
-During voice communication, the mouth and lower face move with voice activity and volume.
-The mouth closes during silence, microphone mute, drinking or death.
+In 0.2.14, mouse look moves the head independently.
+Move the mouse up/down to nod yes, or left/right to shake no while standing or seated.
+The body stays facing forward for head turns within 65 degrees; it follows larger turns and walking.
+
+During voice communication, the mouth and lower face follow fresh voice energy.
+Zero energy, microphone mute, drinking or death closes the mouth immediately.
+Missing voice-energy updates expire after 0.3 seconds.
 This cartoon effect does not give accurate lip synchronization.
 
 The pack supplies the rigged model.
@@ -87,7 +91,7 @@ All living players must be ready.
 There is no discussion countdown or separate timer for room selection.
 A plan change clears that player's Ready status.
 
-Mouse look stays active during discussion. Press P to open or close the room planner; Space readies your plan.
+Mouse look stays active during discussion. Right-click to open or close the room planner; Space readies your plan.
 Practice players set their own Ready status.
 They use the bar and side rooms, change plans each round and accept invitations unless they carry the money.
 A headshot against an ally removes 20% health from the shooter and 20% health from the target.
@@ -282,6 +286,7 @@ The safe does not require another three work actions.
 | Button | Function |
 |---|---|
 | Hold **Tab** | Shows your private role and objective. |
+| **Hold Control** | Crouch while standing; either Control key works. Release to stand when there is room overhead. Crouching slows movement and lowers your camera and hitboxes. |
 | **F**, then **WASD** | F makes you stand. WASD moves you during room actions. F near an empty seat makes you sit. |
 | **Q**, then **left-click** | Q draws your gun. A left-click shoots at your aim point. A miss also uses your action. |
 | **R** | Reloads your drawn gun. Uses your action. |
@@ -291,7 +296,7 @@ The safe does not require another three work actions.
 | **Space** during Discuss & Plan | Sets or clears Ready. |
 | **Space** during your action turn | Passes and gives up your action for this round. |
 | Hold **V** | Sends your microphone audio. |
-| **P** during Discuss & Plan | Opens/closes the planner. Mouse look is active when it is closed. |
+| **Right-click** during Discuss & Plan | Opens/closes the planner. Mouse look is active when it is closed. |
 
 Everyone starts with **100% health**.
 An unbuffed **headshot** removes **20 percentage points** from the target. Five unbuffed headshots eliminate a player at 100%; a cigarette-buffed headshot removes 40 points.
@@ -301,7 +306,7 @@ The Sheriff and Deputy are allies. The two Outlaws are allies.
 At **0% health**, your body moves back, falls and rests on the floor.
 Your camera briefly follows the body.
 Then you watch other players.
-Your body disappears when spectator mode starts.
+Your body stays on the floor while you spectate the surviving players.
 
 ## Start testing in Unity
 
@@ -331,7 +336,7 @@ The default port is **7777**.
 For online play, create or join with a room code.
 
 All devices must use the same source or build version.
-Use **0.2.12** clients for this playtest.
+Use **0.2.14** clients for this playtest.
 The game rejects mixed versions with a message.
 The disconnect reason stays on the menu.
 It is not replaced silently.
@@ -342,7 +347,7 @@ It is not replaced silently.
 
 Two players sit opposite each other at a felt table in the **Coin Flip room**.
 
-1. Click **HEADS** or **TAILS** on your side of the table.
+1. Choose **HEADS** or **TAILS** in the center of the screen.
 2. Wait for the coin result.
 
 The first selection fixes both sides.
@@ -351,7 +356,7 @@ Both players see the same toss.
 If nobody makes a selection, the assigned sides start a toss after eight seconds.
 
 Hold the right mouse button to look around.
-The winner can immediately press **Q**, then click to shoot.
+After a four-second result pause, the winner can press **Q**, then click to shoot.
 The winner can also press **Space** to pass.
 Indoor spectators can see the coin through the glass but cannot use its controls.
 
@@ -365,10 +370,10 @@ The dealer's second card stays hidden until the player stands.
 
 For the player:
 
-1. Click **HIT** on the felt or click the deck to take a card.
+1. Choose **HIT** in the centered screen controls to take a card.
 2. Click **STAND** to keep your hand.
 
-For the dealer, click **DEAL** or the deck to take a card below 17.
+For the dealer, choose **DRAW CARD** in the screen controls to take a card below 17.
 The dealer automatically stands on every 17.
 Hold the right mouse button to look around.
 
@@ -376,11 +381,13 @@ Aces count as 1 or 11.
 Face cards count as 10.
 A blackjack with two cards beats an ordinary 21.
 A tie starts another hand with the same roles.
-After 20 seconds without a result, the player automatically stands.
-An idle dealer automatically takes a card after six seconds.
+No hand totals or calculated scores appear on the table or screen; read the cards yourself.
+The opening deal takes 3.2 seconds. Each card takes time to arrive before the next decision.
+You have 45 seconds for each player decision, renewed after each hit.
+An idle dealer automatically takes a card after eight seconds. A push stays visible for five seconds before a new hand.
 
-The winner can immediately press **Q**, then click to shoot, or press **Space** to pass.
-There is no pause before combat.
+The result remains visible for four seconds before combat unlocks. Both players can stand and dodge during this pause.
+The winner then has ten seconds to draw with **Q**, click to shoot, or press **Space** to pass.
 A quick Q and click stores the shot until the draw animation finishes.
 The opponent can act after the winner's action or the opening timeout.
 Blackjack does not use either player's combat action.
@@ -392,14 +399,14 @@ The Bar now has a beer-pouring minigame; pouring uses the round action.
 
 ### Private plans and room capacity
 
-Room and companion selections are private.
+Room and companion selections stay private to their owner. Inviting someone shares the requested room only with that person.
 Other players receive no destination or companion selection during planning.
-The planner shows fixed capacity and hides reservation counts.
+The planner shows fixed capacity and hides reservation counts. Incoming invitations are visible only to their intended recipient.
 A companion preference does not notify the selected person.
 Use voice communication to agree on a plan.
 
 Seats use **first ready, first served** reservations.
-Coin Flip, Blackjack and **have a smoke** each have two places.
+Coin Flip, Blackjack and **Have a Smoke** each have two places.
 
 1. Select a destination.
 2. Click **Ready** to reserve your place.
@@ -424,9 +431,11 @@ The Bar keeps its existing layout and rules.
 
 ### Smoking area
 
-**have a smoke** is a separate outdoor yard with two places.
+**Have a Smoke** is a separate sunset deck with two places.
 One player can visit alone.
-The yard uses temporary geometry for later design work.
+Players arrive side by side facing a low desert sun, layered sandstone mesas,
+cacti and an apricot-to-violet evening sky. Walking outside is silent for both
+players; wooden footsteps resume inside the saloon.
 
 - Click the left mouse button to smoke.
 - Hold **V** to talk.
@@ -450,7 +459,7 @@ Regroup restores the shared player list and indoor voice.
 
 ### Room tests
 
-Use **Saloon → Play have a smoke outside** to try the yard.
+Use **Saloon → Play Have a Smoke outside** to try the yard.
 **Saloon → Verify smoking area and private plans in Play mode** checks these functions:
 
 - Visits with one or two players.
@@ -564,10 +573,15 @@ Assignments stay fixed during actions.
 The HUD and pause-menu player list show the actual room.
 
 Room and companion selections stay visible beside the discussion view.
-Incoming invitations identify the player and requested room.
-Click an invitation to accept both.
+Incoming invitations identify the player and requested room, even when the planner is closed.
+Right-click to open the compact destination menu. Every invitation names the sender and destination.
+Choose Join to accept it and ready yourself in one click.
+To make your own plan, choose a destination, then Go with a practice player or Go on your own.
+These controls submit the destination and readiness together. Inviting a human sends a request for their reply.
+Only the invited player receives the request. Practice bots offer invitations of their own and yield seats
+when a human chooses a destination or practice partner. Existing human reservations keep priority.
 Room actions start when every living player confirms Ready.
-Mouse look stays active during discussion. Press P to open or close the room planner; Space readies your plan.
+Mouse look stays active during discussion. Right-click to open or close the room planner; Space readies your plan.
 
 The Bar always uses a normal turn queue, including with one or two players.
 It has no coin toss or minigame.
@@ -578,7 +592,7 @@ Beer, combat and safe actions stay available.
 Only the Coin Flip room starts with random opposite Heads/Tails assignments.
 Both players can select a side.
 The **first selection fixes both sides** and gives the opponent the opposite side.
-The table controls allow eight seconds for a selection.
+The centered screen controls allow eight seconds for a selection; the table stays clear around the coin.
 The physical toss takes 2.2 seconds.
 The host selects the random result when the toss finishes.
 
@@ -593,8 +607,7 @@ Alternatively, start another permitted action or pass.
 The opponent can act after the winner uses their action.
 Both players keep the limit of one action each.
 
-If the winner does nothing, the opening automatically passes after six seconds.
-Short action windows reduce this timeout.
+After the four-second result pause, the winner has ten seconds to act; otherwise the opening passes.
 An eliminated winner cannot block the survivor.
 The coin determines action order. It does not require a gunfight.
 The shared action deadline includes the longest coin setup window and waits for timed actions that have already started.
@@ -602,14 +615,13 @@ The shared action deadline includes the longest coin setup window and waits for 
 ### Larger rooms: ordered turns
 
 The bar uses a new random turn queue each round, including with one or two living players.
-The HUD shows the active player, their timer and the room order.
+The host maintains the turn queue and timers. The top-right turn/action panel has been removed in the current source and local 0.2.13 test builds.
 Each player can start one major action or pass.
 Then the next player's turn starts.
 Gun drawing and major actions are unavailable outside your turn, including for the Sheriff and practice bots.
 
 All players can look, talk and walk while they wait. Pouring starts only on your turn.
-After an action, the display shows “Action spent”.
-It does not offer another turn.
+An action spends that player’s turn; it does not grant another turn.
 
 The action-window duration divided by the number of occupants gives the turn duration, with a ten-second minimum.
 Each waiting player receives a full turn window when their turn starts, even after a late host frame.
@@ -673,9 +685,9 @@ An eliminated player cannot move, act, revive or return during the match.
 Eliminated players use a separate voice channel.
 A new match resets everyone.
 
-Ragdolls land and rest briefly on the floor.
-At approximately 3.2 seconds after death, the host changes the player to observer mode.
-The body, name label and body physics then disappear.
+Ragdolls land and stay on the floor until the match resets.
+At approximately 3.2 seconds after death, the player starts spectating the survivors.
+The body remains visible; its name label hides and its settled physics no longer block movement.
 The dying player's camera follows the body until that change.
 Later room assignments can use the empty seat.
 Surviving players keep their usual common-table places.
@@ -836,8 +848,10 @@ Their difficulty is not balanced for normal play.
 
 | Input | Function |
 |---|---|
+| Hold Control | Crouch; release to stand when there is room overhead. |
 | F / WASD | Stand or sit near an empty seat / walk and dodge inside your room during actions. |
-| Mouse / right mouse | Look / reduce the aiming field of view. |
+| Mouse | Look / aim. |
+| Right-click during discussion | Open or close the room planner. |
 | Q / left click / R | Draw or holster / shoot / reload. |
 | E / B / G | Pour or stop at the bar / drink poured beer / offer it to the player at your aim point. |
 | H / X (Outlaw only) | Work on the safe or collect money / declare escape. |

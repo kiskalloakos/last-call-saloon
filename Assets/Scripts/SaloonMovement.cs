@@ -6,6 +6,8 @@ namespace Saloon
     public static class SaloonMovement
     {
         public const int SolidLayer=10;
+        public const float StandingHeight=1.8f,CrouchingHeight=1.17f,CrouchDrop=.63f,CrouchSpeed=.45f;
+        public static float EyeHeight(bool seated,bool crouched)=>seated?1.35f:crouched?1.02f:1.65f;
         public static Vector3 ClampToRoom(Vector3 p,int room)
         {
             if(room==3)return SaloonSmokingArea.Clamp(p);
@@ -75,9 +77,34 @@ namespace Saloon
             return !hits.Any(hit=>hit.collider.GetComponentInParent<SaloonBody>()?.id!=p.id);
         }
 
+        void UpdateCrouch(Participant p)
+        {
+            bool requested=p.crouchHeld&&Time.time-p.lastInput<=.3f&&CanWalk(p);
+            if(p.seat>=0||!p.Alive)p.crouched=false;
+            else if(requested)p.crouched=true;
+            else if(p.crouched&&CanStandUpright(p))p.crouched=false;
+            float height=p.crouched?SaloonMovement.CrouchingHeight:SaloonMovement.StandingHeight;
+            if(!Mathf.Approximately(p.controller.height,height))
+            {
+                // Keep the feet in place when changing capsule height.
+                p.controller.height=height;p.controller.center=Vector3.up*(height*.5f);
+            }
+        }
+
+        bool CanStandUpright(Participant p)
+        {
+            Physics.SyncTransforms();
+            float radius=p.controller.radius-p.controller.skinWidth;
+            var position=p.body.transform.position;
+            var overlaps=Physics.OverlapCapsule(position+Vector3.up*(radius+.04f),
+                position+Vector3.up*(SaloonMovement.StandingHeight-radius),radius,
+                ~((1<<8)|(1<<SaloonRagdoll.Layer)),QueryTriggerInteraction.Ignore);
+            return !overlaps.Any(c=>c.GetComponentInParent<SaloonBody>()?.id!=p.id);
+        }
+
         void UpdatePlayerColliders(Participant p)
         {
-            float headHeight=(p.seat>=0?1.35f:1.65f)-.04f;
+            float headHeight=SaloonMovement.EyeHeight(p.seat>=0,p.crouched)-.04f;
             p.head.center=Vector3.up*headHeight;p.head.radius=.13f;p.head.enabled=p.Alive;
             float bodyHeight=headHeight-.135f;
             p.hitbox.height=bodyHeight;p.hitbox.center=Vector3.up*(bodyHeight*.5f);p.hitbox.enabled=p.Alive;
@@ -99,7 +126,8 @@ namespace Saloon
             }
             if(nearest==null){p.notice="Move closer to an empty chair or stool, then press F to sit.";return;}
             p.controller.enabled=false;p.body.transform.position=nearest.transform.position+Vector3.up*(nearest.gameObject.name=="stoolBar"?.35f:.08f);
-            p.seat=1000+nearest.index;p.yaw=nearest.sitYaw;p.pitch=0;p.poseVersion++;p.move=Vector2.zero;p.vertical=0;
+            p.crouched=p.crouchHeld=false;UpdateCrouch(p);
+            p.seat=1000+nearest.index;p.yaw=p.bodyYaw=nearest.sitYaw;p.pitch=0;p.poseVersion++;p.move=Vector2.zero;p.vertical=0;
             p.notice="";UpdatePlayerColliders(p);
         }
     }

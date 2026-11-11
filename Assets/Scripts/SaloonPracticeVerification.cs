@@ -25,7 +25,7 @@ namespace Saloon
             OnCommand(host.id,new Command{kind="room",x=2,name=peer.id.ToString()});TickPracticeBots();
             Check(peer.chosenRoom==2&&peer.companion==host.id,"bot accepts a human invitation instead of its default plan");
             OnCommand(host.id,new Command{kind="room",x=0});TickPracticeBots();
-            Check(peer.chosenRoom==initial[0]&&!peer.companion.HasValue,"withdrawn invitation restores varied plan");
+            Check(peer.chosenRoom==initial[0]&&peer.companion==host.id,"withdrawing a human request restores the bot's own invitation");
             peer.bag=true;OnCommand(host.id,new Command{kind="room",x=2,name=peer.id.ToString()});TickPracticeBots();
             Check(peer.chosenRoom==0&&!peer.companion.HasValue,"money carrier keeps the bar objective");peer.bag=false;
             OnCommand(host.id,new Command{kind="room",x=0});OnCommand(host.id,new Command{kind="ready",x=1});TickServer();

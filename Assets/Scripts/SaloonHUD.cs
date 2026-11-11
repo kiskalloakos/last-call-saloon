@@ -17,15 +17,11 @@ namespace Saloon
         float disconnectCopiedUntil,noticeAt;
         string lastNotice="";
         Vector2 evidenceScroll;
-        Texture2D coinTexture;
 
         void Styles()
         {
             if(title!=null)return;
             BuildTheme();
-            coinTexture=new Texture2D(32,32,TextureFormat.RGBA32,false);
-            for(int y=0;y<32;y++)for(int x=0;x<32;x++)coinTexture.SetPixel(x,y,new Color(1,1,1,Mathf.Clamp01(16-Vector2.Distance(new Vector2(x+.5f,y+.5f),new Vector2(16,16)))));
-            coinTexture.Apply();
         }
 
         void OnGUI()
@@ -130,12 +126,12 @@ namespace Saloon
             {
                 Graphic(new Rect(31,24,43,43),badgeIcon,new Color(.97f,.75f,.34f));
                 Text(84,23,250,20,sheriff.alive?"THE SHERIFF":"SHERIFF · ELIMINATED",subtitle);
-                Text(84,45,250,26,sheriff.name+(sheriff.id==Game.LocalId?"  /  YOU":""),body);
+                Text(84,45,250,24,sheriff.name+(sheriff.id==Game.LocalId?"  /  YOU":""),new GUIStyle(body){fontSize=15,wordWrap=false});
             }
             string phaseLabel=view.phase==Phase.Lobby?"LOBBY":view.phase==Phase.Discussion?"DISCUSSION":view.phase==Phase.Turns?"ROOM ACTIONS":view.phase==Phase.Regroup?"REGROUP":view.phase==Phase.Aftermath?"AFTERMATH":view.phase==Phase.Finished?"MATCH FINISHED":"CHOOSE ROOMS";
             Text(430,22,420,22,"ROUND "+view.round+"  /  "+phaseLabel,new GUIStyle(title){fontSize=16,alignment=TextAnchor.MiddleCenter});
             string status=view.phase==Phase.Discussion?view.players.Count(p=>p.alive&&p.ready)+" / "+view.players.Count(p=>p.alive)+" ready":view.phase==Phase.Lobby?view.players.Length+" players":(view.phase==Phase.Turns?(view.actionsRemaining==1?"1 player has an action left":view.actionsRemaining+" players have actions left")+" · ":"")+TimeSpan.FromSeconds(view.remaining).ToString(@"mm\:ss");
-            Text(430,47,420,22,status,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
+            if(view.duel==null)Text(430,47,420,22,status,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
             if(view.posseStage>0&&view.phase!=Phase.Finished)
             {
                 Fill(new Rect(520,78,240,2),new Color(.97f,.65f,.33f,.7f));
@@ -143,13 +139,14 @@ namespace Saloon
                 Text(402,82,476,22,pressure,new GUIStyle(subtitle){alignment=TextAnchor.MiddleCenter,normal={textColor=new Color(1,.72f,.38f)}});
                 Text(402,107,476,31,SaloonPosse.Dialogue(view.posseStage),new GUIStyle(small){fontSize=12,alignment=TextAnchor.MiddleCenter});
             }
-            if(view.phase==Phase.Turns)
+            if(view.phase==Phase.Turns&&view.duel==null)
             {
                 string why=view.actionsRemaining==0&&view.actionsInProgress>0?"Finishing "+view.actionsInProgress+" timed action(s)…":view.actionBlockReason;
                 if(!string.IsNullOrEmpty(why)){Text(407,155,466,36,why,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});}
             }
             if(view.phase==Phase.Discussion&&!Game.MenuOpen&&!Game.ShowRole)
-                Text(430,82,420,26,Game.RoomPlannerOpen?"P · Close planner and look around":"P · Plan your room    Space · Ready",new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
+                Text(430,82,420,26,Game.RoomPlannerOpen?"Right-click · Close planner and look around":"Right-click · Plan your room    Space · Ready",new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
+            IncomingInvitationNotice();
             Vitals();
             if(!Game.MenuOpen&&Game.Self!=null&&Game.Self.alive)
             {
@@ -164,13 +161,12 @@ namespace Saloon
             }
             string notice=Game.Connection.WaitingForSnapshot?"Connection delayed — waiting for host ("+Game.Connection.SnapshotAge.ToString("0")+"s)":Game.Self?.alive==false&&!Game.Self.observer?"ELIMINATED · Entering spectator mode shortly":Game.IsSpectating?"":view.phase==Phase.Aftermath?"":view.busyRemaining>0?$"{view.busyRemaining:0.0}s":view.notice;
             if(notice!=lastNotice){lastNotice=notice;noticeAt=Time.unscaledTime;}
-            if(!string.IsNullOrEmpty(notice)&&(Time.unscaledTime-noticeAt<4||Game.Connection.WaitingForSnapshot||view.busyRemaining>0||Game.Self?.alive==false)){Text(404,580,472,32,notice,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});}
+            if(!Game.PlayingTableGame&&!string.IsNullOrEmpty(notice)&&(Time.unscaledTime-noticeAt<4||Game.Connection.WaitingForSnapshot||view.busyRemaining>0||Game.Self?.alive==false)){Text(404,580,472,32,notice,new GUIStyle(small){alignment=TextAnchor.MiddleCenter});}
             if(!Game.MenuOpen&&!Game.ShowRole&&Game.Self?.alive==true)
             {
-                if(view.phase==Phase.Choosing||(view.phase==Phase.Discussion&&Game.RoomPlannerOpen)){Panel(new Rect(984,80,280,524),new Color(.055f,.049f,.042f,.94f));Paper(RoomChoices);}
-                if(view.phase==Phase.Turns&&view.duel!=null){Panel(new Rect(984,80,280,112),new Color(.055f,.049f,.042f,.92f));Paper(DuelCard);}
-                if(view.phase==Phase.Turns&&view.roomTurn!=null){Panel(new Rect(984,80,280,112),new Color(.055f,.049f,.042f,.92f));Paper(RoomTurnCard);}
+                if(view.phase==Phase.Choosing||(view.phase==Phase.Discussion&&Game.RoomPlannerOpen))Paper(RoomChoices);
             }
+            MinigameControls();
             if(Game.IsSpectating&&!Game.MenuOpen)
             {
 
@@ -205,8 +201,7 @@ namespace Saloon
             var red=new Color(.95f,.30f,.23f);var healthy=new Color(.70f,.83f,.49f);
             var healthColor=hp<=SaloonHealth.RevolverDamage?red:hp<=2*SaloonHealth.RevolverDamage?new Color(1,.71f,.30f):healthy;
             string role=Game.IsSpectating?Game.CameraPlayer.name:(view.ownRole??"Stranger");
-            Text(40,590,330,38,role.ToUpperInvariant(),new GUIStyle(title){fontSize=24});
-            Text(40,628,140,20,Game.IsSpectating?"SPECTATING":"HEALTH",subtitle);
+            Text(40,615,170,35,role.ToUpperInvariant(),new GUIStyle(title){fontSize=22,alignment=TextAnchor.MiddleLeft});
             Text(210,615,100,35,SaloonHealth.Percentage(hp),new GUIStyle(title){fontSize=30,alignment=TextAnchor.MiddleRight});
             const float gap=5,width=(270-gap*(SaloonHealth.Segments-1))/SaloonHealth.Segments;
             for(int i=0;i<SaloonHealth.Segments;i++)
@@ -226,9 +221,13 @@ namespace Saloon
             else if(!Game.IsSpectating)
             {
                 int capacity=Game.tuning.cylinder;
-                Text(1030,587,210,24,"REVOLVER",new GUIStyle(subtitle){alignment=TextAnchor.MiddleRight});
-                for(int i=0;i<capacity;i++)Graphic(new Rect(1050+i*24,618,23,43),cartridgeIcon,i<view.ammo?new Color(.98f,.76f,.37f):new Color(.96f,.88f,.72f,.24f));
-                Text(1194,614,58,42,view.ammo.ToString(),new GUIStyle(title){fontSize=31,alignment=TextAnchor.MiddleRight});
+                float start=1240-((capacity-1)*24+23);
+                for(int i=0;i<capacity;i++)
+                {
+                    bool loaded=i<view.ammo;
+                    Graphic(new Rect(start+i*24,618,23,43),loaded?cartridgeIcon:emptyCartridgeIcon,
+                        loaded?new Color(.98f,.76f,.37f):new Color(.96f,.88f,.72f,.65f));
+                }
                 if(view.carriedBeer>0)Text(1010,665,240,20,"BEER +"+view.beerHealing+"%  /  B drink · G offer",new GUIStyle(small){alignment=TextAnchor.MiddleRight});
             }
         }
@@ -267,67 +266,7 @@ namespace Saloon
             Text(250,514,780,22,"HOW YOU WIN",subtitle);
             Text(250,538,780,43,guide.Win,help);
             Text(250,590,780,36,guide.Warning,new GUIStyle(help){normal={textColor=gold}});
-            Text(250,637,780,22,"Headshots only. F stand / sit, WASD dodge in your room. One action per round. Release Tab to close.",small);
-        }
-
-        void RoomChoices()
-        {
-            Game.RoomChooserRenderFrames++;var self=Game.Self;
-            const float x=1000,w=254;
-            Text(x,92,w,22,"YOUR PLAN",subtitle);
-            Text(x,120,w,20,"Your room and partner are private",small);
-            for(int room=0;room<4;room++)
-            {
-                int capacity=Game.View.roomCapacities?[room]??(room==0?5:2);
-                string seats=room==0?"Shared":capacity+" places";
-                float ry=148+room*37;
-                if(Button(x,ry,126,31,SaloonStations.Name(room),Game.PlannedRoom==room))Game.ChooseRoom(room,Game.PlannedCompanion);
-                Text(x+134,ry+5,120,22,seats,small);
-            }
-            Text(x,303,w,20,"Partner preference · private",small);
-            if(Button(x,327,w,26,"Go alone",string.IsNullOrEmpty(Game.PlannedCompanion)))Game.ChooseRoom(Game.PlannedRoom,"");
-            int row=0;
-            foreach(var player in Game.View.players.Where(p=>p.id!=self.id&&p.alive))
-            {
-                if(Button(x,359+row++*31,w,27,player.name+" · "+SaloonHealth.Percentage(player.health),Game.PlannedCompanion==player.id))Game.ChooseRoom(Game.PlannedRoom,player.id);
-            }
-            float y=367+row*31;
-            bool full=!Game.PlanPending&&Game.PlannedRoom==self.chosenRoom&&Game.View.plannedRoomFull;
-            bool enabled=GUI.enabled;GUI.enabled=enabled&&(Game.PlanReady||!full);
-            if(Button(x,y,w,34,Game.PlanReady?"Seat reserved · click to release":full?"Room full":"Ready · reserve seat",Game.PlanReady)){Game.ToggleReady();Game.RoomPlannerOpen=false;}
-            GUI.enabled=enabled;
-            Text(x,y+40,w,45,Game.PlanPending?"Saving…":full&&!Game.PlanReady?"Choose another room, or wait for a seat.":Game.PlanReady?"Your seat is reserved. Waiting for everyone.":"Everyone must be ready.",small);
-        }
-
-        void DuelCard()
-        {
-            var duel=Game.View.duel;const float x=1000;
-            if(duel.game=="blackjack"||(duel.game=="coin"&&Game.Self?.room==1))
-            {
-                if(duel.stage=="playing")Text(x,92,254,65,duel.waitingForOpening?duel.firstName+" opens · "+duel.remaining.ToString("0")+"s":duel.yourTurn?"Your move · Q draw · Space pass":"Action spent",small);
-                return;
-            }
-            bool choosing=duel.stage=="choosing",flipping=duel.stage=="flipping";
-            Text(x,92,254,22,choosing?"CHOOSE YOUR SIDE":flipping?"COIN TOSS":duel.firstName+" opens",subtitle);
-            if(choosing)
-            {
-                Text(x,119,254,22,"Against "+duel.opponent+" · "+duel.remaining.ToString("0")+"s",small);
-                if(Button(x,150,122,29,"Heads",duel.side=="HEADS"))Game.ChooseCoin(0);
-                if(Button(x+132,150,122,29,"Tails",duel.side=="TAILS"))Game.ChooseCoin(1);
-            }
-            else if(flipping)
-            {
-                float width=4+Mathf.Abs(Mathf.Cos(Time.unscaledTime*24))*20;var previous=GUI.color;GUI.color=gold;
-                GUI.DrawTexture(new Rect(x+127-width/2,124,width,24),coinTexture);GUI.color=previous;
-            }
-            else Text(x,119,254,50,duel.waitingForOpening?"Waiting for opening · "+duel.remaining.ToString("0")+"s":duel.yourTurn?"Your move · Q draw · Space pass":"Action spent",small);
-        }
-
-        void RoomTurnCard()
-        {
-            var turn=Game.View.roomTurn;
-            Text(1000,92,254,22,string.IsNullOrEmpty(turn.currentId)?"ROOM COMPLETE":turn.yourTurn?"YOUR TURN":turn.currentName,subtitle);
-            Text(1000,118,254,35,string.IsNullOrEmpty(turn.currentId)?"":turn.yourTurn?"Act or press Space to pass · "+turn.remaining.ToString("0")+"s":"Waiting · "+turn.remaining.ToString("0")+"s",small);
+            Text(250,637,780,22,"Headshots only. F stand / sit, WASD dodge, hold Ctrl crouch. One action per round. Release Tab to close.",small);
         }
 
         void Pause()
@@ -373,7 +312,7 @@ namespace Saloon
             {
                 Text(0,y,650,52,Game.View.botsEnabled?$"Bots enabled · fill to {Game.View.botMatchSize} players. The host starts the match.":"No bots · 4 or 5 human players required. The host starts the match.",small);y+=62;
             }
-            Text(0,y,650,100,"Mouse  Look / aim  ·  Q  Draw / holster  ·  P  Open / close discussion planner\nWASD  Move in your room  ·  F  Stand / sit  ·  Click  Headshots only\nR  Reload  ·  E  Pour / stop  ·  B  Drink  ·  G  Give beer  ·  H  Safe  ·  X  Escape  ·  C  Inspect\nSpace  Ready / pass  ·  ← / →  Spectate  ·  Hold V  Talk  ·  M  Mute  ·  Hold Tab  Role",small);y+=110;
+            Text(0,y,650,100,"Mouse  Look / aim  ·  Q  Draw / holster  ·  Right-click  Discussion planner\nWASD  Move  ·  Hold Ctrl  Crouch  ·  F  Stand / sit  ·  Click  Headshots only\nR  Reload  ·  E  Pour / stop  ·  B  Drink  ·  G  Give beer  ·  H  Safe  ·  X  Escape  ·  C  Inspect\nSpace  Ready / pass  ·  ← / →  Spectate  ·  Hold V  Talk  ·  M  Mute  ·  Hold Tab  Role",small);y+=110;
             Text(0,y,650,28,"VOICE",subtitle);y+=31;
             GUI.enabled=!Game.Voice.Busy;
             if(Button(0,y,310,38,Game.Voice.Connected?"VOICE CONNECTED":"CONNECT VOICE"))Game.Voice.Connect();

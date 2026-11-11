@@ -8,10 +8,10 @@ namespace Saloon
         readonly Color paper=new Color(.91f,.85f,.72f,.97f),rule=new Color(.47f,.36f,.23f,.45f);
         readonly List<Texture2D> uiTextures=new List<Texture2D>();
         GUISkin flatSkin;
-        GUIStyle selectedButton,disabledButton;
+        GUIStyle selectedButton,disabledButton,plannerButton,plannerPrimary;
         Font headingFont,bodyFont;
         bool worldHud;
-        Texture2D badgeIcon,cartridgeIcon;
+        Texture2D badgeIcon,cartridgeIcon,emptyCartridgeIcon;
 
         Texture2D Swatch(Color color)
         {
@@ -48,7 +48,7 @@ namespace Saloon
             bodyFont=Resources.Load<Font>("Fonts/BarlowSemiCondensed-Medium");
             if(headingFont==null||bodyFont==null)throw new System.InvalidOperationException("Bundled HUD fonts are missing.");
             flatSkin.font=bodyFont;
-            badgeIcon=Icon(true);cartridgeIcon=Icon(false);
+            badgeIcon=Icon(true);cartridgeIcon=Icon(false);emptyCartridgeIcon=Icon(false,true);
             title=new GUIStyle(GUI.skin.label){font=headingFont,fontSize=42,fontStyle=FontStyle.Normal,normal={textColor=ink}};
             body=new GUIStyle(GUI.skin.label){font=bodyFont,fontSize=17,wordWrap=true,normal={textColor=ink}};
             subtitle=new GUIStyle(body){fontSize=13,fontStyle=FontStyle.Normal,normal={textColor=gold}};
@@ -58,6 +58,10 @@ namespace Saloon
             FlatStates(button,blank,hover,hover,ink);
             selectedButton=new GUIStyle(button);FlatStates(selectedButton,accent,accentHover,accentHover,new Color(1,.94f,.8f));
             disabledButton=new GUIStyle(button);FlatStates(disabledButton,Swatch(paper),Swatch(paper),Swatch(paper),muted);
+            var night=Swatch(new Color(.105f,.12f,.115f,.98f));var nightHover=Swatch(new Color(.18f,.20f,.18f,.98f));
+            var amber=Swatch(new Color(.78f,.55f,.29f));var amberHover=Swatch(new Color(.91f,.69f,.40f));
+            plannerButton=new GUIStyle(button);FlatStates(plannerButton,night,nightHover,nightHover,new Color(.94f,.90f,.80f));
+            plannerPrimary=new GUIStyle(button);FlatStates(plannerPrimary,amber,amberHover,amberHover,new Color(.12f,.10f,.07f));
             field=new GUIStyle(GUI.skin.textField){font=bodyFont,fontSize=18,padding=new RectOffset(12,12,8,8)};
             FlatStates(field,blank,blank,hover,ink);
             flatSkin.settings.cursorColor=gold;flatSkin.settings.selectionColor=new Color(.44f,.34f,.18f);
@@ -69,7 +73,10 @@ namespace Saloon
             {style.fixedHeight=style.fixedWidth=0;FlatStates(style,line,line,line,ink);}
             flatSkin.scrollView=new GUIStyle();
         }
-        Texture2D Icon(bool badge)
+        static bool CartridgeShape(float u,float v)
+            =>(u>.33f&&u<.67f&&v>.14f&&v<.70f)||(new Vector2((u-.5f)*2,v-.70f).magnitude<.17f&&v>=.70f)||(u>.29f&&u<.71f&&v>.07f&&v<.12f);
+
+        Texture2D Icon(bool badge,bool outline=false)
         {
             const int size=96;var texture=new Texture2D(size,size,TextureFormat.RGBA32,false){hideFlags=HideFlags.HideAndDontSave};
             for(int y=0;y<size;y++)for(int x=0;x<size;x++)
@@ -81,7 +88,12 @@ namespace Saloon
                     solid=r<.29f+.16f*Mathf.Cos(6*angle);
                     if(r>.10f&&r<.13f)solid=false;
                 }
-                else solid=(u>.33f&&u<.67f&&v>.14f&&v<.70f)||(new Vector2((u-.5f)*2,v-.70f).magnitude<.17f&&v>=.70f)||(u>.29f&&u<.71f&&v>.07f&&v<.12f);
+                else
+                {
+                    solid=CartridgeShape(u,v);
+                    const float inset=3f/size;
+                    if(outline)solid&=!(CartridgeShape(u-inset,v)&&CartridgeShape(u+inset,v)&&CartridgeShape(u,v-inset)&&CartridgeShape(u,v+inset));
+                }
                 texture.SetPixel(x,y,solid?Color.white:Color.clear);
             }
             texture.Apply();uiTextures.Add(texture);return texture;
@@ -97,7 +109,7 @@ namespace Saloon
         void OnDestroy()
         {
             foreach(var texture in uiTextures)if(texture!=null)Destroy(texture);
-            if(flatSkin!=null)Destroy(flatSkin);if(coinTexture!=null)Destroy(coinTexture);
+            if(flatSkin!=null)Destroy(flatSkin);
         }
     }
 }

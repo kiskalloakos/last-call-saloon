@@ -24,9 +24,34 @@ namespace Saloon
         string channel="";
         bool deadChannel,outdoorChannel,transmitting,autoAttempted,verificationMode;
         float nextPosition;
-        float nextActivity,nextIdentity;
-        readonly Dictionary<string,float> speech=new Dictionary<string,float>();
-#if UNITY_EDITOR
+        float nextIdentity;
+        // Polling a cached SpeechDetected value cannot tell whether audio has stopped.
+        // Timestamp actual SDK energy events so a mute/lost stream cannot flap forever.
+        internal const float SpeechTimeout=.3f;
+        sealed class Speaker : IDisposable
+        {
+            public readonly VivoxParticipant Participant;
+            public readonly bool IsSelf;
+            public float EnergyAt=float.NegativeInfinity;
+            public float Level;
+            public Speaker(VivoxParticipant participant)
+            {
+                Participant=participant;IsSelf=participant.IsSelf;
+                participant.ParticipantAudioEnergyChanged+=EnergyChanged;
+                participant.ParticipantSpeechDetected+=Refresh;
+                participant.ParticipantMuteStateChanged+=Refresh;
+                participant.ParticipantAudioStateChanged+=Refresh;
+            }
+            void EnergyChanged(){EnergyAt=Time.unscaledTime;Refresh();}
+            void Refresh(){Level=SpeechStrength(Participant.SpeechDetected,Participant.AudioEnergy,Participant.IsMuted||!Participant.IsInAudio);}
+            public void Dispose()
+            {
+                Level=0;Participant.ParticipantAudioEnergyChanged-=EnergyChanged;
+                Participant.ParticipantSpeechDetected-=Refresh;Participant.ParticipantMuteStateChanged-=Refresh;Participant.ParticipantAudioStateChanged-=Refresh;
+            }
+        }
+        readonly Dictionary<string,Speaker> speech=new Dictionary<string,Speaker>();
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
         internal Dictionary<string,float> PreviewSpeech;
 #endif
         int generation;
@@ -36,26 +61,43 @@ namespace Saloon
         public float SpeechLevel(string voiceId)
         {
             if(string.IsNullOrEmpty(voiceId))return 0;
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
             if(PreviewSpeech!=null)return PreviewSpeech.TryGetValue(voiceId,out var preview)?preview:0;
 #endif
-            return Connected&&!Busy&&speech.TryGetValue(voiceId,out var level)?level:0;
+            if(!Connected||Busy||!speech.TryGetValue(voiceId,out var speaker))return 0;
+            // The SDK disposes participants during its update, potentially after our Update
+            // but before avatar LateUpdate. Read event-captured values, never a dead SDK object.
+            float age=Time.unscaledTime-speaker.EnergyAt;
+            return age>=0&&age<=SpeechTimeout&&(!speaker.IsSelf||(transmitting&&!Muted&&Enabled))?speaker.Level:0;
         }
 
         internal static float SpeechStrength(bool detected,double energy,bool muted)
         {
-            if(!detected||muted||double.IsNaN(energy)||double.IsInfinity(energy))return 0;
-            // Speech detection supplies the fallback when a platform reports no energy.
-            return Mathf.Clamp(Mathf.Sqrt(Mathf.Max(0,(float)energy)*12),.22f,1);
+            if(!detected||muted||double.IsNaN(energy)||double.IsInfinity(energy)||energy<=.00001)return 0;
+            return Mathf.Clamp01(Mathf.Sqrt((float)energy*12));
         }
+
+        internal static float FreshSpeechStrength(bool detected,double energy,bool muted,float age)
+            =>age>=0&&age<=SpeechTimeout?SpeechStrength(detected,energy,muted):0;
+
+        void ClearSpeech()
+        {foreach(var speaker in speech.Values)speaker.Dispose();speech.Clear();}
 
         void UpdateSpeechActivity()
         {
-            if(Time.unscaledTime<nextActivity)return;nextActivity=Time.unscaledTime+.05f;
-            speech.Clear();var service=VivoxService.Instance;
+            var service=VivoxService.Instance;
             if(service.ActiveChannels.TryGetValue(channel,out var participants))
+            {
+                foreach(var key in speech.Keys.Where(key=>!participants.Any(p=>p.PlayerId==key)).ToArray())
+                {speech[key].Dispose();speech.Remove(key);}
                 foreach(var p in participants)
-                    speech[p.PlayerId]=SpeechStrength(p.SpeechDetected,p.AudioEnergy,p.IsMuted||(p.IsSelf&&(!transmitting||Muted||!Enabled)));
+                {
+                    if(speech.TryGetValue(p.PlayerId,out var existing))
+                    {if(existing.Participant==p)continue;existing.Dispose();}
+                    speech[p.PlayerId]=new Speaker(p);
+                }
+            }
+            else ClearSpeech();
             // Associate a voice participant with their game avatar by ID, never display name.
             string id=service.SignedInPlayerId;
             if(Game.Self!=null&&Game.Self.voiceId!=id&&!string.IsNullOrEmpty(id)&&Time.unscaledTime>=nextIdentity)
@@ -90,7 +132,7 @@ namespace Saloon
             CheckCurrent(version);
             VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();
             if(!VivoxService.Instance.IsLoggedIn)
-                await VivoxService.Instance.LoginAsync(new LoginOptions{DisplayName=Game.PlayerName,EnableTTS=false,ParticipantUpdateFrequency=ParticipantPropertyUpdateFrequency.FivePerSecond});
+                await VivoxService.Instance.LoginAsync(new LoginOptions{DisplayName=Game.PlayerName,EnableTTS=false,ParticipantUpdateFrequency=ParticipantPropertyUpdateFrequency.TenPerSecond});
             CheckCurrent(version);
             VivoxService.Instance.MuteInputDevice();
             VivoxService.Instance.EnableAcousticEchoCancellation();
@@ -143,7 +185,7 @@ namespace Saloon
         public void ValidateArea()
         {
             if(!Connected||channel==DesiredChannel)return;
-            VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;speech.Clear();
+            VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;ClearSpeech();
         }
 
         void Update()
@@ -179,7 +221,7 @@ namespace Saloon
             Busy=true;int version=generation;
             try
             {
-                VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;speech.Clear();
+                VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;ClearSpeech();
                 await VivoxService.Instance.LeaveChannelAsync(channel);CheckCurrent(version);
                 deadChannel=dead;
                 await JoinLifeChannel(dead,outdoors);CheckCurrent(version);
@@ -240,7 +282,7 @@ namespace Saloon
 
         public async Task Leave()
         {
-            ++generation;Enabled=false;echoCancellation?.Cancel();
+            ++generation;Enabled=false;ClearSpeech();echoCancellation?.Cancel();
             try{await operation;}catch(Exception e){Debug.LogWarning(e.Message);}
             // LAN/Editor tests may never initialize cloud services; don't resolve Vivox in that case.
             if(UnityServices.State==ServicesInitializationState.Initialized)
@@ -254,8 +296,9 @@ namespace Saloon
                 catch(Exception e){Debug.LogWarning("Voice cleanup: "+e.Message);}
             }
             Connected=false;channel="";transmitting=false;Busy=false;autoAttempted=false;verificationMode=false;MicrophoneAllowed=false;
-            speech.Clear();nextActivity=nextIdentity=0;
+            ClearSpeech();nextIdentity=0;
             Status="Voice connects when you enter the saloon. Hold V to speak.";
         }
+        void OnDestroy(){ClearSpeech();}
     }
 }

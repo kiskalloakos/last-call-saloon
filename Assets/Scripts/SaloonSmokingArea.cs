@@ -19,31 +19,34 @@ namespace Saloon
         public static void Apply()
         {
             var world=GameObject.Find("Saloon World");if(world!=null)SetLayer(world.transform,IndoorLayer);
-            if(GameObject.Find("have a smoke · placeholder yard")!=null)return;
-            var root=new GameObject("have a smoke · placeholder yard").transform;root.position=Center-Vector3.up*.08f;
-            var wood=SaloonWorld.Material("Smoking yard placeholder wood",new Color(.30f,.22f,.15f));
-            var sand=SaloonWorld.Material("Smoking yard placeholder ground",new Color(.49f,.37f,.24f));
-            var dark=SaloonWorld.Material("Smoking yard placeholder trim",new Color(.18f,.14f,.11f));
-            Box("Placeholder desert",root,new Vector3(0,-.20f,0),new Vector3(50,.15f,50),sand);
-            Box("Placeholder outdoor deck",root,new Vector3(0,-.04f,0),new Vector3(8,.16f,8),sand);
-            Box("Privacy fence · saloon side",root,new Vector3(-3.7f,1.7f,0),new Vector3(.18f,3.4f,8),wood);
-            foreach(float z in new[]{-3.7f,3.7f})Box("Privacy fence",root,new Vector3(0,1.7f,z),new Vector3(7.6f,3.4f,.18f),wood);
-            for(int i=0;i<12;i++)
+            if(GameObject.Find("have a smoke · sunset deck")!=null)return;
+            var placeholder=GameObject.Find("have a smoke · placeholder yard");
+            if(placeholder!=null){placeholder.SetActive(false);Object.Destroy(placeholder);}
+            var root=new GameObject("have a smoke · sunset deck").transform;root.position=Center-Vector3.up*.08f;
+            var wood=SaloonWorld.Material("Sunset deck cedar",new Color(.38f,.24f,.15f));
+            var dark=SaloonWorld.Material("Weathered deck posts",new Color(.21f,.14f,.11f));
+            // Retain the original walkable footprint and room clamps.
+            Box("Solid outdoor deck",root,new Vector3(0,-.04f,0),new Vector3(8,.16f,8),dark);
+            for(int i=0;i<22;i++)Box("Weathered cedar plank",root,new Vector3(0,.047f,-3.82f+i*.36f),new Vector3(7.95f,.025f,.345f),wood,false);
+            Box("Saloon side privacy wall",root,new Vector3(-3.98f,1.7f,0),new Vector3(.18f,3.4f,8),wood);
+            foreach(float z in new[]{-3.86f,3.86f})
             {
-                float p=-3.65f+i*.66f;
-                Box("Fence post",root,new Vector3(-3.58f,1.7f,p),new Vector3(.10f,3.5f,.08f),dark);
-                foreach(float z in new[]{-3.58f,3.58f})Box("Fence post",root,new Vector3(p,1.7f,z),new Vector3(.08f,3.5f,.10f),dark);
+                foreach(float y in new[]{.40f,.78f})Box("Open overlook rail",root,new Vector3(0,y,z),new Vector3(8,.11f,.11f),wood);
+                foreach(float x in new[]{-3.85f,0,3.85f})Box("Overlook post",root,new Vector3(x,.52f,z),new Vector3(.15f,1.04f,.15f),dark);
             }
-            Box("Low outdoor boundary",root,new Vector3(3.7f,.35f,0),new Vector3(.14f,.7f,8),wood);
-            Box("Placeholder bench",root,new Vector3(0,.46f,-2.8f),new Vector3(2.8f,.12f,.5f),wood);
-            foreach(float x in new[]{-1.05f,1.05f})Box("Bench support",root,new Vector3(x,.2f,-2.8f),new Vector3(.15f,.4f,.4f),dark);
-            var sign=new GameObject("have a smoke sign");sign.transform.SetParent(root,false);sign.transform.localPosition=new Vector3(-3.46f,2.5f,0);sign.transform.localRotation=Quaternion.Euler(0,-90,0);
-            var text=sign.AddComponent<TextMesh>();text.text="have a smoke\nTalk. Take a drag. Relax.";text.characterSize=.013f;text.fontSize=64;text.anchor=TextAnchor.MiddleCenter;text.alignment=TextAlignment.Center;text.color=new Color(.94f,.84f,.65f);SaloonWorldText.Attach(text);
-            SetLayer(root,OutdoorLayer);
+            foreach(float y in new[]{.40f,.78f})Box("Sunset facing rail",root,new Vector3(3.86f,y,0),new Vector3(.11f,.11f,7.8f),wood);
+            Box("Sunset rail center post",root,new Vector3(3.86f,.52f,0),new Vector3(.15f,1.04f,.15f),dark);
+            Box("Quiet cedar bench",root,new Vector3(-2.9f,.46f,0),new Vector3(.52f,.12f,2.8f),wood);
+            foreach(float z in new[]{-1.05f,1.05f})Box("Bench support",root,new Vector3(-2.9f,.2f,z),new Vector3(.4f,.4f,.15f),dark);
+            var sign=new GameObject("have a smoke sign");sign.transform.SetParent(root,false);sign.transform.localPosition=new Vector3(-3.86f,2.4f,0);sign.transform.localRotation=Quaternion.Euler(0,-90,0);
+            var text=sign.AddComponent<TextMesh>();text.text="Have a Smoke\nStay a while. Watch the sun go down.";text.characterSize=.011f;text.fontSize=64;text.anchor=TextAnchor.MiddleCenter;text.alignment=TextAlignment.Center;text.color=new Color(.94f,.84f,.65f);SaloonWorldText.Attach(text);
+            if(world!=null)foreach(var light in world.GetComponentsInChildren<Light>())light.cullingMask&=~(1<<OutdoorLayer);
+            SaloonSunset.Build(root);SetLayer(root,OutdoorLayer);
         }
-        static void Box(string name,Transform root,Vector3 position,Vector3 size,Material material)
+        static void Box(string name,Transform root,Vector3 position,Vector3 size,Material material,bool solid=true)
         {
             var go=GameObject.CreatePrimitive(PrimitiveType.Cube);go.name=name;go.transform.SetParent(root,false);go.transform.localPosition=position;go.transform.localScale=size;go.GetComponent<Renderer>().sharedMaterial=material;
+            if(!solid){var collider=go.GetComponent<Collider>();collider.enabled=false;Object.Destroy(collider);}
         }
     }
 }

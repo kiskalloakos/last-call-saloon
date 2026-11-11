@@ -72,22 +72,10 @@ namespace Saloon
         void TickPracticeBots()
         {
             if(!Sandbox)return;
+            if(phase==Phase.Choosing||phase==Phase.Discussion){PlanPracticeBots();return;}
             var bots=players.Values.Where(p=>p.bot&&p.Alive).OrderBy(p=>p.id).ToArray();
             foreach(var p in bots)
             {
-                if(phase==Phase.Choosing||phase==Phase.Discussion)
-                {
-                    // Keep a stable, varied plan throughout discussion; rotate it each round.
-                    // Rotate through the bar, paired games, and a peaceful smoke outside.
-                    int choice=PracticeRoomCycle[(Array.IndexOf(bots,p)+rounds.Round-1)%PracticeRoomCycle.Length];
-                    if(rounds.Round%2==0&&choice>0&&choice<3)choice=3-choice;
-                    var invite=players.Values.FirstOrDefault(x=>!x.bot&&x.Alive&&x.companion==p.id&&x.chosenRoom>0);
-                    int room=p.bag?0:invite?.chosenRoom??choice;
-                    ulong? companion=room>0?invite?.id:null;
-                    if(p.chosenRoom!=room||p.companion!=companion)SetRoomPlan(p,room,companion);
-                    if(!TryReady(p,true)){SetRoomPlan(p,0,null);TryReady(p,true);}
-                    continue;
-                }
                 if(phase==Phase.Turns&&p.room==3){if(Time.time-p.smokeAt>6)TrySmoke(p);continue;}
                 if(phase==Phase.Turns&&duels.TryGetValue(p.room,out var duel)&&!duel.flipping&&Time.time>=duel.choiceUntil-duel.coinChoiceSeconds+(p.room==1?3:1))
                     ClaimCoin(p,UnityEngine.Random.Range(0,2));

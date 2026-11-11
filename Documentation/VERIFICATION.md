@@ -1185,3 +1185,199 @@ the sole survivor; Renegade has no money objective.
   physical ray, healing, gifting, damage and action-budget coverage. Inspected
   the rendered countertop without the pour button. Captures and final markers:
   Builds/BeerPour-2026-11-11/HoldTapAndDiscussion/. Source only.
+
+
+## 2026-11-11 — Independent head gestures, speech cutoff and player window visibility
+
+- The host now stores body facing separately from camera/aim yaw and includes it in
+  snapshots. Mouse up/down nods the neck/head; left/right shakes the head. Standing
+  and seated torsos remain still within a 65-degree horizontal head range. Larger
+  turns and walking bring the body around. Revolver aim still follows the camera;
+  the mug's mouth target follows the posed head.
+- Removed the silent-audio speech fallback and minimum mouth strength. The mouth
+  closes in the frame that zero energy is supplied, without an animation tail.
+  Vivox sends energy updates at 10 Hz; samples expire after 0.3 seconds without an
+  SDK energy event. Mute, lost audio, channel changes, drinking and death suppress
+  speech. Speaker state is captured during SDK events so participant disposal
+  between Update and avatar LateUpdate cannot dereference a disposed participant.
+- Replaced the runtime Standard/Fade material with a Resources-backed glass shader
+  with explicit blending, back-face culling and depth-write state. No runtime
+  transparency keyword variant is needed. Layout version 3 upgrades saved windows.
+  Inside privacy faces and permanent shot/movement barriers remain in place.
+- Removed top-right duel and room-turn cards, including Your Move / Q Draw /
+  Action Spent text and unused coin-overlay texture. Physical table controls,
+  discussion room planner and turn authorization remain available.
+- Unity 6000.5.10f1 compiled runtime/Editor scripts and produced local 0.2.13
+  universal macOS and Windows x64 builds. Both ZIP archives passed CRC checks.
+  Outputs: Builds/ModelRoomFixes-2026-11-11/.
+- SALOON_MODEL_ROOM / SALOON_EDITOR_ITERATION passed in the Editor. The same model,
+  speech and window checks passed in the final macOS player with Metal rendering:
+  standing/seated gestures, unchanged torso/hips, body-follow limits, wraparound,
+  independent snapshot yaw, silent/stale/invalid speech, identity mapping, drinking
+  and death. Bar-view pixel probes saw both interiors (Blackjack: 487 marker pixels;
+  Coin Flip: 48); inside privacy probes saw zero outside marker pixels.
+- SALOON_PRESENTATION and SALOON_GAMEPLAY passed in the final Mac build. Inspected
+  native player captures showing occupied rooms through the glass and no top-right
+  action card. Final two-process Vivox test passed with synthetic speech and muted
+  microphones: receiver peak energy 0.4976, speech drove mouth activity, and both
+  voice level and rendered mouth returned to zero after injection stopped while
+  the sender remained connected. No runtime exceptions in the final test logs.
+- Evidence, screenshots, archive hashes and test markers are under
+  Builds/ModelRoomFixes-2026-11-11/Verification/, Presentation/ and Voice/.
+  Windows runtime/graphics and physical microphone/speaker listening are untested
+  for this change. No GitHub release, upload or published download was changed.
+
+
+## 2026-11-11 — Bodies persist while eliminated players spectate
+
+- Removed corpse hiding from the observer transition and spectator viewpoint changes.
+  Eliminated players enter the existing spectator camera after the death delay;
+  their fallen model remains visible until lobby/match reset. An avatar first seen
+  after its player is already observing also creates a ragdoll.
+- Settled ragdolls retain their pose with kinematic bodies and disabled colliders,
+  keeping movement, interactions and seat reuse available. Regrouping does not
+  reposition dead players. Starting a new match restores the living model and
+  removes the old ragdoll components.
+- Unity 6000.5.10f1 compiled the source and passed SALOON_RAGDOLL and
+  SALOON_EDITOR_ITERATION in Play mode. Checks exercised real lethal shots,
+  landing, persistent corpses after observer transition, duplicate snapshots,
+  already-observing snapshots, local spectator entry and target switching,
+  regrouping, seat reuse, side-room landing and new-match cleanup.
+- Log: /tmp/saloon-persistent-bodies-editor.log. Retained-corpse render:
+  /private/var/folders/bx/rq_p_44d63d1x6wwfzqyw85m0000gn/T/SaloonWindows-death-03-body-retained.png.
+  Source only; no player build or publication.
+
+
+## 2026-11-11 — Control crouching and first-person weapon clipping
+
+- Hold either Control key while standing to crouch. Release to stand when the
+  full-height capsule fits overhead. The host owns posture, moves the capsule
+  center to keep feet grounded, reduces walking speed to 45%, and replicates
+  crouch through snapshots. Eye height, shot/interaction origins, head/body
+  hitboxes, character joints and held world props follow the lowered posture.
+  Seated discussion and room regroup reset crouch; stale input releases it.
+- The first-person revolver and its muzzle flash render on a dedicated layer
+  through a depth-clearing camera after the world camera. Third-person weapons
+  retain world occlusion. Shot rays still collide with walls and window barriers.
+- Unity 6000.5.10f1 compiled runtime and Editor scripts and passed SALOON_CROUCH
+  and SALOON_EDITOR_ITERATION using Metal in an isolated temporary project copy.
+  Checks covered capsule/feet, camera, rig/head alignment, snapshot encoding,
+  crouch speed, standing-head ray misses and crouched head hits, stale input and
+  pose rejection, low ceilings, seated players and regroup reset. Render probes
+  confirmed 5,881 gun pixels against an opaque surface closer than the muzzle
+  and 5,721 pixels against the room-window glass shader. Inspected both captures.
+- Run again with Saloon → Verify crouching and weapon clipping in Play mode.
+  Evidence: Builds/CrouchAndWeapon-2026-11-11/. Source changes only; no player
+  build or publication. Windows runtime rendering was not exercised.
+
+
+## 2026-11-11 — Sunset smoking overlook and silent outdoor walking
+
+- Replaced the placeholder yard with a cedar overlook, open rails, a bench and
+  a low-poly desert of layered sandstone mesas, saguaro cacti and scattered rocks.
+  A Resources-backed sky shader draws a low golden sun, apricot horizon, violet
+  evening sky and thin pink clouds. Outdoor environment lighting has its own
+  layer mask. The saloon's lighting and indoor visibility stay separate.
+- Both smokers arrive side by side facing the sunset. Kept the existing room
+  footprint, movement bounds, smoking props and privacy/voice routing. Decorative
+  distant scenery has no gameplay colliders. Area setup remains idempotent.
+- Outdoor footsteps now stop immediately and do not accumulate distance or play
+  for local or remote players. Recorded wooden footsteps resume indoors. Removed
+  allocation of the unused outdoor dirt samples.
+- Unity 6000.5.10f1 compiled scripts and the sunset shader and passed SALOON_SUNSET
+  and SALOON_EDITOR_ITERATION with Metal in the isolated verification project.
+  Checks covered arrival/facing, layer masks, lighting isolation, scenery
+  colliders, idempotent setup, indoor steps, silent outside movement for both
+  perspectives, resumed indoor steps, smoking props, actual deck walking and
+  returning indoors. Render probes found 113,971 warm sunset pixels and 1,951
+  sun pixels; inspected the final first-person capture.
+- Evidence: Builds/SunsetOverlook-2026-11-11/Verification.log and Overlook.png.
+  Run with Saloon → Verify sunset overlook and silent outdoor walking. Source
+  only; no new player build or publication. Windows runtime was not exercised.
+
+
+## 2026-11-11 — Clean minigame controls and slower blackjack
+
+- Removed blackjack table totals, names, status text and physical action plaques.
+  Cards and deck remain on the felt. Hit/Stand and Draw Card use a small screen
+  panel below the hands; no calculated totals are displayed in that panel.
+- Removed coin-table seat labels, status lettering and physical Heads/Tails
+  buttons. Heads/Tails choices appear in the middle of the screen, then disappear
+  during the toss. Only the physical coin and its face engravings remain on the
+  felt. Both minigames suppress the duplicate room timer and action-block text.
+- Blackjack deals over 3.2 seconds, with 0.65-second card spacing and slower
+  slides/flips. A card/action has a 1.5-second settling/input interval. Player
+  decisions allow 45 seconds, renewed after each hit; idle dealer draws wait eight
+  seconds. Bots also wait between decisions. Pushes remain visible for five seconds.
+- Both games show a four-second result/reaction phase. The host rejects weapon
+  and action commands during this phase, while allowing players to stand and dodge.
+  The winner then has a full ten-second opening; the shared round deadline preserves
+  the response window. Existing draw/queued-fire behavior resumes after the pause.
+- Compiled and exercised in the user's open Unity 6000.5.10f1 Editor, with no
+  standalone builds. Final SALOON_BLACKJACK, SALOON_TABLETOP, SALOON_COIN_TABLE and
+  SALOON_EDITOR_ITERATION checks passed. Covered card/hidden-card state, action
+  ownership, paced input, renewed decision time, host-side reaction lock, legal
+  opening shot and response, push/redeal, timeout/pass, standing during result,
+  clean table geometry, spectator read-only state and phase cleanup.
+- Inspected Game-view captures for both minigames: blackjack controls below both
+  hands and centered coin choices. Captures are SaloonBlackjack-screen.png and
+  SaloonCoin-screen.png in Unity's system temporary directory; run logs are in
+  Logs/Editor.log. Source only; no build or publication.
+
+
+## 2026-11-11 — Incoming invitations and one-click discussion plans
+
+- Restored incoming invitations as a recipient-only Snapshot array carrying the
+  sender ID/name, requested room and sender plan version. Other players' public
+  room/partner choices remain redacted. Withdrawn/changed requests update with
+  snapshots; eliminated players and action-phase snapshots have no active requests.
+- A discussion notice shows incoming invitations while the planner is closed.
+  The planner now places rooms across the top and people down the side: each
+  square chooses a room and a partner in one click, with an On your own row.
+  Highlighted Join invite buttons accept both fields atomically. A plan summary
+  and separate Ready button preserve explicit first-Ready seat reservation.
+- Acceptance is checked on the host against the sender's latest room, recipient
+  and plan version. A stale click cannot silently apply an invitation that changed.
+  Its acknowledgement restores the authoritative plan through existing draft
+  versioning. Invitations do not reserve another player's seat or ready them.
+- Capitalized Have a Smoke in destination names, outdoor sign and Editor menu;
+  retained internal scene-object names used for layout and verification.
+- Unity 6000.5.10f1 compilation and final SALOON_PLANNING / SALOON_RESERVATIONS /
+  SALOON_EDITOR_ITERATION checks passed in the open Editor. Covered compressed
+  invitation wire data, recipient-only disclosure, raw plan redaction, one-click
+  acceptance, no automatic Ready, stale acceptance rejection/recovery, withdrawal,
+  multiple requests, elimination, action-phase cleanup and destination naming.
+- Inspected the rendered planner with two incoming invitations, selected plan,
+  Have a Smoke column and Ready control. Capture: SaloonPlanner-invitations.png
+  in Unity's system temporary directory. Log: Logs/Editor.log. Source only;
+  no standalone build or publication.
+
+
+## 2026-11-11 — Replace planning grid; fix practice invitations and blocked rooms
+
+- Replaced the room/person matrix with a compact dark in-game destination menu.
+  Invitation cards explicitly name the sender and destination, with a Join action.
+  Four destination cards lead to a short company list and Go on your own control.
+  Right-click and Close dismiss the menu; Escape behavior was not changed.
+- Join and practice Go with / Go on your own submit plan and readiness atomically.
+  Existing selection-version acknowledgements reconcile rejections and reopen the
+  menu with an explanation if a real human-filled room rejects a choice.
+- Fixed practice planning as a two-pass host allocation. Human-requested bot pairs
+  get space before autonomous bot plans; only after every bot destination is
+  applied are their Ready states checked. Bots yield seats for human choices;
+  they do not displace already-ready humans. Client full-room checks exclude
+  reclaimable bot reservations.
+- Bots now proactively send one stable, destination-specific invitation per
+  uncommitted human, leaving an open seat for that recipient. Accepted human
+  invitations override autonomous bot choices. Money-carrying bots keep the Bar.
+- Final Unity 6000.5.10f1 Play mode checks passed: SALOON_PRACTICE_PLANNER,
+  SALOON_PLANNING and SALOON_EDITOR_ITERATION. Exercised actual bot ticks and
+  frontend command paths: unsolicited invitation, reserved recipient space,
+  stable offer, single-command Join/Ready, real room entry with the inviter,
+  two bots already occupying Coin Flip followed by a human requesting another
+  practice partner, yielding, readiness and actual Coin Flip assignment.
+  Also verified human-filled-room rejection/reopened UI and human-seat priority.
+- Retained existing plan-draft, reservation, privacy, stale invitation and
+  withdrawal checks. Inspected the rendered replacement menu with an actual
+  bot-generated Coin Flip invitation. Capture: SaloonPlanner-invitations.png
+  in Unity's system temporary directory. Source only; no new standalone build.
