@@ -13,6 +13,7 @@ parser.add_argument('--logs', type=Path, default=Path(tempfile.mkdtemp(prefix='s
 parser.add_argument('--port', default='17877')
 parser.add_argument('--practice', action='store_true', help='Use two real clients and three active practice opponents')
 args = parser.parse_args()
+args.logs = args.logs.resolve()
 args.logs.mkdir(parents=True, exist_ok=True)
 processes = []
 try:
