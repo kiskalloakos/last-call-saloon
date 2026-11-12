@@ -24,4 +24,11 @@ Validation:
 - Two live Mac Vivox sessions transmitted synthesized speech (remote peak energy 0.5469); speech and mouth activity returned to zero after audio stopped while the sender stayed connected. Physical microphones remained muted.
 - Universal Mac executable contains x86_64 and arm64 slices; deep signature verification passed.
 
+- Windows Server 2022: [voice controls, gameplay, five-player connections, rendered room assignment and paired-room voice passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/43244373151).
+- Windows Server 2022: [four/five-player LAN, packet loss/delay and interruption recovery passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/43244381329).
+- Ubuntu 22.04 with Mesa OpenGL/Xvfb: [voice controls, gameplay, five-player connections and four-player LAN passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/43245476294).
+- The final GitHub Mac download passed SHA256 and deep signature checks, matched the installed app file for file, and launched showing 0.2.16. Removed old 0.2.15 local builds, replaced app backup and temporary downloads (1,648,355,499 bytes).
+
+Build source revision: `c6e9ca6`. Linux requires a graphical session; the engine's `-nographics` startup path crashed in CI. The Linux test workflow uses a virtual OpenGL display.
+
 Archive checksums are supplied in `SHA256SUMS-0.2.16.txt`.

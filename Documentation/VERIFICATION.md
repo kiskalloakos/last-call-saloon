@@ -1463,3 +1463,27 @@ Mac universal slices and deep signature verification passed. ZIP CRC checks
 passed; SHA256 checksums accompany all three archives. Added native Linux release
 CI and voice-controls to the Windows standard suite. Physical device listening
 and household network testing remain human checks.
+
+Published 0.2.16 Windows validation passed on Windows Server 2022: standard voice,
+gameplay, five-player and room suites (43244373151), and four/five-player LAN with
+loss/delay and interruption recovery (43244381329).
+
+Downloaded the final GitHub Mac archive, checked SHA256 and deep signatures, and
+compared every installed bundle file to the download. Native launch showed
+0.2.16. Installed path: Downloads/GAMES/Last Call.app. Removed all discovered old
+0.2.15 app/build/archive copies, including temporary downloads, freeing
+1,648,355,499 bytes. Old screenshot and test evidence folders contain no game
+builds and were retained. A crash dump from the initial malformed synthetic
+audio fixture was removed from the first Mac package; the corrected archive and
+checksum replaced it on GitHub before final download verification.
+
+Linux initially crashed in Unity's headless NullGfxDevice path before Start.
+The same binary passed voice-controls and gameplay under Mesa OpenGL/Xvfb
+(43245042341). That run then failed to locate the five-player test logs because
+the smoke runner passed relative paths. Resolving the log folder before launch
+fixes that harness issue; no game binaries were changed for these CI repairs.
+
+Final native Linux validation passed on Ubuntu 22.04 using Mesa OpenGL/Xvfb:
+voice-controls, gameplay, five independent clients and four-player LAN
+(run 43245476294). Release 0.2.16 is promoted as the latest GitHub download for
+Windows x64, universal macOS and Linux x64. Release notes contain all test links.
