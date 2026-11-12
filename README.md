@@ -2,15 +2,16 @@
 
 For role instructions, refer to [Your role, in simple words](#your-role-in-simple-words).
 
-Test release **0.2.15**, dated 2026-11-12, is available for Windows x64 and macOS (Intel and Apple Silicon).
-All players must use **0.2.15**.
+Test release **0.2.16**, dated 2026-11-12, is available for Windows x64, macOS (Intel and Apple Silicon), and Linux x64.
+All players must use **0.2.16**.
 
-1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.15/LastCall-Windows-0.2.15.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.15/LastCall-macOS-0.2.15.zip).
-2. Extract all files from the ZIP file.
+1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.16/LastCall-Windows-0.2.16.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.16/LastCall-macOS-0.2.16.zip), or [Linux x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.16/LastCall-Linux-0.2.16.tar.gz).
+2. Extract the complete archive.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
+5. On Linux, open `Last Call.x86_64` from the extracted `LastCall-Linux` folder.
 
-This release adds saved graphics settings. See [release notes and validation](Documentation/RELEASE-0.2.15.md) for checks performed on this version.
+This release adds an open-microphone toggle alongside push-to-talk, a microphone status indicator, and a Linux x64 download. Saved graphics settings remain available. See [release notes and validation](Documentation/RELEASE-0.2.16.md) for checks performed on this version.
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
@@ -41,7 +42,7 @@ This test release includes planner corrections and more disconnect information.
 ## Four devices on LAN
 
 1. Connect all four computers to the same local network. Do not use guest Wi-Fi that isolates devices.
-2. Start **0.2.15 on every computer**.
+2. Start **0.2.16 on every computer**.
 3. Select **LOCAL / LAN** on each computer.
 4. On the host computer, select **NO BOTS**.
 5. Keep port **7777**.
@@ -71,7 +72,7 @@ The mug moves to the mouth during a drink.
 The transition between standing and sitting does not compress the character.
 Ragdoll deaths remain available.
 
-In 0.2.15, mouse look moves the head independently.
+Since 0.2.14, mouse look moves the head independently.
 Move the mouse up/down to nod yes, or left/right to shake no while standing or seated.
 The body stays facing forward for head turns within 65 degrees; it follows larger turns and walking.
 
@@ -295,7 +296,9 @@ The safe does not require another three work actions.
 | Aim at a nearby player, then **G** | Gives them your poured beer, preserving its healing. Included in the pour action. |
 | **Space** during Discuss & Plan | Sets or clears Ready. |
 | **Space** during your action turn | Passes and gives up your action for this round. |
-| Hold **V** | Sends your microphone audio. |
+| Hold **V** | Sends microphone audio in push-to-talk mode. |
+| **T** | Toggles open mic: talk hands-free until switched off. |
+| **M** | Mutes or unmutes the microphone in either mode. |
 | **Right-click** during Discuss & Plan | Opens/closes the planner. Mouse look is active when it is closed. |
 
 Everyone starts with **100% health**.
@@ -336,7 +339,7 @@ The default port is **7777**.
 For online play, create or join with a room code.
 
 All devices must use the same source or build version.
-Use **0.2.15** clients for this playtest.
+Use **0.2.16** clients for this playtest.
 The game rejects mixed versions with a message.
 The disconnect reason stays on the menu.
 It is not replaced silently.
@@ -437,7 +440,7 @@ cacti and an apricot-to-violet evening sky. Walking outside is silent for both
 players; wooden footsteps resume inside the saloon.
 
 - Click the left mouse button to smoke.
-- Hold **V** to talk.
+- Hold **V** to talk, or press **T** to switch open mic on. **M** mutes either mode.
 - Use **WASD** to walk.
 
 The cigarette has an animated first-person hand and a third-person arm pose.
@@ -528,7 +531,7 @@ The notebook holds your six latest clues, with the newest first.
 Older retained clues are available by scrolling.
 Clues stay between rounds and reset for a new match.
 
-Hold **V** to tell other players what you found.
+Hold **V**, or enable open mic with **T**, to tell nearby players what you found.
 Clues are not shared automatically.
 You can stay silent or give false information.
 Other players cannot open your notebook.
@@ -614,7 +617,7 @@ The shared action deadline includes the longest coin setup window and waits for 
 ### Larger rooms: ordered turns
 
 The bar uses a new random turn queue each round, including with one or two living players.
-The host maintains the turn queue and timers. The top-right turn/action panel has been removed in 0.2.15.
+The host maintains the turn queue and timers. The top-right turn/action panel has been removed in 0.2.14.
 Each player can start one major action or pass.
 Then the next player's turn starts.
 Gun drawing and major actions are unavailable outside your turn, including for the Sheriff and practice bots.
@@ -857,10 +860,17 @@ Their difficulty is not balanced for normal play.
 | Space / C | Set or clear Ready during discussion / inspect the safe as Sheriff at the bar. |
 | Space during actions / hold Tab | Pass / read your private role and objective. |
 | Left / Right arrows | Change the living player's view in spectator mode. |
-| Hold V / M | Send microphone audio / toggle microphone mute. |
+| Hold V / T / M | Push-to-talk / toggle open mic / toggle microphone mute. |
 | Esc | Open the menu, host settings, voice devices and player list, or leave. |
 
 Proximity voice connects when you join.
+Hold **V** for push-to-talk, or press **T** once to enable open mic and speak without holding a key.
+Press **T** again to return to push-to-talk. The Escape menu also has an open-mic switch.
+**M** mutes either mode. The top-right indicator shows mic mode and mute state.
+Menus pause microphone transmission; closing them restores your selected mode.
+Open mic stays selected across indoor, smoking and spectator channel changes, and resets when you leave the session.
+The cigarette area uses a separate private channel: smokers cannot hear inside, and indoor players cannot hear smokers.
+Regroup returns everyone to indoor proximity voice. These rules apply in both microphone modes.
 It has full volume within two metres and fades by 10 metres.
 Walls do not yet reduce voice volume.
 Nearby indoor rooms can hear each other.
@@ -968,7 +978,7 @@ Shots use a larger muzzle flash made from intersecting planes that gradually dis
 The barrel has stronger recoil.
 The HUD shows no hit, miss, target-HP or damage-result text.
 The vitality bar shows health changes.
-Permanent control hints and voice-status text are absent from the HUD.
+Permanent control hints are absent from the HUD; a small top-right microphone indicator shows voice mode and mute state.
 
 Reloading uses a separate positional cylinder and cartridge sound.
 The gunshot keeps its sharp report.

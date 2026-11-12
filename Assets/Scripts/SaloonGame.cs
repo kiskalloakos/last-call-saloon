@@ -817,7 +817,7 @@ namespace Saloon
         void UpdateInteractionHint()
         {
             InteractionHint="";if(Self==null||!Self.alive)return;
-            if(OutsideForSmoke){InteractionHint="Left-click · Take a drag     V · Talk     WASD · Stroll";return;}
+            if(OutsideForSmoke){InteractionHint="Left-click · Take a drag     V · Talk / T · Open mic     WASD · Stroll";return;}
             if(PlayingTableGame)return;
             if(AtBeerBar){InteractionHint=BeerTaps.HintForRay(new Ray(ViewCamera.transform.position,ViewCamera.transform.forward));return;}
             if(View.phase==Phase.Turns)

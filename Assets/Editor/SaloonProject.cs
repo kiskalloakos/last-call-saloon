@@ -154,17 +154,17 @@ public static class SaloonProject
             Debug.Log("SALOON_RELEASE_BUILD PASS "+target+" "+report.summary.totalSize+" bytes");
         }
     }
-    public const string ReleaseVersion="0.2.15";
+    public const string ReleaseVersion="0.2.16";
     [MenuItem("Saloon/Build current downloadable release")]
     public static void BuildCurrentRelease()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
         EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
-        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="15";AssetDatabase.SaveAssets();
-        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64})
+        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="16";AssetDatabase.SaveAssets();
+        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64,BuildTarget.StandaloneLinux64})
         {
             bool mac=target==BuildTarget.StandaloneOSX;
-            string path="Builds/"+ReleaseVersion+(mac?"/macOS/Last Call.app":"/Windows/Last Call.exe");
+            string path="Builds/"+ReleaseVersion+(mac?"/macOS/Last Call.app":target==BuildTarget.StandaloneLinux64?"/Linux/Last Call.x86_64":"/Windows/Last Call.exe");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
             if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Release build failed: "+target+" "+report.summary.result);

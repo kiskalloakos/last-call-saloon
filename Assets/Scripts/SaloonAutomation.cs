@@ -39,6 +39,7 @@ namespace Saloon
             Game.AutomatedInput=!mode.StartsWith("preview");
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if(mode=="presentation"){Game.HostLan(true);StartCoroutine(Game.VerifyPresentation());return;}
+            if(mode=="voice-controls"){Game.HostLan(true);StartCoroutine(Game.VerifyVoiceControls());return;}
             if(mode=="model-room-fixes"){Game.tuning.turnSeconds=120;Game.HostLan(true);StartCoroutine(VerifyModelRoomFixes());return;}
             if(mode=="roles"){Game.HostLan(true);StartCoroutine(Game.VerifyRoleDeals());return;}
             if(mode=="tab-input"){Game.AutomatedInput=false;Game.HostLan(true);return;}
@@ -66,7 +67,7 @@ namespace Saloon
         void Update()
         {
             if(string.IsNullOrEmpty(mode))return;
-            if(mode=="functional"||mode=="presentation"||mode=="roles"||mode=="model-room-fixes")return;
+            if(mode=="voice-controls"||mode=="functional"||mode=="presentation"||mode=="roles"||mode=="model-room-fixes")return;
             if(reported){if(Time.unscaledTime>=quitAfter)Application.Quit(resultCode);return;}
             if(mode=="tab-input")
             {

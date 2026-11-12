@@ -149,6 +149,8 @@ namespace Saloon
             if(view.phase==Phase.Discussion&&!Game.MenuOpen&&!Game.ShowRole)
                 Text(430,82,420,26,Game.RoomPlannerOpen?"Right-click · Close planner and look around":"Right-click · Plan your room    Space · Ready",new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
             IncomingInvitationNotice();
+            if(!Game.MenuOpen&&Game.Voice!=null)
+                Text(890,22,354,26,Game.Voice.MicrophoneStatus,new GUIStyle(small){alignment=TextAnchor.MiddleRight});
             Vitals();
             if(!Game.MenuOpen&&Game.Self!=null&&Game.Self.alive)
             {
@@ -315,13 +317,16 @@ namespace Saloon
             {
                 Text(0,y,650,52,Game.View.botsEnabled?$"Bots enabled · fill to {Game.View.botMatchSize} players. The host starts the match.":"No bots · 4 or 5 human players required. The host starts the match.",small);y+=62;
             }
-            Text(0,y,650,100,"Mouse  Look / aim  ·  Q  Draw / holster  ·  Right-click  Discussion planner\nWASD  Move  ·  Hold Ctrl  Crouch  ·  F  Stand / sit  ·  Click  Headshots only\nR  Reload  ·  E  Pour / stop  ·  B  Drink  ·  G  Give beer  ·  H  Safe  ·  X  Escape  ·  C  Inspect\nSpace  Ready / pass  ·  ← / →  Spectate  ·  Hold V  Talk  ·  M  Mute  ·  Hold Tab  Role",small);y+=110;
+            Text(0,y,650,100,"Mouse  Look / aim  ·  Q  Draw / holster  ·  Right-click  Discussion planner\nWASD  Move  ·  Hold Ctrl  Crouch  ·  F  Stand / sit  ·  Click  Headshots only\nR  Reload  ·  E  Pour / stop  ·  B  Drink  ·  G  Give beer  ·  H  Safe  ·  X  Escape  ·  C  Inspect\nSpace  Ready / pass  ·  ← / →  Spectate  ·  V  Talk  ·  T  Open mic  ·  M  Mute  ·  Tab  Role",small);y+=110;
             Text(0,y,650,28,"VOICE",subtitle);y+=31;
             GUI.enabled=!Game.Voice.Busy;
             if(Button(0,y,310,38,Game.Voice.Connected?"VOICE CONNECTED":"CONNECT VOICE"))Game.Voice.Connect();
             if(Button(325,y,315,38,"MICROPHONE ECHO TEST"))Game.Voice.EchoTest();
             GUI.enabled=true;y+=49;
-            Text(0,y,640,75,Game.Voice.Status,small);y+=80;
+            Text(0,y,640,50,Game.Voice.Status,small);y+=55;
+            Text(0,y,640,50,Game.Voice.ControlHint,small);y+=55;
+            if(Button(0,y,640,36,Game.Voice.OpenMicrophone?"OPEN MIC ON  /  click for push-to-talk (T)":"PUSH-TO-TALK  /  click to enable open mic (T)",Game.Voice.OpenMicrophone))Game.Voice.OpenMicrophone=!Game.Voice.OpenMicrophone;
+            y+=46;
             GUI.enabled=Game.Voice.Connected&&!Game.Voice.Busy;
             if(Button(0,y,640,36,"MICROPHONE: "+Game.Voice.MicrophoneName+"  /  click to change"))Game.Voice.CycleMicrophone();
             y+=46;

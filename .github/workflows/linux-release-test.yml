@@ -1,0 +1,50 @@
+name: Test published Linux game
+
+on:
+  workflow_dispatch:
+    inputs:
+      release:
+        description: Published release tag to execute
+        required: true
+        default: v0.2.16
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  linux:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install runtime audio libraries
+        run: sudo apt-get update && sudo apt-get install -y libasound2 libpulse0 pulseaudio libglu1-mesa
+      - name: Download and verify published Linux archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.release }}
+        run: |
+          version="${RELEASE_TAG#v}"
+          mkdir -p TestResults DownloadedGame
+          gh release download "$RELEASE_TAG" --repo "$GITHUB_REPOSITORY" --pattern "LastCall-Linux-$version.tar.gz" --pattern "SHA256SUMS-$version.txt" --dir DownloadedGame
+          cd DownloadedGame
+          sha256sum --check --ignore-missing "SHA256SUMS-$version.txt"
+          tar -xzf "LastCall-Linux-$version.tar.gz"
+      - name: Execute Linux voice, gameplay and multiplayer regressions
+        run: |
+          pulseaudio --start --exit-idle-time=-1
+          pactl load-module module-null-sink sink_name=verification
+          app="$PWD/DownloadedGame/LastCall-Linux/Last Call.x86_64"
+          ldd "$app" > TestResults/libraries.txt
+          "$app" -batchmode -nographics -saloonTest voice-controls -saloonPort 17986 -logFile "$PWD/TestResults/voice-controls.log"
+          "$app" -batchmode -nographics -saloonTest functional -saloonPort 17987 -logFile "$PWD/TestResults/functional.log"
+          python3 Tools/smoke_test.py --app "$app" --logs TestResults/five-player --port 17992
+          python3 Tools/lan_match_test.py --app "$app" --logs TestResults/four-player --players 4
+      - name: Save full test logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-release-test-${{ inputs.release }}
+          path: TestResults/
+          retention-days: 14

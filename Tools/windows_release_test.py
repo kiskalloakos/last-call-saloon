@@ -50,6 +50,8 @@ def run(name, command, timeout):
 
 
 if args.suite == 'standard':
+    run('voice-controls', [str(app), '-batchmode', '-nographics', '-saloonTest', 'voice-controls',
+                           '-saloonPort', '17986', '-logFile', str(logs / 'voice-controls.log')], 150)
     run('functional', [str(app), '-batchmode', '-nographics', '-saloonTest', 'functional',
                        '-saloonPort', '17987', '-logFile', str(logs / 'functional.log')], 120)
     run('five-player', [sys.executable, str(tools / 'smoke_test.py'), '--app', str(app),

@@ -1433,3 +1433,33 @@ five-player, separate rooms, paired room and paired voice connection (4323931073
 four-player, five-player, impaired four-player and a 13-second interruption
 (43239318018). Initial draft-release attempts failed to download because the runner
 could not see the draft; final published-release reruns passed.
+
+
+## 2026-11-12 — Open microphone and private proximity voice, 0.2.16
+
+Added T to toggle session-only open mic, preserving hold-V push-to-talk and M mute.
+The Escape voice menu has the same switch. A small HUD indicator shows the mode,
+mute, connection and permission state. Menus pause transmission. Channel changes
+retain the selection; leaving the session resets to push-to-talk.
+
+Preserved the private smoking channel and living/dead separation. New packaged
+voice-controls regression passed on Mac: input/mute/menu combinations, privacy in
+every phase, live Vivox indoor/outdoor/indoor/dead transitions with exactly one
+active channel, immediate two-way transition muting, outdoor snapshot isolation
+and open-mic reset. Physical capture stays disabled during this regression.
+Log: /tmp/lastcall-0216-voice-controls.log.
+
+Unity compiled universal Mac, Windows x64 and Linux x64 players. Packaged Mac
+gameplay passed (/tmp/lastcall-0216-functional.log). Four independent no-bot
+players completed three rounds and entered round four, covering roles, movement,
+paired coin/blackjack, headshots and healing (/tmp/lastcall-0216-lan/). Two live
+Vivox processes transmitted synthetic speech with muted physical microphones;
+receiver peak energy was 0.5469, with zero speech/mouth activity after stopping
+(/tmp/lastcall-0216-audio-valid/). The initial audio fixture was empty because
+macOS speech synthesis was sandboxed; regenerating it with system access fixed
+the fixture. No game code changed for that rerun.
+
+Mac universal slices and deep signature verification passed. ZIP CRC checks
+passed; SHA256 checksums accompany all three archives. Added native Linux release
+CI and voice-controls to the Windows standard suite. Physical device listening
+and household network testing remain human checks.
