@@ -1414,3 +1414,22 @@ The GitHub Mac ZIP was downloaded, its SHA256 checked against the published chec
   or window-mode switching, or timed display rollback was validated. The Editor
   deliberately skips OS display changes and their confirmation branch; these
   require a future standalone-player test.
+
+
+## Published 0.2.15 — 2026-11-12
+
+Built Windows x64 and universal macOS players from the graphics-settings release
+source (`131fe1a`). Packaged Mac gameplay regressions and four independent no-bot
+LAN players passed. Logs: /tmp/lastcall-release-0215.log,
+/tmp/lastcall-0215-functional.log and /tmp/lastcall-0215-lan/.
+The GitHub Mac archive was downloaded, SHA256 verified, extracted, deep signature
+verified and installed at Downloads/GAMES/Last Call.app. Launch visually confirmed
+0.2.15 and the Graphics Settings entry point. Removed the prior 0.2.14 build folder
+and replaced app after successful launch, freeing 1,156,862,317 bytes; source and
+screenshot/test evidence folders were retained.
+
+Published Windows ZIP passed both native Windows Server 2022 workflows: functional,
+five-player, separate rooms, paired room and paired voice connection (43239310730);
+four-player, five-player, impaired four-player and a 13-second interruption
+(43239318018). Initial draft-release attempts failed to download because the runner
+could not see the draft; final published-release reruns passed.
