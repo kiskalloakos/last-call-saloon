@@ -19,7 +19,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install runtime audio libraries
-        run: sudo apt-get update && sudo apt-get install -y libasound2 libpulse0 pulseaudio libglu1-mesa
+        run: sudo apt-get update && sudo apt-get install -y libasound2 libpulse0 pulseaudio libglu1-mesa xvfb
       - name: Download and verify published Linux archive
         env:
           GH_TOKEN: ${{ github.token }}
@@ -32,15 +32,29 @@ jobs:
           sha256sum --check --ignore-missing "SHA256SUMS-$version.txt"
           tar -xzf "LastCall-Linux-$version.tar.gz"
       - name: Execute Linux voice, gameplay and multiplayer regressions
+        env:
+          LIBGL_ALWAYS_SOFTWARE: '1'
         run: |
           pulseaudio --start --exit-idle-time=-1
           pactl load-module module-null-sink sink_name=verification
-          app="$PWD/DownloadedGame/LastCall-Linux/Last Call.x86_64"
-          ldd "$app" > TestResults/libraries.txt
-          "$app" -batchmode -nographics -saloonTest voice-controls -saloonPort 17986 -logFile "$PWD/TestResults/voice-controls.log"
-          "$app" -batchmode -nographics -saloonTest functional -saloonPort 17987 -logFile "$PWD/TestResults/functional.log"
+          export LASTCALL_LINUX_APP="$PWD/DownloadedGame/LastCall-Linux/Last Call.x86_64"
+          ldd "$LASTCALL_LINUX_APP" > TestResults/libraries.txt
+          # Unity's Linux NullGfxDevice crashes before Start in this player.
+          # Exercise the unchanged download with Mesa/OpenGL and a virtual display.
+          cat > TestResults/launch-game.py <<'PY'
+          #!/usr/bin/env python3
+          import os, sys
+          app = os.environ['LASTCALL_LINUX_APP']
+          os.execv(app, [app, '-force-glcore', '-screen-width', '640', '-screen-height', '360', '-screen-fullscreen', '0', *[a for a in sys.argv[1:] if a != '-nographics']])
+          PY
+          chmod +x TestResults/launch-game.py
+          xvfb-run -a bash -e <<'SH'
+          app="$PWD/TestResults/launch-game.py"
+          "$app" -batchmode -saloonTest voice-controls -saloonPort 17986 -logFile "$PWD/TestResults/voice-controls.log"
+          "$app" -batchmode -saloonTest functional -saloonPort 17987 -logFile "$PWD/TestResults/functional.log"
           python3 Tools/smoke_test.py --app "$app" --logs TestResults/five-player --port 17992
           python3 Tools/lan_match_test.py --app "$app" --logs TestResults/four-player --players 4
+          SH
       - name: Save full test logs
         if: always()
         uses: actions/upload-artifact@v4
