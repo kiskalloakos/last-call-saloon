@@ -36,6 +36,7 @@ namespace Saloon
                 if(Button(320,390,640,40,"LEAVE ROOM"))Game.Leave();
                 return;
             }
+            if(Game.GraphicsMenuOpen){GraphicsMenu();return;}
             if(!Game.InRoom){MainMenu();return;}
             if(Game.HitFlash>0)Panel(new Rect(0,0,1280,720),new Color(.8f,.08f,.02f,Game.HitFlash));
             Gameplay();if(Game.MenuOpen)Paper(Pause);
@@ -75,6 +76,7 @@ namespace Saloon
 
         void MainMenu()
         {
+            if(Button(1000,32,220,38,"GRAPHICS SETTINGS"))OpenGraphics();
             Panel(new Rect(0,0,630,720),new Color(.045f,.036f,.029f,.94f));
             Panel(new Rect(64,69,50,3),gold);
             Text(64,94,500,68,"LAST CALL",title);
@@ -273,7 +275,8 @@ namespace Saloon
         {
             Panel(new Rect(0,0,1280,720),paper);
             Panel(new Rect(260,30,760,660),new Color(.055f,.045f,.034f,.98f));
-            Text(295,50,600,50,"LAST CALL  /  BETA",roleStyle);
+            Text(295,50,460,50,"LAST CALL  /  BETA",roleStyle);
+            if(Button(775,55,200,38,"GRAPHICS SETTINGS"))OpenGraphics();
             scroll=GUI.BeginScrollView(new Rect(290,115,700,500),scroll,new Rect(0,0,670,menuContentHeight));
             Text(0,0,660,40,!string.IsNullOrEmpty(Game.Connection.RoomCode)?"ROOM CODE  "+Game.Connection.RoomCode:"LAN  /  Host shares their local IP and port "+Game.Port,subtitle);
             int y=45;

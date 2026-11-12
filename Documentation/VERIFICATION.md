@@ -1390,3 +1390,27 @@ Built matching universal macOS and Windows x64 players from d7e983f. Mac gamepla
 The published Windows ZIP passed native Windows Server 2022 validation: functional gameplay, five-player smoke, separate rooms, paired room and paired-room Vivox connection (run 43062776306); four players, five players, four with packet loss/delay and four with a 13-second interruption (run 43062772236). Every case passed. This does not verify the actual household router or each friend's Windows firewall.
 
 The GitHub Mac ZIP was downloaded, its SHA256 checked against the published checksum, extracted to Downloads/GAMES/Last Call.app, deep signature verified and launched showing 0.2.14 with NO BOTS selected. Old local 0.2.12 and ModelRoomFixes 0.2.13 output folders were removed after validation (1,980,790,080 bytes). Screenshot-only iteration evidence and project source were retained.
+
+
+## 2026-11-12 — Graphics settings, Editor-only verification
+
+- Recovered Unity 6000.5.10f1 startup by stopping the stale licensing helper left
+  by the sandboxed launch and opening LASTCALL through Hub. Logs/Editor.log records
+  a successful licensing handshake and license update. No license was removed,
+  returned or replaced.
+- Unity compiled and entered Play mode with Metal rendering. Manually exercised
+  Graphics Settings from the main menu and from the Escape menu in a five-seat
+  solo practice match.
+- Verified the initial Medium / VSync off / 60 FPS selections. Applied Low and a
+  90 FPS limit, closed/reopened the menu, stopped/restarted Play mode and confirmed
+  those selections persisted. The rendered scene changed when quality applied.
+- Staged High and VSync on; verified the frame-limit controls disable and display
+  monitor refresh rate. Cancel discarded those edits and reopening showed Low/90.
+  Then applied High/VSync on and confirmed those selections from the practice
+  match's graphics menu. Restored Medium/VSync off/60 FPS using Defaults + Apply.
+- Escape closed graphics back to the match menu. Stopped Play mode and left Unity
+  open in Edit mode. No player build or publication was performed.
+- Limits: no hardware performance claim, actual FPS-cap measurement, OS resolution
+  or window-mode switching, or timed display rollback was validated. The Editor
+  deliberately skips OS display changes and their confirmation branch; these
+  require a future standalone-player test.

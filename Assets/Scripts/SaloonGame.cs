@@ -10,6 +10,8 @@ namespace Saloon
         public Tuning tuning = new Tuning();
         public SaloonConnection Connection { get; private set; }
         public SaloonVoice Voice { get; private set; }
+        public SaloonGraphics Graphics { get; private set; }
+        public bool GraphicsMenuOpen;
         public SaloonBlackjackTable BlackjackTable { get; private set; }
         public SaloonCoinTable CoinTable { get; private set; }
         public SaloonBeerTaps BeerTaps { get; private set; }
@@ -104,7 +106,7 @@ namespace Saloon
         void Awake()
         {
             Application.runInBackground=true;
-            Application.targetFrameRate=90;
+            Graphics=gameObject.AddComponent<SaloonGraphics>();
             // Query-only hitboxes; movement collision remains on CharacterController.
             for(int layer=0;layer<32;layer++)Physics.IgnoreLayerCollision(8,layer,true);
             SaloonWorld.Build();SaloonArt.Apply();SaloonRoomWindows.Apply();SaloonRoomSigns.Apply();SaloonSmokingArea.Apply();
@@ -297,7 +299,13 @@ namespace Saloon
 
         void Update()
         {
-            if(Input.GetKeyDown(KeyCode.Escape)){MenuOpen=!MenuOpen;SyncPointer();}
+            if(Input.GetKeyDown(KeyCode.Escape))
+            {
+                if(GraphicsMenuOpen){Graphics.Revert();GraphicsMenuOpen=false;}
+                else MenuOpen=!MenuOpen;
+                SyncPointer();
+            }
+            if(GraphicsMenuOpen)MenuOpen=true;
             ShowRole=!MenuOpen&&Self?.alive==true&&Input.GetKey(KeyCode.Tab);
             if(!InRoom){UnlockCursor();return;}
             SyncPointer();UpdateSpectator();

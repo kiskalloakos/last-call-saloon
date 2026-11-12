@@ -2,15 +2,15 @@
 
 For role instructions, refer to [Your role, in simple words](#your-role-in-simple-words).
 
-Test release **0.2.14**, dated 2026-11-11, is available for Windows x64 and macOS (Intel and Apple Silicon).
-All players must use **0.2.14**.
+Test release **0.2.15**, dated 2026-11-12, is available for Windows x64 and macOS (Intel and Apple Silicon).
+All players must use **0.2.15**.
 
-1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.14/LastCall-Windows-0.2.14.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.14/LastCall-macOS-0.2.14.zip).
+1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.15/LastCall-Windows-0.2.15.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.15/LastCall-macOS-0.2.15.zip).
 2. Extract all files from the ZIP file.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
 
-Mac four-player no-bot tests and native Windows gameplay, room, voice-connection and LAN recovery checks passed. See [release notes and validation](Documentation/RELEASE-0.2.14.md).
+This release adds saved graphics settings. See [release notes and validation](Documentation/RELEASE-0.2.15.md) for checks performed on this version.
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
@@ -41,7 +41,7 @@ This test release includes planner corrections and more disconnect information.
 ## Four devices on LAN
 
 1. Connect all four computers to the same local network. Do not use guest Wi-Fi that isolates devices.
-2. Start **0.2.14 on every computer**.
+2. Start **0.2.15 on every computer**.
 3. Select **LOCAL / LAN** on each computer.
 4. On the host computer, select **NO BOTS**.
 5. Keep port **7777**.
@@ -71,7 +71,7 @@ The mug moves to the mouth during a drink.
 The transition between standing and sitting does not compress the character.
 Ragdoll deaths remain available.
 
-In 0.2.14, mouse look moves the head independently.
+In 0.2.15, mouse look moves the head independently.
 Move the mouse up/down to nod yes, or left/right to shake no while standing or seated.
 The body stays facing forward for head turns within 65 degrees; it follows larger turns and walking.
 
@@ -336,7 +336,7 @@ The default port is **7777**.
 For online play, create or join with a room code.
 
 All devices must use the same source or build version.
-Use **0.2.14** clients for this playtest.
+Use **0.2.15** clients for this playtest.
 The game rejects mixed versions with a message.
 The disconnect reason stays on the menu.
 It is not replaced silently.
@@ -614,7 +614,7 @@ The shared action deadline includes the longest coin setup window and waits for 
 ### Larger rooms: ordered turns
 
 The bar uses a new random turn queue each round, including with one or two living players.
-The host maintains the turn queue and timers. The top-right turn/action panel has been removed in 0.2.14.
+The host maintains the turn queue and timers. The top-right turn/action panel has been removed in 0.2.15.
 Each player can start one major action or pass.
 Then the next player's turn starts.
 Gun drawing and major actions are unavailable outside your turn, including for the Sheriff and practice bots.
@@ -896,18 +896,63 @@ This alpha is for trusted private groups.
 The parent Project-IDK is separate.
 This prototype does not change it.
 
-## Next playtest priorities
+## Graphics settings — development source
 
-1. Run a complete session with five humans.
-2. Measure waiting time, confusion, winners and reasons for victory.
-3. Adjust turn, discussion and aftermath durations from the observations.
-4. Improve spectator views and initial control instructions.
-5. Test how inspection reports, invitations and conflicting statements help players identify suspects.
-6. Keep the thief's identity private unless players infer it from evidence.
-7. Balance safe work and escape requirements.
-8. Reduce practice AI role knowledge for normal practice.
-9. Improve seated poses, hand grips, hit reactions and sound levels after the rules stabilize.
-10. Improve networking with build-version checks, disconnect handling and reconnection support (20-second reconnection is implemented; host migration remains future work).
+The development source adds **Graphics Settings** to the main menu and Escape menu:
+Low / Medium / High presets, resolution, windowed / borderless mode, VSync and
+frame-rate limits. Defaults are Medium, VSync off and a 60 FPS limit. Settings save
+locally; unconfirmed display changes revert after 15 seconds.
+See [graphics settings](Documentation/GRAPHICS-SETTINGS.md).
+
+This menu is included starting with 0.2.15. Its menu, quality changes,
+Apply/Cancel behavior and preference persistence were exercised in the Editor on
+2026-11-12. OS display switching and timed rollback still require a player test.
+The minimum performance target is **60 FPS**; minimum hardware is not established.
+
+## Next playtest priorities and beta readiness
+
+These are proposed acceptance gates, not completed test claims. Current scope is
+private matches for **4–5 players**.
+
+- [ ] Run at least three complete human playtest sessions covering four and five
+  players, including new players. Record waiting time, confusion, winners, victory
+  reasons and desire to replay.
+- [ ] Complete real-device LAN/Wi-Fi/firewall tests and online room-code tests
+  across separate networks, with Windows and Mac players and voice active.
+- [ ] Investigate the reported Windows return to menu. Capture disconnect details
+  and logs; verify a correction or document the cause and a reliable recovery path.
+  Current automated recovery checks do not close this report.
+- [ ] Exercise full matches through every victory condition, elimination,
+  spectating, rematch, reconnect expiry and host loss, without a stuck match or
+  unexplained loss of state. Run a two-hour session to check stability.
+- [ ] Validate 60 FPS on candidate minimum PCs at a stated resolution and preset,
+  including hosting, voice and busy scenes. Record frame times and peak memory.
+- [ ] Test graphics display changes and automatic rollback in a future player
+  candidate. No new build is required for source or Editor iteration.
+- [ ] Verify that new players can plan, ready, understand their role, use minigames
+  and finish a match without developer instructions. Tune timing, safe work,
+  escape and sound levels using those observations.
+- [ ] Define supported OS/hardware, known issues and a support/bug-reporting path.
+  Decide whether practice bots remain explicitly omniscient test opponents or need
+  a fairer normal-practice mode.
+
+Already implemented: build-version/protocol rejection, disconnect details,
+20-second reconnection in the original running client, private evidence and thief
+identity, role instructions, spectator cycling/persistent bodies, and multiple
+animation/grip/hit-reaction improvements. These still need human usability and
+balance feedback; they are not wholly unimplemented TODOs.
+
+Deferred scope: 6–8-player match rules, host migration, reconnect after app restart,
+matchmaking, wall-based voice attenuation and production anti-cheat. These are not
+all prerequisites for a private-group beta. A public release must state its
+limitations clearly and assess abuse protection for its intended audience.
+
+Before public Early Access, also prepare reliable installation/updates, appropriate
+signing/notarization for offered platforms, audio/input preferences, basic
+accessibility, a support channel, service-capacity checks and a realistic roadmap.
+Assess whether the current game offers enough replay value at its intended price.
+[Steam's Early Access guidance](https://partner.steamgames.com/doc/store/earlyaccess)
+requires a playable current product and clear communication about its unfinished state.
 
 Run **Saloon → Verify posse arrival in Play mode** to check posse timing and victory priority.
 
