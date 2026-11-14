@@ -29,7 +29,12 @@ namespace Saloon
             foreach(Phase p in Enum.GetValues(typeof(Phase)))
             {
                 string indoor=SaloonPrivacy.VoiceChannel("test",p,0,true),outside=SaloonPrivacy.VoiceChannel("test",p,3,true);
-                Check((indoor!=outside)==SaloonPrivacy.Separated(p)&&SaloonPrivacy.VoiceChannel("test",p,3,false)=="test-dead","smoking and eliminated isolation during "+p);
+                Check((indoor!=outside)==SaloonPrivacy.Separated(p)&&SaloonPrivacy.VoiceChannel("test",p,3,false)==(SaloonPrivacy.SharedVoice(p)?"test-alive":"test-dead"),"smoking and eliminated isolation during "+p);
+            }
+            foreach(Phase p in Enum.GetValues(typeof(Phase)))
+            {
+                Check(SaloonPrivacy.VoicePaused(p,true,false)==!SaloonPrivacy.SharedVoice(p),"setup/results keep microphone controls available during "+p);
+                Check(SaloonPrivacy.VoicePaused(p,false,true),"graphics settings pause microphone during "+p);
             }
             MenuOpen=false;
             var connect=Voice.ConnectForVerification();float deadline=Time.realtimeSinceStartup+40;
@@ -61,6 +66,11 @@ namespace Saloon
             while((Voice.Channel!=VoiceRoom+"-dead"||Voice.Busy)&&Time.realtimeSinceStartup<deadline)yield return null;
             OnlyChannel("-dead");Voice.Muted=true;
             Check(service.IsInputDeviceMuted,"mute overrides open mic");
+            Finish("VOICE REMATCH TEST");deadline=Time.realtimeSinceStartup+30;
+            while((Voice.Channel!=VoiceRoom+"-alive"||Voice.Busy)&&Time.realtimeSinceStartup<deadline)yield return null;
+            OnlyChannel("-alive");Check(!Self.alive,"eliminated player rejoins proximity for results voting");
+            ReopenLobby();Broadcast();yield return null;
+            OnlyChannel("-alive");Check(MenuOpen&&Voice.OpenMicrophone,"host setup retains proximity and open mic preference");
             var leave=Voice.Leave();while(!leave.IsCompleted)yield return null;
             Check(!Voice.OpenMicrophone&&!Voice.Transmitting&&service.ActiveChannels.Count==0,"leave clears open mic and all channels");
             VerificationFinished=VerificationPassed=true;Debug.Log("SALOON_VOICE_CONTROLS PASS");Application.Quit(0);

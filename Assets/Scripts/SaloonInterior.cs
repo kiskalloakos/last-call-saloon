@@ -11,7 +11,9 @@ namespace Saloon
 
         public static void Apply(GameObject world)
         {
-            if(world.transform.Find("Western interior")!=null)return;
+            var previous=world.transform.Find("Western interior");
+            if(previous!=null&&previous.Find("Lantern interior v2")!=null){SaloonLighting.Apply(world);return;}
+            if(previous!=null){previous.gameObject.SetActive(false);Remove(previous.gameObject);}
             root=new GameObject("Western interior").transform;root.SetParent(world.transform,false);
             var texture=Resources.Load<Texture2D>("Art/LowPoly/Textures/WoodPlanks");
             oak=Wood("Counter oak",new Color(.47f,.28f,.14f),texture,new Vector2(2,1));
@@ -35,8 +37,8 @@ namespace Saloon
             }
             Counter();Backbar();WallDetails();
             BatchGeometry();
-            RenderSettings.ambientMode=AmbientMode.Flat;RenderSettings.ambientLight=new Color(.41f,.36f,.29f);
-            RenderSettings.fogDensity=.0035f;
+            new GameObject("Lantern interior v2").transform.SetParent(root,false);
+            SaloonLighting.Apply(world);
         }
 
         static Material Wood(string name,Color tint,Texture texture,Vector2 tiling)
@@ -118,7 +120,6 @@ namespace Saloon
                     }
                 }
             }
-            Lamp(new Vector3(-6.6f,2.35f,5.95f));Lamp(new Vector3(3.35f,2.35f,5.95f));
         }
         static void WallDetails()
         {
@@ -129,7 +130,6 @@ namespace Saloon
                 foreach(float x in new[]{center-1.87f,center+1.87f})
                 {Box("Room side dado",new Vector3(x,.52f,-3.78f),new Vector3(.05f,1.04f,3.55f),walnut);Box("Room side cap",new Vector3(x,1.09f,-3.78f),new Vector3(.09f,.075f,3.55f),oak);}
                 Picture(new Vector3(center,2.02f,-5.43f),center<0?new Color(.35f,.13f,.065f):new Color(.16f,.30f,.29f));
-                Lamp(new Vector3(center+1.38f,2.0f,-5.35f));
             }
             foreach(float x in new[]{-7.74f,7.74f})
             {
@@ -144,13 +144,6 @@ namespace Saloon
             Box("Picture mat",position+Vector3.forward*.044f,new Vector3(.81f,.52f,.018f),cream);
             Box("Picture field",position+Vector3.forward*.058f,new Vector3(.72f,.43f,.012f),art);
             var sun=Cylinder("Print medallion",position+new Vector3(.18f,.045f,.072f),new Vector3(.17f,.006f,.17f),brass);sun.transform.localRotation=Quaternion.Euler(90,0,0);
-        }
-        static void Lamp(Vector3 position)
-        {
-            Box("Lamp backplate",position,new Vector3(.19f,.35f,.06f),brass);
-            Box("Lamp shade",position+new Vector3(0,.06f,-.13f),new Vector3(.28f,.22f,.22f),walnut);
-            var bulb=new GameObject("Warm wall lamp");bulb.transform.SetParent(root,false);bulb.transform.localPosition=position+new Vector3(0,-.10f,-.25f);
-            var light=bulb.AddComponent<Light>();light.type=LightType.Point;light.color=new Color(1,.80f,.55f);light.intensity=.85f;light.range=4.2f;
         }
         static void Remove(Object obj){if(Application.isPlaying)Object.Destroy(obj);else Object.DestroyImmediate(obj);}
         static void BatchGeometry()

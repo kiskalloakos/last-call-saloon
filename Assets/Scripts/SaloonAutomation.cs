@@ -21,6 +21,14 @@ namespace Saloon
         float roomActionAt;
         bool PairTest=>mode!=null&&mode.Contains("pair");
         bool RoomTest=>mode!=null&&mode.StartsWith("rooms-");
+        public static bool RoleLabelsValid(Snapshot view)
+        {
+            if(view==null||!Enum.TryParse(view.ownRole,out Role viewer)||viewer==Role.Unknown)return false;
+            var known=view.knownRoles??Array.Empty<KnownRole>();
+            return known.Select(k=>k.id).Distinct().Count()==known.Length&&
+                known.All(k=>Enum.TryParse(k.role,out Role subject)&&subject!=Role.Unknown&&SaloonRules.KnowsRole(viewer,subject))&&
+                view.players.All(p=>(p.revealedRole??"")==(known.FirstOrDefault(k=>k.id==p.id)?.role??""));
+        }
         void Start()
         {
             var args=Environment.GetCommandLineArgs();
@@ -141,7 +149,7 @@ namespace Saloon
                 if(!privacyChecked&&Game.View.phase==Phase.Discussion)
                 {
                     privacyChecked=true;
-                    bool secret=Game.View.players.All(p=>Game.View.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):string.IsNullOrEmpty(p.revealedRole))&&Game.View.players.Count(p=>p.sheriff)==1&&
+                    bool secret=RoleLabelsValid(Game.View)&&Game.View.players.Count(p=>p.sheriff)==1&&
                         string.IsNullOrEmpty(Game.View.ally);
                     Debug.Log("SALOON_PRIVACY "+(secret?"PASS":"FAIL")+" mode="+mode);
                     if(!secret)Application.Quit(5);
@@ -164,7 +172,7 @@ namespace Saloon
                 if(Game.View.phase==Phase.Discussion&&Game.View.round>=2&&!reported)
                 {
                     reported=true;
-                    bool valid=!moved&&privacyChecked&&Game.View.players.Length==5&&Game.View.ownRole!="Unknown"&&string.IsNullOrEmpty(Game.View.outcome)&&Game.View.players.All(p=>Game.View.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):string.IsNullOrEmpty(p.revealedRole));
+                    bool valid=!moved&&privacyChecked&&Game.View.players.Length==5&&Game.View.ownRole!="Unknown"&&string.IsNullOrEmpty(Game.View.outcome)&&RoleLabelsValid(Game.View);
                     Debug.Log("SALOON_SMOKE "+(valid?"PASS":"FAIL")+" mode="+mode+" players="+Game.View.players.Length+" role="+Game.View.ownRole+" outcome="+Game.View.outcome+" movement="+moved);
                     // Let the next-round snapshot reach every peer before shutdown.
                     resultCode=valid?0:3;quitAfter=Time.unscaledTime+(Game.Hosting?1f:.25f);

@@ -39,7 +39,7 @@ public static class SaloonWesternCharacter
             float scale=1.78f/bounds.size.y;character.transform.localScale*=scale;
             character.transform.localPosition=new Vector3(-bounds.center.x*scale,-bounds.min.y*scale,-bounds.center.z*scale);
             holder.AddComponent<SaloonCharacterMotion>();
-            PrepareSpeech(holder,animator,skins.First(s=>s.name=="gunman"));
+            PrepareFace(holder,animator,skins.First(s=>s.name=="gunman"));
             foreach(var skin in skins.Where(s=>s.name!="gunman"))
             {
                 var gripMesh=UnityEngine.Object.Instantiate(skin.sharedMesh);
@@ -57,34 +57,16 @@ public static class SaloonWesternCharacter
         finally{UnityEngine.Object.DestroyImmediate(holder);}
     }
 
-    static void PrepareSpeech(GameObject holder,Animator animator,SkinnedMeshRenderer face)
+    static void PrepareFace(GameObject holder,Animator animator,SkinnedMeshRenderer face)
     {
-        var head=animator.GetBoneTransform(HumanBodyBones.Head);
-        var center=holder.transform.InverseTransformPoint(head.position);
-        var baked=new Mesh();face.BakeMesh(baked);
-        var vertices=baked.vertices;var delta=new Vector3[vertices.Length];int changed=0;
-        for(int i=0;i<vertices.Length;i++)
-        {
-            var p=holder.transform.InverseTransformPoint(face.transform.TransformPoint(vertices[i]))-center;
-            float weight=Mathf.SmoothStep(0,1,(-.014f-p.y)/.025f)*Mathf.SmoothStep(0,1,(p.y+.115f)/.025f)*
-                (1-Mathf.SmoothStep(0,1,(Mathf.Abs(p.x)-.035f)/.055f))*Mathf.SmoothStep(0,1,(p.z-.025f)/.04f);
-            if(weight<=0)continue;changed++;
-            delta[i]=face.transform.InverseTransformVector(holder.transform.TransformVector(new Vector3(p.x*.04f,-.028f,.003f)*weight));
-        }
-        UnityEngine.Object.DestroyImmediate(baked);
-        if(changed==0)throw new InvalidOperationException("No lower face vertices found for speech.");
-        var mesh=UnityEngine.Object.Instantiate(face.sharedMesh);mesh.name="Gunman with talking jaw";
-        mesh.AddBlendShapeFrame(SaloonSpeechMouth.Shape,100,delta,new Vector3[delta.Length],new Vector3[delta.Length]);
+        var mesh=UnityEngine.Object.Instantiate(face.sharedMesh);mesh.name="Gunman face";
         PrepareGrip(holder,animator,face,mesh);
         const string path="Assets/Resources/Art/Western/GunmanTalkingFace.asset";
         var existing=AssetDatabase.LoadAssetAtPath<Mesh>(path);
         if(existing!=null){EditorUtility.CopySerialized(mesh,existing);UnityEngine.Object.DestroyImmediate(mesh);mesh=existing;}
         else AssetDatabase.CreateAsset(mesh,path);
         face.sharedMesh=mesh;
-        var mouth=holder.AddComponent<SaloonSpeechMouth>();mouth.FaceRenderer=face;mouth.HeadBone=head;
-        mouth.MouthPosition=head.InverseTransformPoint(holder.transform.TransformPoint(center+new Vector3(0,-.014f,.1055f)));
-        mouth.MouthRotation=Quaternion.Inverse(head.rotation)*holder.transform.rotation;
-        Debug.Log("SALOON_SPEECH_PREPARED lowerFaceVertices="+changed);
+
     }
 
     static bool PrepareGrip(GameObject holder,Animator animator,SkinnedMeshRenderer face,Mesh mesh)

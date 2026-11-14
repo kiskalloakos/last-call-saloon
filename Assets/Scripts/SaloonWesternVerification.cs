@@ -49,14 +49,12 @@ namespace Saloon
             Check(motion.SittingBlend>.99f&&Vector3.Angle(thigh.position-knee.position,foot.position-knee.position)<145&&motion.transform.localScale==Vector3.one,"sitting bends the knees without squashing the model");
             yield return Capture("03-sitting");
             foreach(var p in players.Values){p.chosenRoom=0;OnCommand(p.id,new Command{kind="ready",x=1});}TickServer();
-            var turn=roomTurns[0];turn.order=new[]{hero.id}.Concat(players.Keys.Where(id=>id!=hero.id)).ToArray();turn.index=0;turn.until=Time.time+30;
             hero.yaw=180;hero.pitch=-8;hero.lastAction=-100;OnCommand(hero.id,new Command{kind="draw"});Broadcast();yield return new WaitForSeconds(tuning.drawSeconds+.15f);
             yield return Capture("04-revolver-grip");
             hero.nextShot=0;hero.lastAction=-100;OnCommand(hero.id,new Command{kind="fire"});Broadcast();yield return new WaitForSeconds(.04f);
             Check(hero.shots==1&&motion.CurrentAnimation=="Shooting","real shot drives the new rig's recoil (shots="+hero.shots+", pose="+motion.CurrentAnimation+")");yield return Capture("05-shooting");
             yield return new WaitForSeconds(.32f);yield return Capture("06-revolver-flip");yield return new WaitForSeconds(.9f);
             rounds.Start(players.Keys,Time.time,0,60,6);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
-            turn=roomTurns[0];turn.order=new[]{hero.id}.Concat(players.Keys.Where(id=>id!=hero.id)).ToArray();turn.index=0;turn.until=Time.time+30;
             hero.yaw=180;hero.drawn=false;hero.hp=40;hero.beer=1;hero.beerHealing=SaloonHealth.BeerHealing;hero.lastAction=-100;OnCommand(hero.id,new Command{kind="drink"});Broadcast();
             yield return new WaitForSeconds(tuning.drinkSeconds*.3f);
             Check(motion.CurrentAnimation=="Drinking"&&hero.busyAction=="drink","real drink lifts the mug and animates the character");yield return Capture("07-drinking");

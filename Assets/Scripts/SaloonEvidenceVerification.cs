@@ -20,20 +20,20 @@ namespace Saloon
                 witness.room=worker.room=0;witness.role=Role.Sheriff;worker.role=Role.Outlaw;
             }
             ResetHeist();Actions();
-            witness.body.transform.position=new Vector3(0,10,0);worker.body.transform.position=new Vector3(0,10,3);
+            witness.body.transform.position=SafeApproach+Vector3.back*1.1f;worker.body.transform.position=SafeApproach;
             witness.seat=worker.seat=-1;witness.yaw=180;witness.pitch=0;worker.busyAction="rob";worker.busyUntil=Time.time+100;
             yield return new WaitForSeconds(.9f);
             Check(witness.evidence.Count==0,"looking away gives no clue");
             witness.yaw=0;yield return new WaitForSeconds(.2f);witness.yaw=180;yield return null;witness.yaw=0;yield return new WaitForSeconds(.2f);
             Check(witness.evidence.Count==0,"brief separate glances do not accumulate into a witness clue");
-            var wall=GameObject.CreatePrimitive(PrimitiveType.Cube);wall.transform.position=new Vector3(0,11.65f,1.5f);wall.transform.localScale=new Vector3(2,3,.3f);
+            var wall=GameObject.CreatePrimitive(PrimitiveType.Cube);wall.transform.position=SafeApproach+new Vector3(0,1.2f,-.55f);wall.transform.localScale=new Vector3(2,3,.3f);
             yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==0,"a wall blocks witnessing");Destroy(wall);yield return null;
             witness.hp=0;yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==0,"dead players collect no clues");witness.hp=60;
             yield return new WaitForSeconds(.9f);
             Check(witness.evidence.Count==1&&witness.evidence[0].Contains(worker.name)&&witness.evidence[0].Contains("did not see whether"),"watching real safe work records one named observation without claiming completion");
             yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==1,"continued watching does not spam duplicate clues");
             Check(outsider.evidence.Count==0&&PrivateSnapshot(outsider.id).evidence.Length==0&&PrivateSnapshot(worker.id).evidence.Length==0,"other rooms and the worker receive no witness notebook");
-            worker.busyAction="";worker.busyUntil=0;InspectSafe(witness);
+            worker.busyAction="";worker.busyUntil=0;witness.body.transform.position=SafeApproach+Vector3.left*.25f;Physics.SyncTransforms();InspectSafe(witness);
             Check(witness.safeReport.Contains("No tool marks")&&safeProgress==0,"interrupted work leaves no completed-work inspection marks");
             Actions();CompleteRobbery(worker);InspectSafe(witness);
             Check(witness.safeReport.Contains("New tool marks")&&witness.safeReport.Contains("round 1"),"inspection compares completed safe work with the previous check");

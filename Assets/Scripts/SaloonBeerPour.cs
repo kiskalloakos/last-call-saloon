@@ -53,7 +53,7 @@ namespace Saloon
             p.pourStarted=Time.time;p.pourTick=Time.time;p.pourFlow=1;p.botPourSeconds=UnityEngine.Random.Range(1.65f,3.55f);
             p.drawn=false;p.fireAfterDraw=false;p.move=Vector2.zero;
             p.busyAction="pour";p.busyUntil=Time.time+SaloonBeerPour.MaxSeconds;
-            p.notice="Pouring · E to stop at the line. Up to +20% health.";
+            p.notice="Pouring · E to stop at the line. Up to +"+SaloonHealth.BeerHealingAmount(SaloonHealth.BeerHealing,p.cigaretteBuff)+"% health.";
         }
 
         void StopPour(Participant p)
@@ -62,7 +62,7 @@ namespace Saloon
             p.beerHealing=SaloonBeerPour.Healing(Time.time-p.pourStarted);p.beer=1;
             p.busyAction="";p.busyUntil=0;p.beerChoiceUntil=Time.time+SaloonBeerPour.ChoiceSeconds;
             rounds.SetCompletion(p.id,p.beerChoiceUntil);
-            p.notice="Poured +"+p.beerHealing+"% · B drink · G offer · Space leave it.";
+            p.notice="Poured +"+p.beerHealing+"% · B drink for +"+SaloonHealth.BeerHealingAmount(p.beerHealing,p.cigaretteBuff)+"% · G offer · Space leave it.";
         }
 
         void TickBeer(Participant p)
@@ -93,9 +93,17 @@ namespace Saloon
             {if(p.room==0)BeginPour(p);else p.notice="Go to the bar to pour a beer.";return;}
             if(p.hp>=tuning.health){p.notice="You are already at full health. Offer or leave your beer.";return;}
             if(!CommitBeerUse(p,tuning.drinkSeconds))return;
-            p.drinkHealing=p.beerHealing;p.beerHealing=0;p.beer--;p.drawn=false;
+            p.drinkHealing=PrepareBeerHealing(p,p.beerHealing);p.beerHealing=0;p.beer--;p.drawn=false;
             p.busyUntil=Time.time+tuning.drinkSeconds;p.busyAction="drink";
             p.notice="Drinking · +"+p.drinkHealing+"% on finishing. Hits do not interrupt the sip.";
+        }
+
+        int PrepareBeerHealing(Participant drinker,int poured)
+        {
+            bool boosted=drinker.cigaretteBuff&&drinker.Alive&&drinker.hp<tuning.health&&poured>0;
+            int healing=SaloonHealth.BeerHealingAmount(poured,boosted);
+            if(boosted)drinker.cigaretteBuff=false;
+            return healing;
         }
 
         void LeaveBeer(Participant p)

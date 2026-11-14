@@ -1,0 +1,1 @@
+PASS: shader supported, twelve 1K maps with correct color spaces, 153 scanned renderers, repeated application stable, colliders unchanged; eight emissive lanterns with centered indoor lights.

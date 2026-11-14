@@ -84,3 +84,40 @@ Runtime: Assets/Resources/Audio/Recorded/RevolverShot.wav. Converted to mono
 44.1 kHz PCM and level-adjusted with a short tail fade. The original layered
 blast and reverb are retained; no pitch shift or additional layers were added.
 Hashes and download URL are included in both audio source manifests.
+
+## Scanned environment surfaces — 2026-11-14
+
+| Material | Source | Integration |
+|---|---|---|
+| Wood Table | [Poly Haven](https://polyhaven.com/a/wood_table) | Counter panels, joinery, chairs, tables, doors and window frames; warm oak/walnut tints |
+| Wood Planks Grey | [Poly Haven](https://polyhaven.com/a/wood_planks_grey) | Interior floorboards and weathered smoking deck, rails and bench |
+| Sandy Gravel | [Poly Haven](https://polyhaven.com/a/sandy_gravel) | Desert ground visible from the smoking overlook |
+| Plaster 001 | [ambientCG](https://ambientcg.com/a/Plaster001) | Warm limewashed interior walls |
+
+All four materials are CC0: [Poly Haven license](https://polyhaven.com/license),
+[ambientCG license](https://docs.ambientcg.com/license/). Color, OpenGL normal and
+roughness maps are original 1K JPG downloads. No downloaded scripts or scene files run.
+Exact download URLs and SHA256 hashes: `ArtSource/Surfaces/sources.json`; Poly Haven
+API metadata is retained beside it. Runtime maps are in `Assets/Resources/Art/Surfaces`.
+
+`Saloon/Scanned Surface` uses world-space triplanar projection so grain scale survives
+nonuniform primitive scaling and interior mesh combining. Maps use mipmaps, trilinear
+filtering and 4x anisotropy; only color maps use sRGB. Normal and roughness maps are
+linear RGB. Material variants are shared per source material within each application.
+Existing saved scene overlays and newly generated scenes receive the same pass at
+startup. Reapplication skips converted materials. Geometry, collision and room rules
+are unchanged. No release binary rebuilt for this art pass.
+
+Use **Saloon → Preview scanned environment materials** to check texture imports,
+shader support, material coverage, repeated application and collision preservation,
+and render `Documentation/SurfacePreviews/bar.png` and `smoking-deck.png`.
+
+### Lantern and exposure correction — 2026-11-14
+
+Replaced the solid block shades and detached bulbs with eight iron/brass lanterns.
+Each has an emissive amber chamber and a point light at the chamber's center.
+Decorative frames have no collision or self-shadowing. Removed the unmotivated
+indoor directional sun, used a neutral three-color ambient fill, reduced indoor
+fog and timber gloss, and raised the low/medium/high pixel-light budgets to 2/4/8.
+The existing saved interior is migrated on startup, as well as fresh procedural rooms.
+The sunset's outdoor light remains isolated on its own layer.

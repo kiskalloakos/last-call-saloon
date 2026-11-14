@@ -6,6 +6,7 @@ namespace Saloon
     public static class SaloonMovement
     {
         public const int SolidLayer=10;
+        public const float BarPublicBackZ=3.05f;
         public const float StandingHeight=1.8f,CrouchingHeight=1.17f,CrouchDrop=.63f,CrouchSpeed=.45f;
         public static float EyeHeight(bool seated,bool crouched)=>seated?1.35f:crouched?1.02f:1.65f;
         public static Vector3 ClampToRoom(Vector3 p,int room)
@@ -13,7 +14,16 @@ namespace Saloon
             if(room==3)return SaloonSmokingArea.Clamp(p);
             if(room==1){p.x=Mathf.Clamp(p.x,-6.65f,-3.35f);p.z=Mathf.Clamp(p.z,-5.35f,-2.02f);}
             else if(room==2){p.x=Mathf.Clamp(p.x,3.35f,6.65f);p.z=Mathf.Clamp(p.z,-5.35f,-2.02f);}
-            else {p.x=Mathf.Clamp(p.x,-7.4f,7.4f);p.z=Mathf.Clamp(p.z,-1.25f,6.4f);}
+            else
+            {
+                // The public floor includes the center aisle and entrance, around the
+                // discussion table. Preserve the enclosed side rooms as separate areas.
+                var bar=new Vector3(Mathf.Clamp(p.x,-7.4f,7.4f),p.y,Mathf.Clamp(p.z,-1.25f,BarPublicBackZ));
+                var aisle=new Vector3(Mathf.Clamp(p.x,-2.65f,2.65f),p.y,Mathf.Clamp(p.z,-6.55f,BarPublicBackZ));
+                var entrance=new Vector3(Mathf.Clamp(p.x,-7.4f,7.4f),p.y,Mathf.Clamp(p.z,-6.55f,-6.1f));
+                var nearest=(bar-p).sqrMagnitude<(aisle-p).sqrMagnitude?bar:aisle;
+                p=(entrance-p).sqrMagnitude<(nearest-p).sqrMagnitude?entrance:nearest;
+            }
             return p;
         }
         public static bool InRoom(Vector3 p,int room)=>(ClampToRoom(p,room)-p).sqrMagnitude<.0001f;
@@ -39,6 +49,7 @@ namespace Saloon
             }
             if(p.busyUntil>Time.time&&(p.busyAction=="rob"||p.busyAction=="drink"||p.busyAction=="giftDrink"||p.busyAction=="give"))
             {p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;p.botRoamAt=0;return;}
+            if(BotWantsSafe(p)){WalkBotToSafe(p);return;}
             var threat=players.Values.Where(x=>x!=p&&x.Alive&&x.room==p.room&&Enemies(p,x))
                 .OrderBy(x=>(x.body.transform.position-p.body.transform.position).sqrMagnitude).FirstOrDefault();
             var toward=threat==null?Vector3.forward:Vector3.ProjectOnPlane(threat.body.transform.position-p.body.transform.position,Vector3.up).normalized;

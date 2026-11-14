@@ -23,7 +23,6 @@ namespace Saloon
         SaloonCharacterMotion motion;
         SaloonSmokingVisual smoking;
         public SaloonSmokingVisual SmokingVisual=>smoking;
-        SaloonSpeechMouth speechMouth;
         Vector3 walkingVelocity;
         float lookYaw,lookPitch;
         Transform rightArm,rightForearm,rightHand,gunSpin,firstGunSpin;
@@ -48,7 +47,6 @@ namespace Saloon
             if(prefab==null)throw new System.InvalidOperationException("Prepare the Western Gunman character from the Saloon menu.");
             model=Instantiate(prefab,transform);model.name="Western Gunman";
             motion=model.GetComponent<SaloonCharacterMotion>();motion.Initialize(initial.seated);
-            speechMouth=model.GetComponent<SaloonSpeechMouth>();speechMouth.PhaseOffset=(ulong.Parse(initial.id)%17)*.71f;speechMouth.Initialize();
             rightArm=motion.Bone(HumanBodyBones.RightUpperArm);rightForearm=motion.Bone(HumanBodyBones.RightLowerArm);rightHand=motion.Bone(HumanBodyBones.RightHand);
             var middle=motion.Bone(HumanBodyBones.RightMiddleProximal);
             var thumb=motion.Bone(HumanBodyBones.RightThumbProximal);
@@ -89,7 +87,7 @@ namespace Saloon
             }
             lastHit=next.hits;
             state=next;local=isLocal;snapshotAt=Time.time;
-            if(!next.alive||next.observer||next.drinking){speechMouth.Silence();gunGrip.Release();}
+            if(!next.alive||next.observer||next.drinking){gunGrip.Release();}
             if(next.alive&&ragdoll!=null){ragdoll.Restore();ragdoll=null;}
             if(!next.alive&&ragdoll==null)
             {
@@ -170,7 +168,6 @@ namespace Saloon
             if(state==null)return;
             footsteps.Tick(transform.position,state.alive,state.seated,Time.time-snapshotAt<.25f,local,state.room==3);
             hitReaction.Tick();
-            speechMouth.Tick(game.Voice.SpeechLevel(state.voiceId),state.alive&&!state.observer&&!state.drinking,Time.unscaledDeltaTime);
             if(!state.alive)
             {
                 smoking.Pose(state,local,100);

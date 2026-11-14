@@ -9,6 +9,52 @@ namespace Saloon
 {
     public partial class SaloonGame
     {
+        public IEnumerator VerifyBarAccessAndSafe()
+        {
+            verifying=true;AutomatedInput=true;VerificationPassed=VerificationFinished=false;
+            void Check(bool ok,string message)
+            {if(!ok){VerificationFinished=true;throw new InvalidOperationException("Bar layout: "+message);}Debug.Log("SALOON_BAR_LAYOUT_CHECK "+message);}
+            var host=players[Connection.LocalId];
+            foreach(var p in players.Values){p.hp=tuning.health;p.chosenRoom=0;p.companion=null;p.busyAction="";p.busyUntil=0;}
+            rounds.Start(players.Keys,Time.time,30,120,0);foreach(var id in players.Keys)rounds.SetReady(id,true);
+            rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
+            void Place(Vector3 position)
+            {
+                host.controller.enabled=false;host.seat=-1;host.body.transform.position=position;
+                host.crouched=host.crouchHeld=false;host.yaw=host.pitch=0;host.poseVersion++;host.move=Vector2.zero;host.vertical=0;
+                UpdatePlayerColliders(host);host.controller.enabled=true;Physics.SyncTransforms();
+            }
+            IEnumerator Forward(float seconds)
+            {
+                float until=Time.time+seconds;
+                while(Time.time<until)
+                {OnCommand(host.id,new Command{kind="input",z=1,yaw=0,pitch=0,poseVersion=host.poseVersion});yield return null;}
+                OnCommand(host.id,new Command{kind="input",poseVersion=host.poseVersion});
+            }
+            var overlay=GameObject.Find("Saloon World").transform.Find("Low-poly art overlay");
+            var safe=overlay.Find("Safe visual");
+            Check(safe!=null&&Vector3.Distance(safe.position,SaloonArt.SafePosition)<.01f,"saved scene safe moves onto the public side of the counter");
+            Check(SaloonMovement.InRoom(safe.position,0)&&safe.position.z<SaloonMovement.BarPublicBackZ,"safe belongs to the accessible Bar floor");
+            Check(overlay.Find("Public Bar boundary").GetComponent<BoxCollider>().enabled,"staff area has a physical collision boundary");
+            Place(new Vector3(4.8f,.08f,.55f));MenuOpen=false;Broadcast();
+            yield return Forward(.7f);
+            float distance=Vector3.ProjectOnPlane(host.body.transform.position-safe.position,Vector3.up).magnitude;
+            Check(distance<1.3f&&distance>.5f,"player can walk up to the safe door without clipping into it");
+            foreach(float x in new[]{-7.1f,7f})
+            {
+                Place(new Vector3(x,.08f,2.5f));yield return Forward(.55f);
+                Check(host.body.transform.position.z<=SaloonMovement.BarPublicBackZ+.02f,"room boundary blocks counter-end bypass at x="+x);
+                // Lobby walking does not apply the room clamp: verify the collider itself.
+                phase=Phase.Lobby;Place(new Vector3(x,.08f,2.5f));yield return Forward(.55f);
+                Check(host.body.transform.position.z<3.2f,"physical barrier also blocks lobby entry at x="+x);phase=Phase.Turns;
+            }
+            Place(new Vector3(4.8f,.08f,-.15f));host.pitch=27;cameraCut=true;MenuOpen=false;ShowRole=false;RoomPlannerOpen=false;Broadcast();
+            yield return null;yield return new WaitForEndOfFrame();
+            string path=Path.Combine(Path.GetTempPath(),"Saloon-public-safe.png");ScreenCapture.CaptureScreenshot(path);yield return null;
+            Debug.Log("SALOON_BAR_LAYOUT PASS safe access and both staff-area bypasses; preview="+path);
+            VerificationPassed=VerificationFinished=true;
+        }
+
         public IEnumerator VerifyRoomActions()
         {
             verifying=true;AutomatedInput=true;VerificationPassed=VerificationFinished=false;

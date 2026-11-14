@@ -33,10 +33,6 @@ namespace Saloon
             void Shoot(Participant shooter,Participant target)
             {
                 if(duels.TryGetValue(shooter.room,out var duel))duel.first=shooter.id;
-                else
-                {
-                    var turn=roomTurns[shooter.room];turn.order=new[]{shooter.id}.Concat(turn.order.Where(id=>id!=shooter.id)).ToArray();turn.index=0;turn.until=Time.time+30;
-                }
                 target.hp=20;shooter.drawn=true;shooter.nextShot=0;
                 var direction=Eye(target)-Eye(shooter);shooter.yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;shooter.pitch=0;
                 Fire(shooter);Broadcast();

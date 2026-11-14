@@ -7,6 +7,7 @@ namespace Saloon
     public static class SaloonArt
     {
         const string Root="Art/LowPoly/";
+        public static readonly Vector3 SafePosition=new Vector3(4.8f,.06f,1.95f);
         public static GameObject Model(string asset,Transform parent,Vector3 size)
         {
             var prefab=Resources.Load<GameObject>(Root+asset);
@@ -56,7 +57,8 @@ namespace Saloon
                 SaloonWorld.GeneratedMaterials.Clear();
             }
             foreach(var label in world.GetComponentsInChildren<TextMesh>(true))label.gameObject.SetActive(false);
-            if(world.transform.Find("Low-poly art overlay")!=null){SaloonInterior.Apply(world);return;}
+            var existing=world.transform.Find("Low-poly art overlay");
+            if(existing!=null){SaloonInterior.Apply(world);PublicBarLayout(existing);PublicFloorLayout(world);SaloonSurfaces.Apply(world.transform);return;}
             var overlay=new GameObject("Low-poly art overlay");overlay.transform.SetParent(world.transform,false);
             var woodTexture=Resources.Load<Texture2D>(Root+"Textures/WoodPlanks");
             var floor=SaloonWorld.Material("Retro floorboards",new Color(.62f,.48f,.34f));floor.mainTexture=woodTexture;floor.mainTextureScale=new Vector2(.5f,6);
@@ -86,7 +88,7 @@ namespace Saloon
                 else if(child.name=="Bar front"||child.name=="Bar top"||child.name=="Bar panel")Hide(child.gameObject);
             }
             At("Bar",overlay.transform,new Vector3(-1.8f,0,3.8f),new Vector3(9,1.43f,1.4f));
-            var safe=At("Safe",overlay.transform,new Vector3(-6.45f,.06f,5.75f),new Vector3(.85f,1.15f,.9f),180);
+            var safe=At("Safe",overlay.transform,SafePosition,new Vector3(.85f,1.15f,.9f),180);
             var collider=safe.AddComponent<BoxCollider>();collider.center=Vector3.up*.575f;collider.size=new Vector3(.85f,1.15f,.9f);
             foreach(var pos in new[]{new Vector3(0,.76f,-.5f),new Vector3(-5,.76f,-3.8f),new Vector3(5,.76f,-3.8f),new Vector3(-2,1.44f,3.8f)})
             {
@@ -96,7 +98,46 @@ namespace Saloon
             At("Cup",overlay.transform,new Vector3(.6f,1.44f,3.8f),new Vector3(.11f,.14f,.11f));
             At("Mug",overlay.transform,new Vector3(1.6f,1.44f,3.7f),new Vector3(.18f,.23f,.17f));
             SaloonInterior.Apply(world);
+            PublicBarLayout(overlay.transform);
+            PublicFloorLayout(world);
+            SaloonSurfaces.Apply(world.transform);
 
+        }
+
+        static void PublicFloorLayout(GameObject world)
+        {
+            foreach(var point in world.GetComponentsInChildren<InteractionPoint>())
+                if(point.kind==InteractionKind.Seat&&point.index>=5&&point.index<=9)
+                {var box=point.GetComponent<BoxCollider>();if(box!=null){box.center=new Vector3(0,.5f,0);box.size=new Vector3(.55f,1,.55f);}}
+            foreach(var table in world.GetComponentsInChildren<Transform>())
+                if(table.name=="tableRound"&&Mathf.Abs(table.position.x)<1)
+                {var box=table.GetComponent<BoxCollider>();if(box!=null){box.center=new Vector3(0,.375f,0);box.size=new Vector3(1.8f,.75f,1.6f);}}
+            SaloonEntranceDoor.Build();
+        }
+
+        static void PublicBarLayout(Transform overlay)
+        {
+            // Saved scenes already contain the art overlay, so migrate its safe too.
+            var safe=overlay.Find("Safe visual");
+            if(safe!=null){safe.position=SafePosition;safe.rotation=Quaternion.Euler(0,180,0);}
+            if(overlay.Find("Public Bar boundary")!=null)return;
+            var boundary=new GameObject("Public Bar boundary");boundary.transform.SetParent(overlay,false);
+            var wall=boundary.AddComponent<BoxCollider>();
+            wall.center=new Vector3(0,1.9f,3.45f);wall.size=new Vector3(15.8f,3.8f,.12f);
+            var wood=SaloonWorld.Material("Bar access walnut",new Color(.24f,.135f,.075f),.26f);
+            var brass=SaloonWorld.Material("Bar access brass",new Color(.66f,.43f,.16f),.65f);
+            // Visible rails close both counter ends; the continuous collider prevents
+            // crouching through or entering the staff area during lobby movement.
+            foreach(var span in new[]{new Vector2(-7.9f,-6.3f),new Vector2(2.7f,7.9f)})
+            {
+                float width=span.y-span.x,center=(span.x+span.y)*.5f;
+                foreach(float y in new[]{.55f,1.28f})
+                    SaloonWorld.Box("Staff rail",new Vector3(center,y,3.45f),new Vector3(width,.13f,.16f),wood,boundary.transform);
+                SaloonWorld.Box("Staff rail brass cap",new Vector3(center,1.36f,3.45f),new Vector3(width,.025f,.18f),brass,boundary.transform);
+                int sections=Mathf.CeilToInt(width/1.25f);
+                for(int i=0;i<=sections;i++)
+                    SaloonWorld.Box("Staff rail post",new Vector3(Mathf.Lerp(span.x,span.y,i/(float)sections),.665f,3.45f),new Vector3(.11f,1.33f,.16f),wood,boundary.transform);
+            }
         }
 
         static void Hide(GameObject go){foreach(var r in go.GetComponentsInChildren<Renderer>())r.enabled=false;}

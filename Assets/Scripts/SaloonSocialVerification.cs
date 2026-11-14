@@ -27,8 +27,8 @@ namespace Saloon
             {var dir=Eye(to)-Eye(from);from.yaw=Mathf.Atan2(dir.x,dir.z)*Mathf.Rad2Deg;from.pitch=0;from.drawn=true;from.busyUntil=0;from.ammo=6;from.nextShot=0;}
             Discussion();OnCommand(peer.id,new Command{kind="room",x=1,name=host.id.ToString()});
             var invite=PrivateSnapshot(host.id).players.First(p=>p.id==peer.id.ToString());
-            Check(invite.companion==""&&invite.chosenRoom==-1,"discussion choices and partners stay private to their owner");
-            Check(PrivateSnapshot(host.id).invitations.Any(i=>i.fromId==peer.id.ToString()&&i.room==1),"the invited recipient sees the request without exposing public room choices");
+            Check(invite.companion==host.id.ToString()&&invite.chosenRoom==1,"discussion choices and partners are visible to everyone");
+            Check(PrivateSnapshot(host.id).invitations.Any(i=>i.fromId==peer.id.ToString()&&i.room==1),"the invited recipient receives an actionable invitation");
             Broadcast();yield return new WaitForSeconds(.15f);
 #if UNITY_EDITOR
             ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/InvitationPreview.png"));
@@ -70,11 +70,12 @@ namespace Saloon
             first=players[duel.first];second=first==host?peer:host;first.hp=0;duel.combatAt=Time.time-1;Check(DuelAllows(second),"dead opener cannot block the surviving player");
             VerifyBlackjackFlow();
             Actions(false);host.role=Role.Sheriff;peer.role=Role.Outlaw;ResetHeist();int eventsBefore=events.Count;
+            host.controller.enabled=false;host.body.transform.position=SafeApproach;Physics.SyncTransforms();
             InspectSafe(host);string report=host.safeReport;safeProgress=3;peer.bag=true;
             Check(PrivateSnapshot(host.id).safeReport==report&&report.Contains("money inside"),"inspection is a last-known report, not live theft telemetry");
-            Actions(false);peer.bag=true;safeProgress=3;InspectSafe(host);
+            Actions(false);host.controller.enabled=false;host.body.transform.position=SafeApproach;Physics.SyncTransforms();peer.bag=true;safeProgress=3;InspectSafe(host);
             Check(host.safeReport.Contains("money missing")&&!rounds.CanAct(host.id,Time.time),"Sheriff inspection finds missing money and spends one action");
-            Check(players.Values.Where(p=>p!=host).All(p=>string.IsNullOrEmpty(PrivateSnapshot(p.id).safeReport)&&PrivateSnapshot(p.id).safeProgress==-1),"inspection report and safe progress remain Sheriff-private");
+            Check(players.Values.Where(p=>p!=host).All(p=>string.IsNullOrEmpty(PrivateSnapshot(p.id).safeReport)&&PrivateSnapshot(p.id).safeProgress==(p.role==Role.Outlaw?3:-1)),"inspection reports stay Sheriff-private while Outlaws share live safe progress");
             InspectSafe(peer);Check(rounds.CanAct(peer.id,Time.time),"non-Sheriff inspection rejected without spending action");
             Check(events.Count==eventsBefore,"inspection and concealed theft create no global event");
             Debug.Log("SALOON_SOCIAL PASS");

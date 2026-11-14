@@ -9,6 +9,7 @@ namespace Saloon
         readonly List<Texture2D> uiTextures=new List<Texture2D>();
         GUISkin flatSkin;
         GUIStyle selectedButton,disabledButton,plannerButton,plannerPrimary;
+        GUIStyle tableActionButton,tableActionDisabled,tableActionCaption;
         Font headingFont,bodyFont;
         bool worldHud;
         Texture2D badgeIcon,cartridgeIcon,emptyCartridgeIcon;
@@ -62,6 +63,13 @@ namespace Saloon
             var amber=Swatch(new Color(.78f,.55f,.29f));var amberHover=Swatch(new Color(.91f,.69f,.40f));
             plannerButton=new GUIStyle(button);FlatStates(plannerButton,night,nightHover,nightHover,new Color(.94f,.90f,.80f));
             plannerPrimary=new GUIStyle(button);FlatStates(plannerPrimary,amber,amberHover,amberHover,new Color(.12f,.10f,.07f));
+            tableActionButton=new GUIStyle(button){fontSize=18,padding=new RectOffset(16,16,8,8)};
+            FlatStates(tableActionButton,Swatch(new Color(.055f,.065f,.06f,.94f)),Swatch(new Color(.18f,.20f,.17f,.98f)),amber,new Color(.96f,.91f,.80f));
+            tableActionButton.active.textColor=tableActionButton.onActive.textColor=new Color(.12f,.10f,.07f);
+            tableActionDisabled=new GUIStyle(tableActionButton);
+            var quiet=Swatch(new Color(.055f,.065f,.06f,.65f));
+            FlatStates(tableActionDisabled,quiet,quiet,quiet,new Color(.59f,.59f,.53f));
+            tableActionCaption=new GUIStyle(subtitle){fontSize=13,alignment=TextAnchor.MiddleCenter,normal={textColor=new Color(.94f,.88f,.75f)}};
             field=new GUIStyle(GUI.skin.textField){font=bodyFont,fontSize=18,padding=new RectOffset(12,12,8,8)};
             FlatStates(field,blank,blank,hover,ink);
             flatSkin.settings.cursorColor=gold;flatSkin.settings.selectionColor=new Color(.44f,.34f,.18f);

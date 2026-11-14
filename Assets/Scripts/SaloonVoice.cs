@@ -1,6 +1,5 @@
 using System;
 using System.Collections;
-using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
@@ -25,86 +24,22 @@ namespace Saloon
         public string Channel=>channel;
         public string MicrophoneName=>Connected?VivoxService.Instance.EffectiveInputDevice?.DeviceName??"No microphone detected":"Not connected";
         public bool Transmitting=>transmitting;
-        public string MicrophoneStatus=>!Connected?"VOICE OFFLINE":Busy?"VOICE CONNECTING":!MicrophoneAllowed?"MIC PERMISSION OFF":Muted?"MIC MUTED · M":Game.MenuOpen||Game.GraphicsMenuOpen?"MIC PAUSED IN MENU":OpenMicrophone?"OPEN MIC ON · T / M":transmitting?"MIC ON · V":"HOLD V · TALK / T · OPEN MIC";
+        public string MicrophoneStatus=>!Connected?"VOICE OFFLINE":Busy?"VOICE CONNECTING":!MicrophoneAllowed?"MIC PERMISSION OFF":Muted?"MIC MUTED · M":MicrophonePaused?"MIC PAUSED IN MENU":OpenMicrophone?"OPEN MIC ON · T / M":transmitting?"MIC ON · V":"HOLD V · TALK / T · OPEN MIC";
+        bool MicrophonePaused=>SaloonPrivacy.VoicePaused(Game.View?.phase??Phase.Lobby,Game.MenuOpen,Game.GraphicsMenuOpen);
+        bool Eliminated=>SaloonPrivacy.VoiceEliminated(Game.View?.phase??Phase.Lobby,Game.Self?.alive==true);
         string ChannelStatus=>deadChannel?"Eliminated players' voice — living players cannot hear you.":outdoorChannel?"Private outside voice — only the people having a smoke can hear you; indoor audio is isolated.":"Indoor proximity voice — nearby players can hear you.";
-        public string ControlHint=>OpenMicrophone?"Open mic selected. T switches back to push-to-talk; M mutes. Menus pause your mic.":"Hold V to talk. T switches open mic on; M mutes. Menus pause your mic.";
+        public string ControlHint=>OpenMicrophone?"Open mic selected. T switches back to push-to-talk; M mutes. Pause/settings menus during a match pause your mic; lobby and results keep voice on.":"Hold V to talk. T switches open mic on; M mutes. Pause/settings menus during a match pause your mic; lobby and results keep voice on.";
         string channel="";
         bool deadChannel,outdoorChannel,transmitting,autoAttempted,verificationMode;
         float nextPosition;
         float nextIdentity;
-        // Polling a cached SpeechDetected value cannot tell whether audio has stopped.
-        // Timestamp actual SDK energy events so a mute/lost stream cannot flap forever.
-        internal const float SpeechTimeout=.3f;
-        sealed class Speaker : IDisposable
-        {
-            public readonly VivoxParticipant Participant;
-            public readonly bool IsSelf;
-            public float EnergyAt=float.NegativeInfinity;
-            public float Level;
-            public Speaker(VivoxParticipant participant)
-            {
-                Participant=participant;IsSelf=participant.IsSelf;
-                participant.ParticipantAudioEnergyChanged+=EnergyChanged;
-                participant.ParticipantSpeechDetected+=Refresh;
-                participant.ParticipantMuteStateChanged+=Refresh;
-                participant.ParticipantAudioStateChanged+=Refresh;
-            }
-            void EnergyChanged(){EnergyAt=Time.unscaledTime;Refresh();}
-            void Refresh(){Level=SpeechStrength(Participant.SpeechDetected,Participant.AudioEnergy,Participant.IsMuted||!Participant.IsInAudio);}
-            public void Dispose()
-            {
-                Level=0;Participant.ParticipantAudioEnergyChanged-=EnergyChanged;
-                Participant.ParticipantSpeechDetected-=Refresh;Participant.ParticipantMuteStateChanged-=Refresh;Participant.ParticipantAudioStateChanged-=Refresh;
-            }
-        }
-        readonly Dictionary<string,Speaker> speech=new Dictionary<string,Speaker>();
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-        internal Dictionary<string,float> PreviewSpeech;
-#endif
         int generation;
         Task operation=Task.CompletedTask;
         CancellationTokenSource echoCancellation;
 
-        public float SpeechLevel(string voiceId)
-        {
-            if(string.IsNullOrEmpty(voiceId))return 0;
-#if UNITY_EDITOR || DEVELOPMENT_BUILD
-            if(PreviewSpeech!=null)return PreviewSpeech.TryGetValue(voiceId,out var preview)?preview:0;
-#endif
-            if(!Connected||Busy||!speech.TryGetValue(voiceId,out var speaker))return 0;
-            // The SDK disposes participants during its update, potentially after our Update
-            // but before avatar LateUpdate. Read event-captured values, never a dead SDK object.
-            float age=Time.unscaledTime-speaker.EnergyAt;
-            return age>=0&&age<=SpeechTimeout&&(!speaker.IsSelf||(transmitting&&!Muted&&Enabled))?speaker.Level:0;
-        }
-
-        internal static float SpeechStrength(bool detected,double energy,bool muted)
-        {
-            if(!detected||muted||double.IsNaN(energy)||double.IsInfinity(energy)||energy<=.00001)return 0;
-            return Mathf.Clamp01(Mathf.Sqrt((float)energy*12));
-        }
-
-        internal static float FreshSpeechStrength(bool detected,double energy,bool muted,float age)
-            =>age>=0&&age<=SpeechTimeout?SpeechStrength(detected,energy,muted):0;
-
-        void ClearSpeech()
-        {foreach(var speaker in speech.Values)speaker.Dispose();speech.Clear();}
-
-        void UpdateSpeechActivity()
+        void UpdateVoiceIdentity()
         {
             var service=VivoxService.Instance;
-            if(service.ActiveChannels.TryGetValue(channel,out var participants))
-            {
-                foreach(var key in speech.Keys.Where(key=>!participants.Any(p=>p.PlayerId==key)).ToArray())
-                {speech[key].Dispose();speech.Remove(key);}
-                foreach(var p in participants)
-                {
-                    if(speech.TryGetValue(p.PlayerId,out var existing))
-                    {if(existing.Participant==p)continue;existing.Dispose();}
-                    speech[p.PlayerId]=new Speaker(p);
-                }
-            }
-            else ClearSpeech();
             // Associate a voice participant with their game avatar by ID, never display name.
             string id=service.SignedInPlayerId;
             if(Game.Self!=null&&Game.Self.voiceId!=id&&!string.IsNullOrEmpty(id)&&Time.unscaledTime>=nextIdentity)
@@ -153,7 +88,7 @@ namespace Saloon
             {
                 Status="Connecting proximity voice...";
                 await Prepare(requestMicrophone,version);
-                deadChannel=Game.Self!=null&&!Game.Self.alive;
+                deadChannel=Eliminated;
                 await VivoxService.Instance.LeaveAllChannelsAsync();CheckCurrent(version);
                 await JoinLifeChannel(deadChannel,!deadChannel&&Game.OutsideForSmoke);CheckCurrent(version);
                 Connected=true;Enabled=true;
@@ -192,7 +127,7 @@ namespace Saloon
         public void ValidateArea()
         {
             if(!Connected||channel==DesiredChannel)return;
-            VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;ClearSpeech();
+            VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;
         }
 
         internal static bool WantsTransmission(bool openMic,bool pushToTalk,bool microphoneMuted,bool menuOpen)
@@ -201,7 +136,7 @@ namespace Saloon
         void ApplyTransmission()
         {
             if(!Connected||Busy||verificationMode)return;
-            bool talk=MicrophoneAllowed&&Enabled&&channel==DesiredChannel&&WantsTransmission(OpenMicrophone,Input.GetKey(KeyCode.V),Muted,Game.MenuOpen||Game.GraphicsMenuOpen);
+            bool talk=MicrophoneAllowed&&Enabled&&channel==DesiredChannel&&WantsTransmission(OpenMicrophone,Input.GetKey(KeyCode.V),Muted,MicrophonePaused);
             if(talk==transmitting)return;
             transmitting=talk;
             if(talk)VivoxService.Instance.UnmuteInputDevice();else VivoxService.Instance.MuteInputDevice();
@@ -212,11 +147,11 @@ namespace Saloon
             if(!autoAttempted&&!Game.Connection.Solo&&!Application.isBatchMode&&!Game.AutomatedInput&&Game.InRoom&&Game.Self!=null&&!string.IsNullOrEmpty(Game.VoiceRoom))
             {autoAttempted=true;Connect();}
             if(!Connected||Busy)return;
-            bool alive=Game.Self!=null&&Game.Self.alive;
+            bool alive=!Eliminated;
             if(channel!=DesiredChannel){operation=SwitchLifeChannel(!alive,alive&&Game.OutsideForSmoke);return;}
             if(!verificationMode)
             {
-                if(!Game.MenuOpen&&!Game.GraphicsMenuOpen)
+                if(!MicrophonePaused)
                 {
                     if(Input.GetKeyDown(KeyCode.M))Muted=!Muted;
                     if(Input.GetKeyDown(KeyCode.T))OpenMicrophone=!OpenMicrophone;
@@ -224,7 +159,7 @@ namespace Saloon
                 ApplyTransmission();
             }
             if(Time.unscaledTime>=nextPosition){UpdatePosition();nextPosition=Time.unscaledTime+.1f;}
-            UpdateSpeechActivity();
+            UpdateVoiceIdentity();
         }
 
         void UpdatePosition()
@@ -239,7 +174,7 @@ namespace Saloon
             Busy=true;int version=generation;
             try
             {
-                VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;ClearSpeech();
+                VivoxService.Instance.MuteInputDevice();VivoxService.Instance.MuteOutputDevice();transmitting=false;
                 await VivoxService.Instance.LeaveChannelAsync(channel);CheckCurrent(version);
                 deadChannel=dead;
                 await JoinLifeChannel(dead,outdoors);CheckCurrent(version);
@@ -300,7 +235,7 @@ namespace Saloon
 
         public async Task Leave()
         {
-            ++generation;Enabled=false;openMicrophone=false;ClearSpeech();echoCancellation?.Cancel();
+            ++generation;Enabled=false;openMicrophone=false;echoCancellation?.Cancel();
             try{await operation;}catch(Exception e){Debug.LogWarning(e.Message);}
             // LAN/Editor tests may never initialize cloud services; don't resolve Vivox in that case.
             if(UnityServices.State==ServicesInitializationState.Initialized)
@@ -314,9 +249,8 @@ namespace Saloon
                 catch(Exception e){Debug.LogWarning("Voice cleanup: "+e.Message);}
             }
             Connected=false;channel="";transmitting=false;Busy=false;autoAttempted=false;verificationMode=false;MicrophoneAllowed=false;
-            ClearSpeech();nextIdentity=0;
+            nextIdentity=0;
             Status="Voice connects when you enter the saloon. Hold V to speak, T toggles open mic, M mutes.";
         }
-        void OnDestroy(){ClearSpeech();}
     }
 }

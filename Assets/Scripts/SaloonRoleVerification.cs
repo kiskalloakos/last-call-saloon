@@ -28,9 +28,16 @@ namespace Saloon
                     {
                         var snapshot=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(PrivateSnapshot(viewer.id),out _));
                         bool renegade=viewer.role==Role.Renegade;
-                        Check(snapshot.players.All(p=>stage==Phase.Finished||renegade?p.revealedRole==players[ulong.Parse(p.id)].role.ToString():string.IsNullOrEmpty(p.revealedRole)),"role labels obey recipient permissions in "+stage+" / "+viewer.role);
+                        Check(snapshot.players.All(p=>(stage==Phase.Finished||renegade||(viewer.role==Role.Sheriff&&players[ulong.Parse(p.id)].role==Role.Deputy)||(viewer.role==Role.Outlaw&&players[ulong.Parse(p.id)].role==Role.Outlaw))?p.revealedRole==players[ulong.Parse(p.id)].role.ToString():string.IsNullOrEmpty(p.revealedRole)),"role labels obey recipient permissions in "+stage+" / "+viewer.role);
                         if(renegade)
                             Check(snapshot.knownRoles.Length==size&&snapshot.knownRoles.All(k=>players.TryGetValue(ulong.Parse(k.id),out var p)&&k.role==p.role.ToString()&&k.name==p.name),"Renegade knows the complete accurate "+size+"-player roster in "+stage);
+                        else if(viewer.role==Role.Sheriff)
+                        {
+                            var deputy=roster.Single(p=>p.role==Role.Deputy);
+                            Check(snapshot.knownRoles.Length==1&&snapshot.knownRoles[0].id==deputy.id.ToString()&&snapshot.knownRoles[0].name==deputy.name&&snapshot.knownRoles[0].role=="Deputy","Sheriff knows only the Deputy in "+stage);
+                        }
+                        else if(viewer.role==Role.Outlaw)
+                            Check(snapshot.knownRoles.Length==size-3&&snapshot.knownRoles.All(k=>players.TryGetValue(ulong.Parse(k.id),out var p)&&p.role==Role.Outlaw&&k.role=="Outlaw"&&k.name==p.name)&&snapshot.knownRoles.Select(k=>k.id).Distinct().Count()==size-3,"Outlaws know the complete Outlaw roster in "+stage);
                         else Check(snapshot.knownRoles==null||snapshot.knownRoles.Length==0,"private role roster is absent for "+viewer.role);
                         if(SaloonPrivacy.Separated(stage))
                             Check(snapshot.players.All(p=>(p.room==3)==(viewer.room==3)),"role knowledge does not reveal other-area activity");
@@ -44,16 +51,20 @@ namespace Saloon
                     Check(deadSnapshot.ownRole==viewer.role.ToString(),"elimination preserves the recipient's own role");
                     if(viewer.role==Role.Renegade)
                         Check(deadSnapshot.knownRoles.Length==size,"Renegade retains role knowledge while spectating");
+                    else if(viewer.role==Role.Sheriff)
+                        Check(deadSnapshot.knownRoles.Length==1&&deadSnapshot.knownRoles[0].role=="Deputy"&&deadSnapshot.players.All(p=>players[ulong.Parse(p.id)].role==Role.Deputy?p.revealedRole=="Deputy":string.IsNullOrEmpty(p.revealedRole)),"eliminated Sheriff retains only Deputy knowledge");
+                    else if(viewer.role==Role.Outlaw)
+                        Check(deadSnapshot.knownRoles.Length==size-3&&deadSnapshot.knownRoles.All(k=>k.role=="Outlaw"&&players[ulong.Parse(k.id)].role==Role.Outlaw)&&deadSnapshot.players.All(p=>players[ulong.Parse(p.id)].role==Role.Outlaw?p.revealedRole=="Outlaw":string.IsNullOrEmpty(p.revealedRole)),"eliminated Outlaw retains only Outlaw knowledge");
                     else
                         Check((deadSnapshot.knownRoles==null||deadSnapshot.knownRoles.Length==0)&&deadSnapshot.players.All(p=>string.IsNullOrEmpty(p.revealedRole)),"eliminated "+viewer.role+" cannot receive hidden roles");
                     viewer.hp=tuning.health;
                 }
-                // A spectator watching the Renegade must still receive their own permissions.
+                // A Deputy watching the Renegade must still receive only their own permissions.
                 var host=players[Connection.LocalId];var renegadePlayer=roster.Single(p=>p.role==Role.Renegade);
-                if(host==renegadePlayer)
+                if(host.role!=Role.Deputy)
                 {
                     var deputy=roster.Single(p=>p.role==Role.Deputy);
-                    host.role=Role.Deputy;deputy.role=Role.Renegade;renegadePlayer=deputy;
+                    deputy.role=host.role;host.role=Role.Deputy;renegadePlayer=roster.Single(p=>p.role==Role.Renegade);
                 }
                 foreach(var player in roster)player.room=0;
                 phase=Phase.Discussion;host.hp=0;host.deathAt=Time.time;
@@ -88,7 +99,7 @@ namespace Saloon
                     var wire=SaloonSnapshotWire.Encode(PrivateSnapshot(p.id),out _);
                     var snapshot=SaloonSnapshotWire.Decode(wire);
                     Check(snapshot.players.Count(x=>x.sheriff)==1,"every recipient receives the public Sheriff");
-                    Check(snapshot.ownRole==p.role.ToString()&&snapshot.players.All(x=>p.role==Role.Renegade?x.revealedRole==players[ulong.Parse(x.id)].role.ToString():string.IsNullOrEmpty(x.revealedRole)),"own role remains accurate and hidden roles private");
+                    Check(snapshot.ownRole==p.role.ToString()&&snapshot.players.All(x=>(p.role==Role.Renegade||(p.role==Role.Sheriff&&players[ulong.Parse(x.id)].role==Role.Deputy)||(p.role==Role.Outlaw&&players[ulong.Parse(x.id)].role==Role.Outlaw))?x.revealedRole==players[ulong.Parse(x.id)].role.ToString():string.IsNullOrEmpty(x.revealedRole)),"own role remains accurate and hidden roles private");
                 }
                 bool local=players[Connection.LocalId].role==Role.Sheriff;
                 if((local&&!ownSheriff)||(!local&&!otherSheriff))

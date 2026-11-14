@@ -65,7 +65,7 @@ namespace Saloon
         }
         static Material Mat(string name,Color color)=>SaloonWorld.Material(name,color);
         static void RemoveCollider(GameObject go)
-        {var collider=go.GetComponent<Collider>();if(collider!=null){collider.enabled=false;Object.Destroy(collider);}}
+        {var collider=go.GetComponent<Collider>();if(collider!=null){collider.enabled=false;if(Application.isPlaying)Object.Destroy(collider);else Object.DestroyImmediate(collider);}}
         static void Mesa(Transform parent,Vector3 position,Vector3 size,Material material,int seed)
         {
             var random=new System.Random(seed);const int sides=9;

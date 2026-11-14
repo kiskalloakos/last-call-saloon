@@ -21,20 +21,17 @@ namespace Saloon
             {var dir=Eye(to)-Eye(from);from.yaw=Mathf.Atan2(dir.x,dir.z)*Mathf.Rad2Deg;from.pitch=0;from.drawn=true;from.busyUntil=0;from.ammo=6;from.nextShot=0;}
             void Pass(Participant p){p.lastAction=-100;OnCommand(p.id,new Command{kind="pass"});}
             Window();host.role=Role.Sheriff;peer.role=Role.Outlaw;
-            var turn=roomTurns[0];Check(turn.order.Length==5&&turn.order.Distinct().Count()==5,"bar queue contains every player exactly once");
-            // Put Sheriff last so the early-fire and one-action checks are deterministic.
-            turn.order=turn.order.Where(id=>id!=host.id).Concat(new[]{host.id}).ToArray();
-            Aim(host,peer);Fire(host);Check(host.shots==0&&host.ammo==6,"Sheriff cannot fire before their bar turn");
-            host.drawn=false;host.lastAction=-100;OnCommand(host.id,new Command{kind="draw"});Check(!host.drawn,"Sheriff cannot draw out of turn either");
+            Check(!roomTurns.ContainsKey(0)&&players.Values.All(p=>PrivateSnapshot(p.id).actionAvailable),"every Bar player may act immediately without a queue");
+            host.drawn=false;host.lastAction=-100;OnCommand(host.id,new Command{kind="draw"});Check(host.drawn,"Sheriff may draw immediately at the Bar");
             Broadcast();yield return new WaitForSeconds(.15f);
 #if UNITY_EDITOR
-            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/BarOrderPreview.png"));yield return new WaitForEndOfFrame();
+            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/BarActionsPreview.png"));yield return new WaitForEndOfFrame();
 #endif
-            turn.until=Time.time-1;var timedOut=turn.order[turn.index];TickDuels();Check(!rounds.CanAct(timedOut,Time.time)&&turn.index==1,"idle bar turn passes automatically");
-            while(turn.order[turn.index]!=host.id)Pass(players[turn.order[turn.index]]);
-            Aim(host,peer);Fire(host);Check(host.shots==1&&peer.hp==40,"Sheriff gets exactly one legal bar shot on their turn");
+            Check(players.Values.All(p=>!rounds.HasSpent(p.id)),"another player's idle time does not consume anyone's action");
+            foreach(var p in players.Values.Where(p=>p!=host))Pass(p);
+            Aim(host,peer);Fire(host);Check(host.shots==1&&peer.hp==40,"Sheriff keeps one legal action after everyone else acts");
             host.nextShot=0;Fire(host);Check(host.shots==1&&host.ammo==5,"repeated Sheriff clicks cannot shoot the rest of the bar");
-            Check(PrivateSnapshot(host.id).roomTurn.spent,"bar HUD distinguishes a spent action from a pending turn");
+            Check(PrivateSnapshot(host.id).roomTurn==null&&!PrivateSnapshot(host.id).actionAvailable,"Bar snapshot reports a spent action without a queue");
             var position=host.body.transform.position;TickServer();Check(phase==Phase.Aftermath&&host.body.transform.position==position&&host.drawn,"last action enters aftermath without moving or holstering");
             Broadcast();yield return new WaitForSeconds(.4f);
             var gun=ViewCamera.transform.Find("Low-poly revolver");
@@ -46,11 +43,10 @@ namespace Saloon
             yield return new WaitForSeconds(2.75f);Check(phase==Phase.Regroup,"non-final round regroups only after three seconds");
 
             Window(1);host.role=Role.Outlaw;host.hp=20;peer.role=Role.Sheriff;
-            turn=roomTurns[0];turn.order=new[]{host.id,peer.id}.Concat(players.Keys.Where(id=>id!=host.id&&id!=peer.id)).ToArray();
             Broadcast();yield return new WaitForSeconds(.1f);
             Aim(host,peer);Fire(host);Aim(peer,host);Fire(peer);
             Check(!host.Alive&&phase==Phase.Aftermath&&pendingOutcome=="LAW WINS","lethal final shot queues the result instead of displaying it immediately");
-            Check(PrivateSnapshot(host.id).players.All(p=>string.IsNullOrEmpty(p.revealedRole)),"roles and results remain hidden until animations finish");
+            Check(PrivateSnapshot(host.id).players.All(p=>p.id==host.id.ToString()||string.IsNullOrEmpty(p.revealedRole)),"roles and results remain hidden until animations finish");
             Broadcast();yield return new WaitForSeconds(.25f);
             Check(!gun.gameObject.activeInHierarchy&&avatars[host.id.ToString()].CorpseVisible&&!ShowEliminationOverlay,"dying shooter enters ragdoll view without an elimination overlay");
             Check(host.body.transform.position==position,"dead player retains their seat during terminal aftermath");
@@ -59,7 +55,6 @@ namespace Saloon
             Window();host.role=Role.Renegade;peer.role=Role.Sheriff;peer.hp=20;
             var defeated=players.Values.Where(p=>p!=host&&p!=peer).ToArray();
             for(int i=0;i<defeated.Length;i++){defeated[i].role=i<2?Role.Outlaw:Role.Deputy;defeated[i].hp=0;defeated[i].hitbox.enabled=false;}
-            turn=roomTurns[0];turn.order=new[]{host.id,peer.id}.Concat(defeated.Select(p=>p.id)).ToArray();
             Aim(host,peer);Fire(host);
             Check(host.Alive&&players.Values.Count(p=>p.Alive)==1&&phase==Phase.Aftermath&&pendingOutcome=="RENEGADE WINS — LAST STANDING","Renegade's final shot queues the last-survivor victory");
             yield return new WaitForSeconds(3.15f);

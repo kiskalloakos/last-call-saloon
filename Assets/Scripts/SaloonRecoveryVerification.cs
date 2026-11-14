@@ -76,7 +76,7 @@ namespace Saloon
                 foreach(var peer in peers){peer.Send(new Command{kind="room",x=0});peer.Send(new Command{kind="ready",x=1});}
                 ChooseRoom(0,"");ToggleReady();
                 yield return Wait(()=>phase==Phase.Turns&&peers.All(p=>states[p].phase==Phase.Turns),"all four players enter room actions after Ready");
-                foreach(ulong actor in roomTurns[0].order)
+                foreach(ulong actor in players.Keys.Reverse().ToArray())
                 {
                     (actor==Connection.LocalId?Connection:peers.Single(p=>p.LocalId==actor)).Send(new Command{kind="pass"});
                     yield return Wait(()=>rounds.HasSpent(actor),"player "+actor+" receives and completes their turn");

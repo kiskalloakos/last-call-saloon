@@ -1487,3 +1487,315 @@ Final native Linux validation passed on Ubuntu 22.04 using Mesa OpenGL/Xvfb:
 voice-controls, gameplay, five independent clients and four-player LAN
 (run 43245476294). Release 0.2.16 is promoted as the latest GitHub download for
 Windows x64, universal macOS and Linux x64. Release notes contain all test links.
+
+
+## 2026-11-13 — Private character story maps
+
+- Replaced the text-only Tab role card with separate Sheriff, Deputy, Outlaw and
+  Renegade maps. AI-generated circular Western illustrations sit on curved trails
+  with branching victory paths and optional support objectives. Completed nodes
+  desaturate to grey with a checkmark; next nodes receive a gold ring and NEXT
+  badge, supported by a plain-language action panel. Private clues and known
+  roles remain visible beside the map.
+- Host participant flags record Bar arrival, completed safe work and rival
+  headshots. Reconnects retain that participant state; ResetHeist clears it for
+  a new match. Money and escape steps reflect current authoritative ownership
+  and pending escape state, so cancellation restores the required next step.
+  Renegade elimination milestones remember only deaths visible under the
+  existing activity privacy rules, including smoking-area separation.
+- Unity 6000.5.10f1 compiled and passed SALOON_STORY_MAP (25 checks) and
+  SALOON_EDITOR_ITERATION in the open Editor. Covered all four initial maps,
+  actual inspection and safe completion, money collection, escape declaration
+  and cancellation, compressed network serialization, participant progress
+  retention, recipient isolation, unseen deaths, observed-death persistence,
+  alternative Law victories and match reset. Reviewed all four rendered layouts
+  after fixing scaled trail/checkmark rendering. Source verification also passed
+  12,747 existing planning/gameplay checks via Tools/verify_planning.py.
+- Retained previews: Documentation/StoryMapPreviews/. Generated art and exact
+  prompt provenance: ArtSource/UI/StoryMilestones.txt. Runtime atlas:
+  Assets/Resources/UI/StoryMilestones.png. Run again with Saloon → Verify
+  character story maps in Play mode. Source only; no standalone build or
+  publication. Windows/Linux rendering and real reconnect transport were not
+  newly exercised for this UI change.
+
+Story-map instruction follow-up: added visible action, location, key and timing
+instructions beneath every milestone for all four roles. Adjusted the map rows
+and NEXT panel to keep the instructions separate. Reviewed rendered previews;
+SALOON_STORY_MAP (25 checks) and SALOON_EDITOR_ITERATION passed again.
+
+
+## 2026-11-13 — Physical safe access
+
+- Outlaw H safe work/money collection and Sheriff C inspections now require
+  the host participant to be within 1.35 metres of the physical safe, at the
+  same floor level, with no wall/counter blocking access. Client command
+  coordinates cannot authorize access. Rejected distant attempts preserve the
+  action. Safe work rechecks access continuously and at completion; leaving
+  cancels it without safe progress or an action refund.
+- Nearby role-specific H/C hints identify the safe. Updated role guides, Tab
+  milestone instructions and README explain F to stand and WASD to approach.
+  Practice Outlaws find a collision-aware route through the Bar furniture,
+  then use the same proximity checks. Failed route searches are throttled.
+- Unity 6000.5.10f1 compiled and passed SALOON_SAFE_ACCESS (21 checks), the
+  existing SALOON_HEIST suite, SALOON_STORY_MAP (25 checks), SALOON_EVIDENCE and
+  SALOON_EDITOR_ITERATION. Exercised real H/C command rejection/acceptance,
+  spoofed command coordinates, height/room/obstruction rejection, walk-away
+  cancellation, open-safe collection, nearby prompts, actual bot movement,
+  interruption by shots, escape timing, private reports and witness clues.
+  Updated existing fixtures to use the physical safe; the escape-cancellation
+  fixture selects a valid paired side room under the current no-solo rules.
+- Source checks also passed 12,747 planning/gameplay checks. Reviewed updated
+  Outlaw and Sheriff map instructions. Final markers are retained in
+  Documentation/StoryMapPreviews/Verification.txt. No standalone build or
+  publication; Windows/Linux execution and physical-device multiplayer were
+  not newly exercised for this change.
+
+
+## 2026-11-14 — Safe proximity highlight and role key prompts
+
+- Added a local pulsing gold outline and rim tint to the safe when the living
+  local Outlaw or Sheriff is within the same reach/obstruction checks used by
+  physical safe actions. A callout anchored to the safe shows a large H with
+  Work safe / take money, or C with Inspect safe. The callout reports current
+  work, busy or spent-action state. When the safe is outside the camera view,
+  the key remains visible with a turn-to-face-the-safe instruction.
+- The highlight hides outside reach, behind access obstructions, during menus
+  and Tab, outside room actions, after death, and for roles without a safe
+  action. An Outlaw carrying the money is not offered another collection.
+  Highlight meshes have no colliders, cast no shadows and use a dedicated
+  depth-tested shader. Original safe material identities/colors are preserved;
+  visibility is local and no role state is replicated for other players.
+- Unity 6000.5.10f1 / Metal compiled and passed SALOON_SAFE_HIGHLIGHT (33 checks)
+  and SALOON_EDITOR_ITERATION. Reviewed both first-person H/C captures. Checks
+  covered proximity, obstruction, each role, death, discussion/finished phases,
+  pause/graphics/Tab, bag ownership, work/spent states, material preservation and
+  component cleanup. Existing obsolete-API compiler warnings remain unrelated.
+- Previews and final markers: Documentation/SafeHighlightPreviews/. Rerun with
+  Saloon → Verify safe highlight and key prompts in Play mode. Source only;
+  no standalone build or publication; Windows/Linux rendering was not newly
+  exercised for this presentation change.
+
+
+## 2026-11-14 — Twenty-round posse schedule
+
+- Extended posse arrival from the end of round 10 to the end of round 20.
+  Rounds 1–17 have no active posse pressure. The first warning appears while
+  regrouping into round 18; rounds 18, 19 and 20 retain the three complete
+  warning/response rounds. The posse arrives after round 20's actions.
+- Outlaws can declare escape through round 19 and complete it in round 20
+  before posse resolution. A new declaration in round 20 is rejected without
+  consuming the action. Earlier elimination/escape victories remain available.
+- Role guides, objectives, story-map instructions and round counter, pause
+  menu and README now use the new schedule. Player-facing source strings read
+  the shared posse timing constants so the displayed deadlines stay aligned.
+- Unity 6000.5.10f1 passed SALOON_ROUND_CLOCK, SALOON_POSSE and
+  SALOON_EDITOR_ROUNDS. The host scenario exercises four complete 20-round
+  schedules: Law arrival victory, a last-chance escape, capture without Law,
+  and preserving an elimination result. Per-round serialized snapshots verify
+  warning stages and countdowns. Updated an older assertion to respect the
+  Sheriff's existing permission to know the Deputy during aftermath.
+- Tools/verify_planning.py passed 12,768 checks, including new explicit
+  no-early-pressure, rounds-18–20 countdown and actual round-19/20 declaration
+  checks. Final markers: Documentation/PosseTimingVerification.txt. Source
+  only; no standalone build or publication.
+
+
+## 2026-11-14 — Private one-use bartender question
+
+- Added a physical, idle bartender behind the left end of the Bar counter, with
+  an I interaction for the Sheriff. The private target picker asks whether one
+  living player is an Outlaw. The answer contains exactly Yes or No; it does not
+  change exact-role labels or known-role lists. The question spends the current
+  round action and can be asked only once per match. Closing the picker is free.
+- Host authorization checks Sheriff role, action phase, life, Bar membership,
+  physical approach, floor height, obstructions, valid living target and normal
+  action availability. Client coordinates cannot authorize access. Rejections do
+  not consume the question. Participant state retains the question and answer
+  over reconnects and action windows; ResetHeist clears both for a new match.
+- Question/answer fields are recipient-only. No public event is emitted. The
+  answer remains readable in the Sheriff’s Tab private-intel panel independently
+  of the bounded safe-evidence list. The menu releases the pointer and suppresses
+  combat/movement input; leaving reach, death or a phase change closes it.
+- Unity 6000.5.10f1 / Metal compiled and passed SALOON_BARTENDER (35 checks) and
+  SALOON_EDITOR_ITERATION. Covered authorization failures, spoofed coordinates,
+  blocked access, spent actions, duplicate/changed targets, both non-Outlaw roles,
+  compressed snapshot serialization, every other recipient, unchanged role
+  disclosure, reconnect retention, later action windows, cancellation and reset.
+  Tools/verify_planning.py passed 20,996 existing source checks.
+- Reviewed rendered bartender, target picker, Yes answer and Tab private intel.
+  Previews and markers: Documentation/BartenderPreviews/. Rerun with Saloon →
+  Verify private bartender question in Play mode. Source only; no standalone
+  build or publication. Real multiplayer transport and Windows/Linux execution
+  were not newly exercised for this feature.
+
+
+## 2026-11-14 — Solo Bar priority, public walking and closed outside entrance
+
+- Bar is now a valid solo destination. Only unmatched side-room occupants
+  return to Bar; intact pairs and explicit Bar choices are preserved. Fallback
+  never assigns anyone to an unselected room, including private smoking.
+  Practice bots no longer fill a human's locked solo room choice. Explicit
+  invitations/partner choices remain available. Planner copy and README match.
+- Expanded Bar movement to include the central aisle, a complete route around
+  the discussion table and the inside entrance. The nearest public rectangle
+  keeps movement out of both enclosed game-room interiors without teleporting
+  players across the hall. Center table and discussion-chair colliders now
+  match the visible replacement art footprint.
+- Added closed physical entrance leaves using the existing Door art. Their
+  colliders seal the opening. There is no E entrance/exit action, no door
+  command, and no new room transition; the smoking deck remains a planning
+  destination. This follows the user's explicit correction against E travel.
+- Tools/verify_planning.py passed 20,996 checks, including exhaustive room
+  combinations/capacities, solo Bar preservation, no unchosen room assignments,
+  intact pairs, unmatched fallback and no automatic bot recruitment for smoking.
+- Unity 6000.5.10f1 passed SALOON_PUBLIC_FLOOR (19 checks) and
+  SALOON_EDITOR_ITERATION. Exercised real host assignments, private smoking
+  snapshot separation, preserved solo carrier/action state, actual input and
+  collision movement around all four sides of the table and down the entrance
+  aisle, closed-door ray collision and no room/action change from E there.
+  Reviewed center-table and closed-entrance captures. Final evidence is in
+  Documentation/PublicFloorPreviews/. Source only; no standalone build or
+  publication. Windows/Linux execution was not newly exercised.
+
+Bartender eligibility follow-up: the Sheriff, Deputy and each Outlaw now have
+separate allowances of exactly one private question per entire match. The
+Renegade is excluded because they already know all roles. Shared eligibility
+rules govern host commands, client menus, prompts and private snapshot fields.
+Deputy and Outlaw Tab panels now also retain their own answer. Action cost and
+Yes/No-only answers are unchanged.
+
+Unity / Metal passed SALOON_BARTENDER (59 checks) and SALOON_EDITOR_ITERATION.
+New checks exercise all four eligible participants asking in the same match,
+independent allowances, each role’s serialized private answer, duplicate
+requests in a later action window, reconnect retention for every eligible
+participant, and Renegade/Unknown rejection. Reviewed Deputy and Outlaw private
+intel captures in Documentation/BartenderPreviews/. Existing source checks
+passed 20,996 assertions. Source only; no standalone build or publication.
+
+
+## 2026-11-14 — Distinct bartender character and gunfire mood
+
+- Replaced the player Gunman clone with an original procedural saloon keeper:
+  older, bald with silver side hair and a handlebar moustache, stout burgundy
+  waistcoat, ivory rolled sleeves, bow tie and apron. Hands polish a tankard;
+  the animation slows as mood falls. The character has no player rig, weapons,
+  gameplay colliders or imported character dependencies. Materials clean up
+  with the NPC.
+- Host-owned mood starts at 100. Every accepted Bar shot, including misses and
+  bot shots, adds one shared shot and removes 10 mood, floored at zero. Empty
+  triggers, holstered/rejected shots and side-room shots do not affect it.
+  Round changes and reconnects do not regenerate mood; ResetHeist restores it
+  for a new match. Gunfire is still permitted.
+- Mood is the percentage probability of a useful, truthful Yes/No answer. At
+  100 it is guaranteed; at 50 it is 50%; at zero the reply is always Maybe.
+  Maybe conveys no role information and consumes both the round action and
+  the participant's one question. The host draws once and stores the result,
+  preserving privacy, serialization and no-reroll behavior. Renegade remains
+  excluded. The role guides, prompts and Tab instructions describe Maybe.
+- Added a shared mood meter to the Bar HUD and question panel, with numeric
+  mood, status, helpful-answer probability and Bar shot count. A depth-tested
+  sign above the character reflects mood too. The separated smoking area's
+  snapshots receive -1 for mood and shot count to avoid indoor activity leaks.
+- Unity 6000.5.10f1 / Metal passed SALOON_BARTENDER (1,393 checks) and
+  SALOON_EDITOR_ITERATION. Covered every discrete mood/probability sample,
+  truthful vs useless answers for both role outcomes, saturation, actual
+  missed Bar shots, rejected repeat/empty/holstered shots, side rooms, bot
+  shots, per-recipient compressed snapshots, outdoor isolation, round and
+  reconnect retention, ten-shot exhaustion, Maybe spending, no reroll and
+  new-match reset. The probability fixture samples interval centers to avoid
+  floating-point boundary ambiguity. Existing source checks passed 20,996
+  assertions. Reviewed calm character/meter, question panel and fed-up Maybe
+  captures in Documentation/BartenderPreviews/.
+- Source only; no standalone build or publication. Windows/Linux rendering and
+  real multi-process transport were not newly exercised for this feature.
+
+## Solo smoking and lantern correction — 2026-11-14
+
+- Corrected room assignment: only Coin Flip (heads or tails) and Blackjack reject
+  lone occupants; Have a Smoke and Bar accept solo visits. Capacity and lock-order
+  checks still apply. Updated the planner's description.
+- `python3 Tools/verify_planning.py`: PASS, 21,002 checks, including locked solo
+  smoking after early start and discussion expiry, without recruiting a bot.
+- Updated the assignment invariants in the Play-mode planning/practice checks and
+  added real server transition, deck placement, entry-buff and privacy checks to
+  `VerifyPublicFloor` for both early start and timer expiry.
+- Environment preview validation now also checks eight luminous lantern chambers,
+  eight point lights at their fixtures, indoor light masks, no decorative collision,
+  and repeat application without duplicate lights.
+- Play-mode `VerifySoloSmokingAccess`: PASS, 12 checks using actual plan commands,
+  server transitions, outdoor placement/privacy, cigarette entry buff and smoking;
+  both early-lock and timer-expiry paths pass. Both solo minigames still fall back.
+- Saved the migrated lantern fixtures, generated interior meshes/materials and
+  ambient lighting into `Assets/Scenes/Saloon.unity` with `SaloonLightingSetup.Apply`.
+  Visual captures are in `Documentation/SurfacePreviews/`.
+
+
+## 2026-11-14 — Bartender arrival after five complete rounds
+
+- Per the confirmed timing, the bartender is absent for rounds 1–5 and arrives
+  when round 6 discussion begins. One shared arrival-round constant controls
+  host scheduling and player instructions. Before arrival, the server rejects
+  all bartender requests without spending a question or round action. The
+  client hides the question interaction and mood meter; the NPC and its sign
+  are created lazily after the arrival snapshot, then hidden on a new match.
+- The host emits exactly one public “Bartender arrived” event and supplies a
+  six-second notification window in each recipient's snapshot. The banner is
+  drawn after gameplay overlays so the automatically opened room planner cannot
+  cover it. Reconnects preserve arrival and do not restart the timer. A new lobby
+  or match clears arrival even if a previous round counter remains in memory.
+- Shots before arrival do not lower the absent bartender's mood. He arrives at
+  100; the existing mood, Maybe and one-question-per-player rules apply afterward.
+  The Renegade remains excluded. Tab explains the waiting period before arrival.
+- Unity 6000.5.10f1 / Metal passed SALOON_BARTENDER (1,461 checks) and
+  SALOON_EDITOR_ITERATION. The added cases exercise all five early rounds, all
+  five participants, command rejection without spending, client menu denial,
+  lazy NPC absence, redacted early mood, a real pre-arrival shot, the round-five
+  regroup boundary, round-six discussion arrival, per-recipient compressed
+  notification state, event/timer deduplication, reconnect and lobby/match reset.
+  Existing source checks passed 21,002 assertions.
+- Reviewed the empty counter during round five. The final notification layering
+  fix compiled, but its rendered overlay recheck was not completed while the
+  user's active Play session continued. The rerunnable fixture captures both
+  BeforeArrival.png and Arrival.png in the LastCall-Bartender temporary folder.
+  Source only; no standalone build or publication.
+
+
+## 2026-11-14 — Free licensed bartender model
+
+Replaced the procedural placeholder with CDmir / TinyWorlds' Bartender from
+https://opengameart.org/content/bartender, listed by the author under CC0 1.0.
+Original blend, source page, license provenance and repeatable Blender exporter
+are retained in ArtSource/Bartender/. Runtime FBX retains the rig and uses the
+packed Body, Head and Hair diffuse maps. The body used a separate legacy UV
+layer; its face loops were copied into the primary UV channel for correct Unity
+texture mapping. Character height is normalized to 1.88 metres.
+
+Unity / Metal passed SALOON_BARTENDER (1,461 checks) and
+SALOON_EDITOR_ITERATION with the imported mesh. Reviewed the final textured
+character at the counter; preview is Documentation/BartenderPreviews/Bartender.png.
+Arrival timing, privacy, mood and one-question rules are retained. The character
+uses subtle root breathing; no polishing or retargeted Humanoid animation is
+claimed for this imported rig. Source only; no new standalone build.
+
+
+## 2026-11-14 — 0.2.17 shared Outlaw progress and cinematic opening
+
+Both Outlaws now receive the same safe-work milestone and live completed-job count.
+Their private snapshots also carry team money and escape state, so collection and
+declaration advance both character maps without granting the partner a second bag
+or escape action. Cancellation and loss reopen the relevant steps. Team state is
+excluded from Law and Renegade snapshots. Added a 5.5-second private role introduction
+with a full-viewport black screen, animated titles, and fade into the saloon.
+
+Production checks passed 21,008 assertions (`python3 Tools/verify_planning.py`).
+Unity story-map checks passed 32 assertions, including private team state and wire
+serialization (`/tmp/lastcall-0217-storymaps.log`). Updated stale release/multiplayer
+fixtures to use the current ally-role visibility rules, and corrected an old combat
+fixture that assumed a Bar shot spent two players' actions. No game rules were
+changed for those fixture corrections.
+
+Unity built universal Mac, Windows x64, and Linux x64 players. Final Mac packaged
+functional suite passed (`/tmp/lastcall-0217-functional-verified.log`). Five separate
+Mac players completed three no-bot LAN rounds and entered round four
+(`/tmp/lastcall-0217-lan-final/`). Build log:
+`/tmp/lastcall-release-0217-verified.log`.

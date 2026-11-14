@@ -46,8 +46,10 @@ public static class SaloonRoundVerification
         Check(SaloonStations.Position(false,0,0).y+1.35f>1.6f,"bar eye clears counter");
         var r=new SaloonRounds();var living=new HashSet<ulong>{1,2,3};
         r.Start(living,0,10,10,1,5,2);Check(!r.TrySpend(1,0),"discussion lock");
-        r.Tick(10000,living.Contains);Check(r.Phase==Phase.Discussion,"time cannot end discussion");
-        r.SetReady(1,true);r.SetReady(2,true);r.Tick(10001,living.Contains);Check(r.Phase==Phase.Discussion,"one unready living player blocks start");
+        r.Tick(9,living.Contains);Check(r.Phase==Phase.Discussion,"discussion waits until its deadline");
+        r.Tick(10,living.Contains);Check(r.Phase==Phase.Turns,"discussion timer starts actions without every Ready");
+        r.Start(living,2,10,10,1,5,2);
+        r.SetReady(1,true);r.SetReady(2,true);r.Tick(3,living.Contains);Check(r.Phase==Phase.Discussion,"one unready living player blocks early start");
         r.SetReady(1,false);r.SetReady(3,true);r.Tick(11,living.Contains);Check(r.Phase==Phase.Discussion,"unready can revoke consent");
         r.SetReady(1,true);r.Tick(12,living.Contains);Check(r.Phase==Phase.Turns&&r.CanAct(1,12)&&r.CanAct(2,12),"all ready starts room actions directly");
         Check(r.TrySpend(1,21.9f,3)&&!r.TrySpend(1,21.9f),"one action, late timer");r.Tick(22,living.Contains);Check(r.Phase==Phase.Turns,"timed action completes");
@@ -76,9 +78,11 @@ public static class SaloonRoundVerification
         r.Start(living,0,30,30,1);foreach(var id in living)r.SetReady(id,true);r.Tick(0,living.Contains);
         r.TrySpend(1,1);r.TrySpend(2,1);r.Tick(30,living.Contains);
         Check(r.Phase==Phase.Aftermath,"deadline still ends a round with an idle player");
-        Check(SaloonPosse.Stage(7,Phase.Aftermath)==0&&SaloonPosse.Stage(7,Phase.Regroup)==1,"posse warning follows round seven");
-        Check(SaloonPosse.RoundsRemaining(8,Phase.Discussion)==3&&SaloonPosse.RoundsRemaining(9,Phase.Turns)==2&&SaloonPosse.RoundsRemaining(10,Phase.Turns)==1,"three full warning rounds");
-        Check(SaloonPosse.Stage(10,Phase.Aftermath)==4&&!SaloonPosse.CanEscape(10)&&SaloonPosse.CanEscape(9),"arrival waits for final actions and escapes need a response round");
+        for(int round=1;round<=17;round++)
+            Check(SaloonPosse.Stage(round,Phase.Discussion)==0&&SaloonPosse.Stage(round,Phase.Turns)==0&&SaloonPosse.Stage(round,Phase.Aftermath)==0&&!SaloonPosse.Arrives(round),"no early posse pressure in round "+round);
+        Check(SaloonPosse.Stage(17,Phase.Regroup)==1,"posse warning starts as round 18 approaches");
+        Check(SaloonPosse.RoundsRemaining(18,Phase.Discussion)==3&&SaloonPosse.RoundsRemaining(19,Phase.Turns)==2&&SaloonPosse.RoundsRemaining(20,Phase.Turns)==1,"rounds 18–20 are three full warning rounds");
+        Check(SaloonPosse.Stage(20,Phase.Aftermath)==4&&SaloonPosse.Arrives(20)&&!SaloonPosse.CanEscape(20)&&SaloonPosse.CanEscape(19),"arrival waits for round 20 actions and round 19 is the last escape declaration");
         Check(SaloonPosse.ArrivalOutcome(new[]{Role.Sheriff,Role.Outlaw}).StartsWith("LAW WINS")&&SaloonPosse.ArrivalOutcome(new[]{Role.Deputy,Role.Renegade}).StartsWith("LAW WINS"),"either surviving Law role can win at arrival");
         Check(SaloonPosse.ArrivalOutcome(new[]{Role.Outlaw,Role.Renegade}).StartsWith("DRAW")&&SaloonPosse.ArrivalOutcome(new[]{Role.Outlaw}).StartsWith("DRAW"),"uncleared criminals are captured");
         Check(SaloonPosse.ArrivalOutcome(new[]{Role.Renegade}).StartsWith("RENEGADE WINS")&&SaloonPosse.ArrivalOutcome(Array.Empty<Role>())=="DRAW — NO SURVIVORS","elimination outcomes retain priority");

@@ -36,11 +36,10 @@ namespace Saloon
             int oldPose=host.poseVersion;
             foreach(var p in players.Values)OnCommand(p.id,new Command{kind="ready",x=1});TickServer();Broadcast();
             Check(phase==Phase.Turns,"all Ready starts room actions without a choosing timer");
-            Check(!duels.ContainsKey(0)&&roomTurns[0].order.Length==2,"two players at the bar use normal turns without a coin toss");
+            Check(!duels.ContainsKey(0)&&!roomTurns.ContainsKey(0)&&PrivateSnapshot(host.id).actionAvailable&&PrivateSnapshot(peer.id).actionAvailable,"bar players can act concurrently without a coin toss or queue");
             float facing=host.yaw;OnCommand(host.id,new Command{kind="input",yaw=facing+180,poseVersion=oldPose});
             Check(host.yaw==facing,"old look packets cannot overwrite the new room facing");
             yield return new WaitForSeconds(.35f);yield return Capture("02-bar-actions");
-            var turn=roomTurns[0];turn.order=new[]{host.id,peer.id};turn.index=0;turn.until=Time.time+30;
             host.drawn=peer.drawn=true;Broadcast();yield return new WaitForSeconds(.25f);
             var weapon=ViewCamera.transform.Find("Low-poly revolver");
             Check(weapon!=null&&weapon.Find("First-person right arm")==null,"first-person revolver has no visible arm");

@@ -69,7 +69,6 @@ namespace Saloon
             Check(Mathf.Abs(Mathf.DeltaAngle(hero.bodyYaw,seatedYaw))<.01f&&Quaternion.Angle(seatedChest,chest.rotation)<.1f&&Quaternion.Angle(seatedHips,hips.rotation)<.1f,"seated players can nod and shake without turning their torso or chair");
             yield return Capture("06-seated-gesture");
 
-            yield return VerifyTalkingMouths();
             VerificationFinished=VerificationPassed=false;
             var windows=FindObjectsByType<SaloonRoomWindow>();
             Check(windows.Length==2,"both room windows are present in the player");

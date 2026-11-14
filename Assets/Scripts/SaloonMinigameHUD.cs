@@ -24,10 +24,10 @@ namespace Saloon
             if(duel.game=="coin")
             {
                 if(duel.stage=="choosing"&&duel.canChooseCoin)
-                    DecisionPanel("CALL THE COIN",294,y=>
+                    DecisionControls("CALL THE COIN",y=>
                     {
-                        if(Button(488,y,144,40,"HEADS"))Game.ChooseCoin(0);
-                        if(Button(648,y,144,40,"TAILS"))Game.ChooseCoin(1);
+                        if(TableAction(472,y,160,"HEADS"))Game.ChooseCoin(0);
+                        if(TableAction(648,y,160,"TAILS"))Game.ChooseCoin(1);
                     });
                 // During the toss the coin itself is the entire presentation.
                 return;
@@ -41,25 +41,38 @@ namespace Saloon
             if(duel.stage=="dealing")return;
             bool hidden=System.Array.Exists(duel.dealerHand??System.Array.Empty<int>(),card=>card<0);
             if(!duel.isDealer&&hidden)
-                DecisionPanel("YOUR HAND",510,y=>
+                DecisionControls("YOUR MOVE",y=>
                 {
                     bool enabled=GUI.enabled;GUI.enabled=enabled&&duel.canHit;
-                    if(Button(488,y,144,40,"HIT"))Game.ChooseBlackjack("hit");
-                    if(Button(648,y,144,40,"STAND"))Game.ChooseBlackjack("stand");
+                    if(TableAction(472,y,160,"HIT"))Game.ChooseBlackjack("hit");
+                    if(TableAction(648,y,160,"STAND"))Game.ChooseBlackjack("stand");
                     GUI.enabled=enabled;
                 });
             else if(duel.canDeal)
-                DecisionPanel("YOUR DEAL",510,y=>{if(Button(488,y,304,40,"DRAW CARD"))Game.ChooseBlackjack("deal");});
+                DecisionControls("YOUR DEAL",y=>{if(TableAction(520,y,240,"DRAW CARD"))Game.ChooseBlackjack("deal");});
         }
 
-        void DecisionPanel(string label,float top,System.Action<float> actions)
+        void DecisionControls(string label,System.Action<float> actions)
         {
             bool prior=worldHud;worldHud=false;
-            // A compact, centered panel; no counters, totals, seat labels or rule text.
-            Fill(new Rect(468,top,344,112),paper);
-            Fill(new Rect(488,top+19,30,2),gold);
-            Text(532,top+9,260,25,label,new GUIStyle(subtitle){alignment=TextAnchor.MiddleRight});
-            actions(top+51);worldHud=prior;
+            // One consistent bottom position keeps choices clear of the cards, coin and opponent.
+            Text(440,560,400,26,label,tableActionCaption);
+            actions(594);worldHud=prior;
+        }
+
+        bool TableAction(float x,float y,float width,string label)
+        {
+            var rect=new Rect(x,y,width,48);
+            bool enabled=GUI.enabled;GUI.enabled=true;
+            bool clicked=GUI.Button(rect,label,enabled?tableActionButton:tableActionDisabled);GUI.enabled=enabled;
+            if(Event.current.type==EventType.Repaint)
+            {
+                bool hover=enabled&&rect.Contains(Event.current.mousePosition);
+                var brass=new Color(.84f,.65f,.38f,enabled?(hover?1:.48f):.18f);
+                Outline(rect,brass);
+                Fill(new Rect(rect.x+12,rect.yMax-3,rect.width-24,1),new Color(.95f,.78f,.48f,hover?.65f:.12f));
+            }
+            return clicked&&enabled;
         }
     }
 }

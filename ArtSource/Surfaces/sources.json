@@ -1,0 +1,98 @@
+[
+  {
+    "asset": "wood_planks_grey",
+    "source": "https://polyhaven.com/a/wood_planks_grey",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_planks_grey/wood_planks_grey_diff_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/WeatheredWood_Color.jpg",
+    "license": "CC0-1.0",
+    "sha256": "d758be23e8fe7bfbd73bc4ab257cfd59406e1835f6557c12a67cd4fdb15de0d8"
+  },
+  {
+    "asset": "wood_planks_grey",
+    "source": "https://polyhaven.com/a/wood_planks_grey",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_planks_grey/wood_planks_grey_nor_gl_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/WeatheredWood_NormalGL.jpg",
+    "license": "CC0-1.0",
+    "sha256": "5e570e57d688b016b217b9e8e0592f9a8b3364406e22bf6cd775da990452bdb6"
+  },
+  {
+    "asset": "wood_planks_grey",
+    "source": "https://polyhaven.com/a/wood_planks_grey",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_planks_grey/wood_planks_grey_rough_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/WeatheredWood_Roughness.jpg",
+    "license": "CC0-1.0",
+    "sha256": "ef640502cec94bd2b6500e252891a778a7a721be16b5536d4efc9fe4d99b12aa"
+  },
+  {
+    "asset": "wood_table",
+    "source": "https://polyhaven.com/a/wood_table",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table/wood_table_diff_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/CounterWood_Color.jpg",
+    "license": "CC0-1.0",
+    "sha256": "f81642ae141958feac6c5acac03e2aeb6cfe049dff301d0627e3c17f2dc5c7a5"
+  },
+  {
+    "asset": "wood_table",
+    "source": "https://polyhaven.com/a/wood_table",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table/wood_table_nor_gl_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/CounterWood_NormalGL.jpg",
+    "license": "CC0-1.0",
+    "sha256": "88ecc8e54c30314f4662696ddf8c05b031976e3cbc68e399daa5ebddfb4cec71"
+  },
+  {
+    "asset": "wood_table",
+    "source": "https://polyhaven.com/a/wood_table",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_table/wood_table_rough_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/CounterWood_Roughness.jpg",
+    "license": "CC0-1.0",
+    "sha256": "5b98d4d6b22960c781050ba622cebe67d8710c7a7ba0060b24cb6752d50fde32"
+  },
+  {
+    "asset": "sandy_gravel",
+    "source": "https://polyhaven.com/a/sandy_gravel",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/sandy_gravel/sandy_gravel_diff_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/DesertGravel_Color.jpg",
+    "license": "CC0-1.0",
+    "sha256": "38829e669dc246e86b7ce94c4141485709988450b13f82cfc4bc6067dd69ed48"
+  },
+  {
+    "asset": "sandy_gravel",
+    "source": "https://polyhaven.com/a/sandy_gravel",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/sandy_gravel/sandy_gravel_nor_gl_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/DesertGravel_NormalGL.jpg",
+    "license": "CC0-1.0",
+    "sha256": "f2a4c48f31cd5ad5e2b0488e89c94d284c5a2acd4367bec49a5f48f832b7e3da"
+  },
+  {
+    "asset": "sandy_gravel",
+    "source": "https://polyhaven.com/a/sandy_gravel",
+    "url": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/sandy_gravel/sandy_gravel_rough_1k.jpg",
+    "file": "Assets/Resources/Art/Surfaces/DesertGravel_Roughness.jpg",
+    "license": "CC0-1.0",
+    "sha256": "dce2344c2a2be905f88b18497911e3e324b741c0fced19623659b44fb76b3d22"
+  },
+  {
+    "asset": "Plaster001",
+    "source": "https://ambientcg.com/a/Plaster001",
+    "url": "https://ambientcg.com/get?file=Plaster001_1K-JPG.zip",
+    "file": "Assets/Resources/Art/Surfaces/LimePlaster_Color.jpg",
+    "license": "CC0-1.0",
+    "sha256": "d3fe43282859ab7293ad41f2fa3c29f02df077e5bc326cf90a65cc588a4ac5a4"
+  },
+  {
+    "asset": "Plaster001",
+    "source": "https://ambientcg.com/a/Plaster001",
+    "url": "https://ambientcg.com/get?file=Plaster001_1K-JPG.zip",
+    "file": "Assets/Resources/Art/Surfaces/LimePlaster_NormalGL.jpg",
+    "license": "CC0-1.0",
+    "sha256": "ea293c335a0b9243f0a825573b81304b8f99e60b2c067e493d0792adf96dfc72"
+  },
+  {
+    "asset": "Plaster001",
+    "source": "https://ambientcg.com/a/Plaster001",
+    "url": "https://ambientcg.com/get?file=Plaster001_1K-JPG.zip",
+    "file": "Assets/Resources/Art/Surfaces/LimePlaster_Roughness.jpg",
+    "license": "CC0-1.0",
+    "sha256": "6028dbe3cb2ea250eacf3fb87d2c4e5ae8c2a7ff10ecad7883c27d721f2f8e88"
+  }
+]

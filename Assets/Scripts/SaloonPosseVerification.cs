@@ -50,25 +50,27 @@ namespace Saloon
             {
                 for(int n=1;n<SaloonPosse.ArrivalRound;n++)
                 {
-                    Ready();EndActions();Check(string.IsNullOrEmpty(pendingOutcome),"no arrival before round ten");
+                    Ready();EndActions();Check(string.IsNullOrEmpty(pendingOutcome),"no arrival before round 20");
                     NextRound();
                     var wire=Snapshot.FromWireJson(PrivateSnapshot(host.id).ToWireJson());
-                    Check(wire.posseStage==(n<7?0:n-6),"host warning reaches clients after round "+n);
-                    Check(wire.posseRoundsRemaining==(n<7?0:10-n),"client countdown leaves three complete rounds");
+                    Check(wire.posseStage==(n<17?0:n-16),"host warning reaches clients after round "+n);
+                    Check(wire.posseRoundsRemaining==(n<17?0:20-n),"client countdown leaves three complete rounds");
                 }
                 Ready();
             }
             Reset();ReachFinalRound();
             robber.bag=true;DeclareEscape(robber);
-            Check(robber.escapeRound==0&&rounds.CanAct(robber.id,Time.time)&&robber.notice.Contains("too late"),"round ten refuses an impossible escape without spending the action");
+            Check(robber.escapeRound==0&&rounds.CanAct(robber.id,Time.time)&&robber.notice.Contains("too late"),"round 20 refuses an impossible escape without spending the action");
             EndActions();Check(pendingOutcome=="LAW WINS — POSSE ARRIVED"&&outcome=="","arrival queues Law victory after final actions");
-            var final=PrivateSnapshot(host.id);Check(final.posseStage==4&&final.posseRoundsRemaining==0&&final.players.All(p=>string.IsNullOrEmpty(p.revealedRole)),"arrival snapshot preserves hidden roles until aftermath finishes");
+            var final=PrivateSnapshot(host.id);Check(final.posseStage==4&&final.posseRoundsRemaining==0&&final.players.All(p=>
+                p.revealedRole==(SaloonRules.KnowsRole(host.role,players[ulong.Parse(p.id)].role)?players[ulong.Parse(p.id)].role.ToString():"")),
+                "arrival snapshot preserves normal role permissions until aftermath finishes");
             Broadcast();yield return new WaitForSeconds(3.15f);
             Check(phase==Phase.Finished&&outcome=="LAW WINS — POSSE ARRIVED","posse ends the match after effects");
             Check(PrivateSnapshot(host.id).players.All(p=>!string.IsNullOrEmpty(p.revealedRole)),"arrival reveals roles on the results screen");
             Reset();Check(PrivateSnapshot(host.id).posseStage==0,"new match clears the posse countdown");
-            ReachFinalRound();robber.bag=true;robber.escapeRound=9;
-            EndActions();Check(pendingOutcome=="OUTLAWS WIN — MONEY ESCAPED","round nine escape completes on round ten before the posse");
+            ReachFinalRound();robber.bag=true;robber.escapeRound=19;
+            EndActions();Check(pendingOutcome=="OUTLAWS WIN — MONEY ESCAPED","round 19 escape completes on round 20 before the posse");
             Reset();ReachFinalRound();
             foreach(var p in players.Values)p.role=Role.Outlaw;host.role=Role.Renegade;
             EndActions();Check(pendingOutcome=="DRAW — POSSE CAPTURED THE SURVIVORS","no surviving Law and no completed escape means capture, not a criminal win");

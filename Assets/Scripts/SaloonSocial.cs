@@ -57,7 +57,7 @@ namespace Saloon
         }
         readonly Dictionary<int,RoomTurn> roomTurns=new Dictionary<int,RoomTurn>();
         public bool RoomPlannerOpen;
-        public bool NeedsPointer=>View!=null&&(ShowRole||View.phase==Phase.Finished||(View.phase==Phase.Discussion&&RoomPlannerOpen)||View.phase==Phase.Choosing||(View.phase==Phase.Turns&&(View.duel?.stage=="choosing"||PlayingTableGame)));
+        public bool NeedsPointer=>View!=null&&(BartenderMenuVisible||ShowRole||View.phase==Phase.Finished||(View.phase==Phase.Discussion&&RoomPlannerOpen)||View.phase==Phase.Choosing||(View.phase==Phase.Turns&&(View.duel?.stage=="choosing"||PlayingTableGame)));
         public float HitFlash { get; private set; }
         float eliminatedAt=-10;
         public bool ShowEliminationOverlay=>View?.phase!=Phase.Aftermath&&Self?.observer==true;
@@ -70,10 +70,10 @@ namespace Saloon
             duels.Clear();roomTurns.Clear();if(gather)return;
             foreach(var group in players.Values.Where(p=>p.Alive).GroupBy(p=>p.room))
             {
-                if(group.Key==3)continue;
+                // Bar actions are concurrent. Smoking has no combat actions.
+                if(group.Key==0||group.Key==3)continue;
                 var pair=group.OrderBy(p=>p.id).ToArray();
-                // The bar always uses ordinary turns, even with just one or two players.
-                if(group.Key==0||pair.Length>2)
+                if(pair.Length>2)
                 {
                     float seconds=Mathf.Max(10,tuning.turnSeconds/pair.Length);
                     roomTurns[group.Key]=new RoomTurn{order=pair.OrderBy(p=>UnityEngine.Random.value).Select(p=>p.id).ToArray(),seconds=seconds,until=Time.time+seconds};
@@ -136,6 +136,7 @@ namespace Saloon
         }
         bool DuelAllows(Participant p)
         {
+            if(p.room==0)return true;
             if(roomTurns.TryGetValue(p.room,out var turn))return turn.index<turn.order.Length&&turn.order[turn.index]==p.id;
             if(!duels.TryGetValue(p.room,out var duel))return true;
             if(!duel.revealed||Time.time<duel.combatAt)return false;
@@ -143,7 +144,7 @@ namespace Saloon
         }
         void AdvanceRoomTurn(int room)
         {
-            if(phase!=Phase.Turns||!roomTurns.TryGetValue(room,out var turn))return;
+            if(room==0||phase!=Phase.Turns||!roomTurns.TryGetValue(room,out var turn))return;
             while(turn.index<turn.order.Length)
             {
                 ulong id=turn.order[turn.index];
@@ -158,7 +159,7 @@ namespace Saloon
         }
         RoomTurnView PrivateRoomTurn(Participant p)
         {
-            if(phase!=Phase.Turns||!p.Alive||!roomTurns.TryGetValue(p.room,out var turn))return null;
+            if(p.room==0||phase!=Phase.Turns||!p.Alive||!roomTurns.TryGetValue(p.room,out var turn))return null;
             bool active=turn.index<turn.order.Length;ulong id=active?turn.order[turn.index]:0;
             return new RoomTurnView{currentId=active?id.ToString():"",currentName=active?players[id].name:"",
                 order=turn.order.Select(x=>players[x].name).ToArray(),yourTurn=active&&id==p.id,spent=!rounds.CanAct(p.id,Time.time),
@@ -188,7 +189,12 @@ namespace Saloon
         public void ChooseCoin(int side)=>Connection.Send(new Command{kind="coin",x=side});
         public void ToggleRoomPlanner()
         {if(View?.phase!=Phase.Discussion)return;RoomPlannerOpen=!RoomPlannerOpen;SyncPointer();}
-        void SyncPointer(){if(ShowRole||(View?.phase==Phase.Discussion&&RoomPlannerOpen)){UnlockCursor();return;}if(!MenuOpen&&NeedsPointer&&Self?.alive==true&&Input.GetMouseButton(1))LockCursor();else if(MenuOpen||NeedsPointer||Self?.alive==false)UnlockCursor();else LockCursor();}
+        void SyncPointer()
+        {
+            if(RoleIntroActive&&!MenuOpen)LockCursor();
+            else if(MenuOpen||ShowRole||NeedsPointer||Self?.alive==false)UnlockCursor();
+            else LockCursor();
+        }
         void ApplyImpactFeedback(PlayerView self)
         {
             if(self==null)return;

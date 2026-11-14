@@ -117,9 +117,8 @@ namespace Saloon
         {
             var host=players[Connection.LocalId];var source=players.Values.Last(p=>p.bot);
             foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=60;p.busyUntil=0;}
-            host.chosenRoom=2;rounds.Start(players.Keys,Time.time,30,30,6);foreach(var id in players.Keys)rounds.SetReady(id,true);
+            host.chosenRoom=players.Values.First(p=>p!=host&&p!=source).chosenRoom=2;rounds.Start(players.Keys,Time.time,30,30,6);foreach(var id in players.Keys)rounds.SetReady(id,true);
             rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);Broadcast();yield return null;
-            var turn=roomTurns[0];turn.index=Array.IndexOf(turn.order,source.id);
             source.drawn=true;source.yaw=0;source.pitch=60;source.ammo=6;source.nextShot=0;source.lastAction=-100;
             int before=source.shots;OnCommand(source.id,new Command{kind="fire"});Broadcast();
             var audio=avatars[source.id.ToString()].GetComponents<AudioSource>();

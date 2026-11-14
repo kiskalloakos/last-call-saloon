@@ -4,10 +4,10 @@ using System.Linq;
 
 namespace Saloon
 {
-    // Public match pressure: seven normal rounds followed by three full response rounds.
+    // Seventeen normal rounds, then warnings during the final three full rounds.
     public static class SaloonPosse
     {
-        public const int WarningRound=7,ArrivalRound=10;
+        public const int ArrivalRound=20,WarningRound=ArrivalRound-3,LastEscapeRound=ArrivalRound-1;
         public static int Stage(int round,Phase phase)
         {
             if(phase==Phase.Lobby||round<WarningRound)return 0;

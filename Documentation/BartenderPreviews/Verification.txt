@@ -1,0 +1,9 @@
+Unity 6000.5.10f1 / Metal, 2026-11-14
+SALOON_BARTENDER PASS 1461 checks
+SALOON_EDITOR_ITERATION PASS
+Tools/verify_planning.py: PASS 21002 checks
+Absent throughout rounds 1-5; arrives at round 6 discussion; one arrival event per match.
+No early question or action spending; no early NPC, sign, meter or mood disclosure.
+One question per eligible player per match; Renegade excluded.
+Final notification layering fix compiled after the regression; a new rendered overlay capture was not obtained while the user was playing.
+Source only; no standalone build or publication.

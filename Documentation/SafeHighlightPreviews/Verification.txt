@@ -1,0 +1,3 @@
+Unity 6000.5.10f1 / Metal, 2026-11-14
+SALOON_SAFE_HIGHLIGHT PASS 33 checks; screenshots=/var/folders/bx/rq_p_44d63d1x6wwfzqyw85m0000gn/T/LastCall-SafeHighlight
+SALOON_EDITOR_ITERATION PASS

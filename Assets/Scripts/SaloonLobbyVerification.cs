@@ -54,7 +54,7 @@ namespace Saloon
                 yield return Wait(()=>clients.All(c=>players[c.LocalId].voiceId=="editor-voice-"+c.LocalId),"voice identities arrive over reliable LAN commands");
                 StartMatch();Deck(count);
                 yield return Wait(()=>clients.All(c=>snapshots.TryGetValue(c,out var s)&&s.phase==Phase.Discussion&&s.players.Length==count),count+"-player discussion reaches all LAN clients");
-                Check(clients.All(c=>snapshots[c].ownRole==players[c.LocalId].role.ToString()&&snapshots[c].players.Count(p=>p.sheriff)==1&&snapshots[c].players.All(p=>players[c.LocalId].role==Role.Renegade?p.revealedRole==players[ulong.Parse(p.id)].role.ToString():p.revealedRole=="")&&!snapshots[c].botsEnabled),"private roles and no-bots mode survive the wire");
+                Check(clients.All(c=>snapshots[c].ownRole==players[c.LocalId].role.ToString()&&snapshots[c].players.Count(p=>p.sheriff)==1&&snapshots[c].players.All(p=>SaloonRules.KnowsRole(players[c.LocalId].role,players[ulong.Parse(p.id)].role)?p.revealedRole==players[ulong.Parse(p.id)].role.ToString():p.revealedRole=="")&&!snapshots[c].botsEnabled),"private roles and no-bots mode survive the wire");
                 Check(clients.All(c=>snapshots[c].players.Where(p=>p.id!=LocalId).All(p=>p.voiceId=="editor-voice-"+p.id)),"all LAN clients map each voice ID to the correct avatar");
                 var victim=players[clients[0].LocalId];TakeDamage(victim,Vector3.forward);Broadcast();
                 yield return Wait(()=>clients.All(c=>snapshots[c].players.Single(p=>p.id==victim.id.ToString()).hits==1),"every LAN client receives the victim's hit sequence");
@@ -63,21 +63,21 @@ namespace Saloon
                 Connection.Send(new Command{kind="room",x=0});Connection.Send(new Command{kind="ready",x=1});
                 yield return Wait(()=>phase==Phase.Turns&&clients.All(c=>snapshots.TryGetValue(c,out var s)&&s.phase==Phase.Turns),"Ready starts room actions for every LAN client");
                 Check(players.Values.All(p=>p.room==0&&p.seat>=100)&&players.Values.Select(p=>p.seat).Distinct().Count()==count,"every player has a separate bar seat");
-                Check(roomTurns[0].order.Length==count,"bar queue includes every player");
-                var walker=players[roomTurns[0].order.Last()];var walkerConnection=walker.id==Connection.LocalId?Connection:clients.First(c=>c.LocalId==walker.id);
+                Check(!roomTurns.ContainsKey(0)&&players.Values.All(p=>PrivateSnapshot(p.id).actionAvailable),"every Bar player can act immediately");
+                var walker=players.Values.Last();var walkerConnection=walker.id==Connection.LocalId?Connection:clients.First(c=>c.LocalId==walker.id);
                 walkerConnection.Send(new Command{kind="stance"});
-                yield return Wait(()=>walker.seat<0,"a waiting LAN player can stand before their turn");
+                yield return Wait(()=>walker.seat<0,"a LAN player can stand before acting");
                 Vector3 start=walker.body.transform.position;float walkingUntil=Time.time+.3f;
                 while(Time.time<walkingUntil){walkerConnection.Send(new Command{kind="input",z=-1,yaw=0,pitch=0,poseVersion=walker.poseVersion});yield return null;}
                 walkerConnection.Send(new Command{kind="input",poseVersion=walker.poseVersion});
-                Check(Vector3.Distance(start,walker.body.transform.position)>.2f,"waiting LAN player moves through host-authoritative collision");
+                Check(Vector3.Distance(start,walker.body.transform.position)>.2f,"LAN player moves through host-authoritative collision");
                 yield return Wait(()=>clients.All(c=>!snapshots[c].players.Single(p=>p.id==walker.id.ToString()).seated),"all LAN clients receive the standing pose");
                 for(int i=0;i<count;i++)
                 {
-                    ulong actor=roomTurns[0].order[i];
-                    Check(PrivateSnapshot(actor).actionAvailable,"player "+actor+" receives their bar turn");
+                    ulong actor=players.Keys.Reverse().ElementAt(i);
+                    Check(PrivateSnapshot(actor).actionAvailable,"player "+actor+" can act without waiting at the Bar");
                     (actor==Connection.LocalId?Connection:clients.First(c=>c.LocalId==actor)).Send(new Command{kind="pass"});
-                    yield return Wait(()=>rounds.HasSpent(actor),"LAN pass spends the current player's action");
+                    yield return Wait(()=>rounds.HasSpent(actor),"LAN pass spends only that player's action");
                 }
                 Check(clients.All(c=>c.Connected)&&Connection.Manager.ConnectedClientsIds.Count==count,"all "+count+" players stay connected through the round");
                 Finish("LOBBY VERIFICATION: ROUND COMPLETE");

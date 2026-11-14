@@ -19,7 +19,8 @@ namespace Saloon
         public static void Apply()
         {
             var world=GameObject.Find("Saloon World");if(world!=null)SetLayer(world.transform,IndoorLayer);
-            if(GameObject.Find("have a smoke · sunset deck")!=null)return;
+            var existing=GameObject.Find("have a smoke · sunset deck");
+            if(existing!=null){SaloonSurfaces.Apply(existing.transform);return;}
             var placeholder=GameObject.Find("have a smoke · placeholder yard");
             if(placeholder!=null){placeholder.SetActive(false);Object.Destroy(placeholder);}
             var root=new GameObject("have a smoke · sunset deck").transform;root.position=Center-Vector3.up*.08f;
@@ -41,12 +42,12 @@ namespace Saloon
             var sign=new GameObject("have a smoke sign");sign.transform.SetParent(root,false);sign.transform.localPosition=new Vector3(-3.86f,2.4f,0);sign.transform.localRotation=Quaternion.Euler(0,-90,0);
             var text=sign.AddComponent<TextMesh>();text.text="Have a Smoke\nStay a while. Watch the sun go down.";text.characterSize=.011f;text.fontSize=64;text.anchor=TextAnchor.MiddleCenter;text.alignment=TextAlignment.Center;text.color=new Color(.94f,.84f,.65f);SaloonWorldText.Attach(text);
             if(world!=null)foreach(var light in world.GetComponentsInChildren<Light>())light.cullingMask&=~(1<<OutdoorLayer);
-            SaloonSunset.Build(root);SetLayer(root,OutdoorLayer);
+            SaloonSunset.Build(root);SaloonSurfaces.Apply(root);SetLayer(root,OutdoorLayer);
         }
         static void Box(string name,Transform root,Vector3 position,Vector3 size,Material material,bool solid=true)
         {
             var go=GameObject.CreatePrimitive(PrimitiveType.Cube);go.name=name;go.transform.SetParent(root,false);go.transform.localPosition=position;go.transform.localScale=size;go.GetComponent<Renderer>().sharedMaterial=material;
-            if(!solid){var collider=go.GetComponent<Collider>();collider.enabled=false;Object.Destroy(collider);}
+            if(!solid){var collider=go.GetComponent<Collider>();collider.enabled=false;if(Application.isPlaying)Object.Destroy(collider);else Object.DestroyImmediate(collider);}
         }
     }
 }

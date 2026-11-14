@@ -1,0 +1,9 @@
+Bartender — CDmir, collaborator TinyWorlds, originally for Kelgar.
+Source: https://opengameart.org/content/bartender
+Original download: https://opengameart.org/sites/default/files/bartender-IK.blend
+License: CC0 1.0 Universal (public domain dedication)
+License URL: https://creativecommons.org/publicdomain/zero/1.0/
+Retrieved: 2026-11-14
+Local conversion: Blender 5.2.3, FBX with rig; packed diffuse maps extracted as PNG.
+Original .blend retained here. Runtime assets: Assets/Resources/Art/Bartender/.
+No fee, account, or attribution requirement. Author credit retained voluntarily.

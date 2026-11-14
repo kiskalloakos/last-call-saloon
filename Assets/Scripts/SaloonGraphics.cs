@@ -70,7 +70,7 @@ namespace Saloon
             string qualityName=options.preset==0?"Low":options.preset==1?"Medium":"High";
             int quality=Array.IndexOf(QualitySettings.names,qualityName);
             if(quality>=0)QualitySettings.SetQualityLevel(quality,true);
-            QualitySettings.pixelLightCount=options.preset==0?0:options.preset==1?2:4;
+            QualitySettings.pixelLightCount=options.preset==0?2:options.preset==1?4:8;
             QualitySettings.shadows=options.preset==0?ShadowQuality.Disable:options.preset==1?ShadowQuality.HardOnly:ShadowQuality.All;
             QualitySettings.shadowResolution=options.preset==2?ShadowResolution.High:ShadowResolution.Low;
             QualitySettings.shadowDistance=options.preset==0?0:options.preset==1?25:50;

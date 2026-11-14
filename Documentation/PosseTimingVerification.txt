@@ -1,0 +1,8 @@
+Unity 6000.5.10f1 / Metal, 2026-11-14
+SALOON_ROUND_CLOCK PASS
+SALOON_POSSE PASS
+SALOON_EDITOR_ROUNDS PASS
+
+Source verification: Tools/verify_planning.py — 12768 checks passed.
+Schedule: warnings during rounds 18, 19, 20; arrival after round 20 actions.
+Last escape declaration: round 19; completion in round 20 beats arrival.

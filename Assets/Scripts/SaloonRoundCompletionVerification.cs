@@ -22,28 +22,28 @@ namespace Saloon
             {
                 ResetHeist();outcome="";
                 foreach(var p in players.Values){p.hp=tuning.health;p.deathAt=-1;p.drawn=false;p.role=Role.Deputy;p.chosenRoom=0;p.companion=null;p.busyUntil=0;p.busyAction="";p.beer=0;p.lastAction=-100;}
-                host.role=Role.Sheriff;smoker.role=Role.Outlaw;smoker.chosenRoom=3;
+                host.role=Role.Sheriff;smoker.role=Role.Outlaw;foreach(var p in players.Values.Where(p=>p!=host).Take(2))p.chosenRoom=3;
                 rounds.Start(players.Keys,Time.time,30,30,1,1,1);phase=rounds.Phase;
                 foreach(var p in players.Values)rounds.SetReady(p.id,true);TickServer();
-                Check(PrivateSnapshot(host.id).actionsRemaining==players.Count-1,"remaining-action count excludes the smoker");
+                Check(PrivateSnapshot(host.id).actionsRemaining==players.Count-2,"remaining-action count excludes the smokers");
                 Check(phase==Phase.Turns&&smoker.room==3&&rounds.Deadline-Time.time>=30,"smoking and indoor turns begin with a full fallback deadline");
             }
             void Pass(Participant p){p.lastAction=-100;OnCommand(p.id,new Command{kind="pass"});}
-            Setup();Broadcast();yield return new WaitForSeconds(.25f);Check(View.actionsRemaining==players.Count-1,"client receives the live unspent-action count");var queue=roomTurns[0].order.Select(id=>players[id]).ToArray();
-            foreach(var p in queue.Take(queue.Length-1))Pass(p);
+            Setup();Broadcast();yield return new WaitForSeconds(.25f);Check(View.actionsRemaining==players.Count-2,"client receives the live unspent-action count");var actors=players.Values.Where(p=>p.Alive&&p.room==0).ToArray();
+            foreach(var p in actors.Take(actors.Length-1))Pass(p);
             TickServer();Check(PrivateSnapshot(host.id).actionsRemaining==1,"one unspent action is replicated");Check(phase==Phase.Turns,"an indoor player who has not acted still gets their turn");
-            Pass(queue.Last());TickServer();
-            Check(phase==Phase.Aftermath&&!rounds.HasSpent(smoker.id),"all indoor passes immediately end actions without waiting on the smoker");
+            Pass(actors.Last());TickServer();
+            Check(phase==Phase.Aftermath&&!rounds.HasSpent(smoker.id),"all indoor passes immediately end actions without waiting on the smokers");
             Check(rounds.Deadline-Time.time<=3.01f,"only the three-second aftermath remains");
             Broadcast();yield return null;Check(View.phase==Phase.Aftermath&&View.remaining<=3.01f,"clients receive aftermath instead of the stale action timer");
-            Setup();queue=roomTurns[0].order.Select(id=>players[id]).ToArray();
-            foreach(var p in queue.Take(queue.Length-1))Pass(p);
-            var last=queue.Last();last.hp=tuning.health-SaloonHealth.RevolverDamage;last.beer=1;last.beerHealing=SaloonHealth.BeerHealing;last.lastAction=-100;
+            Setup();actors=players.Values.Where(p=>p.Alive&&p.room==0).ToArray();
+            foreach(var p in actors.Take(actors.Length-1))Pass(p);
+            var last=actors.Last();last.hp=tuning.health-SaloonHealth.RevolverDamage;last.beer=1;last.beerHealing=SaloonHealth.BeerHealing;last.lastAction=-100;
             float duration=tuning.drinkSeconds;tuning.drinkSeconds=.4f;OnCommand(last.id,new Command{kind="drink"});TickServer();
             Check(phase==Phase.Turns&&last.busyAction=="drink","early completion never cuts off the last player's drink");
             yield return new WaitForSeconds(.55f);
             Check(last.hp==tuning.health&&phase==Phase.Aftermath,"the last drink heals before automatically starting aftermath");tuning.drinkSeconds=duration;
-            Setup();foreach(var p in roomTurns[0].order.Select(id=>players[id]))Pass(p);
+            Setup();foreach(var p in players.Values.Where(p=>p.Alive&&p.room==0))Pass(p);
             smoker.hp=0;TickServer();Check(phase==Phase.Aftermath,"eliminated players cannot delay completed actions either");
             yield return VerifyCombatFeedback();
             VerificationPassed=VerificationFinished=true;Debug.Log("SALOON_COMPLETION PASS");
@@ -59,7 +59,6 @@ namespace Saloon
                 host.role=Role.Sheriff;target.role=Role.Outlaw;
                 rounds.Start(players.Keys,Time.time,30,30,1);phase=rounds.Phase;
                 foreach(var p in players.Values)rounds.SetReady(p.id,true);TickServer();
-                var turn=roomTurns[0];turn.order=new[]{host.id}.Concat(players.Keys.Where(id=>id!=host.id)).ToArray();turn.index=0;turn.until=Time.time+30;
             }
             Window();Fire(host);Check(host.notice.Contains("holstered")&&!rounds.HasSpent(host.id),"holstered trigger explains Q without consuming the action");
             host.lastAction=-100;OnCommand(host.id,new Command{kind="reload"});Check(host.notice.Contains("Draw"),"reload explains the holstered weapon");
@@ -73,7 +72,7 @@ namespace Saloon
             var muzzle=ViewCamera.transform.Find("Low-poly revolver").GetComponentsInChildren<MeshFilter>(true).First(m=>m.sharedMesh!=null&&m.sharedMesh.name=="Crossed muzzle flame");
             Check(muzzle.sharedMesh.vertexCount==18,"muzzle flash has intersecting flame planes");
             Check(SaloonWeaponPose.Offset(.035f).z<-.07f&&Quaternion.Angle(Quaternion.identity,SaloonWeaponPose.Rotation(.035f))>18,"shot kick drives a stronger barrel rise and backward impulse");
-            Check(wire.actionBlockReason.Contains("Action spent")&&wire.actionsRemaining==players.Count-1,"spent-action explanation and countdown agree");
+            Check(wire.actionBlockReason.Contains("Action spent")&&wire.actionsRemaining==players.Count-1,"one Bar shot spends only the shooter's action; countdown agrees");
             TakeDamage(host);Broadcast();Check(HealthDelta==-SaloonHealth.RevolverDamage&&HealthDeltaUntil>Time.unscaledTime,"local damage raises a readable HP loss");host.hp+=SaloonHealth.BeerHealing;Broadcast();Check(HealthDelta==SaloonHealth.BeerHealing,"healing raises a readable HP gain");
             Window();host.drawn=true;host.ammo=2;float duration=tuning.reloadSeconds;tuning.reloadSeconds=.5f;host.lastAction=-100;OnCommand(host.id,new Command{kind="reload"});
             wire=Snapshot.FromWireJson(PrivateSnapshot(host.id).ToWireJson());
@@ -106,7 +105,7 @@ namespace Saloon
             yield return new WaitForSeconds(.10f);Check(host.shots==before,"buffer respects the short reaction window");
             yield return new WaitForSeconds(.20f);Check(host.shots==before+1&&rounds.HasSpent(host.id),"buffered bar shot fires once as soon as the draw finishes");
             Window();host.lastAction=-100;OnCommand(host.id,new Command{kind="pass"});
-            var responder=players[roomTurns[0].order[roomTurns[0].index]];responder.lastAction=-100;before=responder.shots;
+            var responder=players.Values.First(p=>p.Alive&&p.room==0&&p!=host);responder.lastAction=-100;before=responder.shots;
             OnCommand(responder.id,new Command{kind="draw"});OnCommand(responder.id,new Command{kind="fire"});
             Check(responder.fireAfterDraw,"responding bar players also retain quick trigger input");
             yield return new WaitForSeconds(.30f);Check(responder.shots==before+1,"responding player fires after the short draw");

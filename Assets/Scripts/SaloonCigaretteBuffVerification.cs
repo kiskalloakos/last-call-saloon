@@ -30,6 +30,8 @@ namespace Saloon
             }
             void Ready()
             {
+                if(host.chosenRoom==3&&players.Values.Count(p=>p.chosenRoom==3)==1)
+                    players.Values.First(p=>p!=host&&p!=peer).chosenRoom=3;
                 foreach(var id in players.Keys)rounds.SetReady(id,true);
                 rounds.Tick(Time.time,id=>players[id].Alive);phase=rounds.Phase;PositionEveryone(false);Physics.SyncTransforms();
             }

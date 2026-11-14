@@ -21,7 +21,7 @@ namespace Saloon
             Check(dead.body.transform.position==deadPosition&&players.Values.Where(p=>p.Alive).All(p=>Vector3.Distance(p.body.transform.position,deadPosition)>.5f),"dead bar seat stays occupied across regroup without overlaps");
             foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.hitbox.enabled=true;}
             rounds.Start(players.Keys,Time.time-1,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear();
-            Check(players.Values.All(p=>string.IsNullOrEmpty(PrivateSnapshot(p.id).ally)&&PrivateSnapshot(p.id).players.All(v=>p.role==Role.Renegade?!string.IsNullOrEmpty(v.revealedRole):string.IsNullOrEmpty(v.revealedRole))),"only the Renegade receives hidden roles; ally names stay private");
+            Check(players.Values.All(p=>string.IsNullOrEmpty(PrivateSnapshot(p.id).ally)&&PrivateSnapshot(p.id).players.All(v=>SaloonRules.KnowsRole(p.role,players[ulong.Parse(v.id)].role)?v.revealedRole==players[ulong.Parse(v.id)].role.ToString():string.IsNullOrEmpty(v.revealedRole))),"role labels follow recipient permissions; legacy ally field stays empty");
             host.beer=0;host.hp=20;host.beerPickupRound=-1;host.lastAction=-100;int supply=beers;Interact(host);
             Check(host.busyAction=="pour"&&beers==supply-1&&rounds.HasSpent(host.id),"beer pouring spends the action and one supply");
             Interact(host);Check(host.busyAction=="pour"&&beers==supply-1,"duplicate pour cannot drain supply");

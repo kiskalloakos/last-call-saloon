@@ -1,0 +1,8 @@
+Final Unity 6000.5.10f1 / Metal verification outcomes, 2026-11-13
+SALOON_SAFE_ACCESS PASS 21 checks plus existing heist regression
+SALOON_HEIST PASS
+SALOON_STORY_MAP PASS 25 checks; screenshots=/var/folders/bx/rq_p_44d63d1x6wwfzqyw85m0000gn/T/LastCall-StoryMaps
+SALOON_EVIDENCE PASS
+SALOON_EDITOR_ITERATION PASS
+
+Planning/gameplay source checks: 12747 passed.

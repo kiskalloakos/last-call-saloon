@@ -45,7 +45,7 @@ namespace Saloon
             if(view.players.Length!=count||view.players.Any(p=>p.bot)||!self.alive){Report(false,"wrong roster or unexpected elimination");return;}
             if(view.phase==Phase.Discussion&&view.round==4)
             {
-                bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&view.players.All(p=>view.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):p.revealedRole=="");
+                bool ok=privacy&&completedMask==14&&string.IsNullOrEmpty(view.outcome)&&SaloonAutomation.RoleLabelsValid(view);
                 Report(ok,"three rounds complete and round four started beyond the legacy cap; standing/movement, paired coin/blackjack/headshots, beer healing; outcome="+view.outcome);return;
             }
             if(view.phase==Phase.Discussion)
@@ -58,7 +58,7 @@ namespace Saloon
                 }
                 if(!privacy)
                 {
-                    privacy=view.ownRole!="Unknown"&&view.players.Count(p=>p.sheriff)==1&&view.players.All(p=>view.ownRole=="Renegade"?!string.IsNullOrEmpty(p.revealedRole):p.revealedRole=="");
+                    privacy=view.ownRole!="Unknown"&&view.players.Count(p=>p.sheriff)==1&&SaloonAutomation.RoleLabelsValid(view);
                     if(!privacy){Report(false,"private roles/Sheriff roster invalid");return;}
                 }
                 int room=round==2&&index<4?(index<2?1:2):0;

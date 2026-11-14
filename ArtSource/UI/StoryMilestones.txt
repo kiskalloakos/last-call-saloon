@@ -1,0 +1,8 @@
+Generated 2026-11-13 with the built-in image_gen tool.
+Project asset: Assets/Resources/UI/StoryMilestones.png
+Original generated PNG copied without image edits. Completed states desaturate at runtime.
+
+Final prompt:
+Use case: stylized-concept
+Asset type: production sprite atlas for a Western saloon game's private role story map.
+Create a single transparent PNG sprite sheet, exactly 4 equal columns and 2 equal rows, landscape 2:1 aspect ratio. Eight separate beautifully painted circular achievement medallions, one centered in each equal cell with generous transparent gutters. All circles identical diameter about 78% of the cell width. No overlaps, no shadows outside each circle. Each medallion is a readable miniature hand painted Western vignette with an antique bronze thin circular rim, dark pine and tobacco brown shadows, warm cream and amber highlights, restrained teal accents, bold clear silhouettes readable at 80 pixels. Premium illustrated board game art, engraved frontier etching blended with painterly lighting. The 8 subjects in exact row-major order: top row 1 sheriff's star badge on dark leather; 2 two hands clasping in alliance with a small star between them; 3 an old iron combination safe with a subtle magnifying glass; 4 a single Western revolver angled upward. Bottom row 1 leather money satchel overflowing with gold coins; 2 a saddled horse running toward the sunset, escape; 3 lone cowboy silhouette against a rising sun, last survivor; 4 a wooden saloon with swinging doors, arrival at the bar. No text, no words, no numbers, no letters, no UI layout beyond the eight circular illustrations. Every object contained inside its own circle; outside circles fully transparent. Exact even aligned 4 by 2 grid is essential for game UV slicing.

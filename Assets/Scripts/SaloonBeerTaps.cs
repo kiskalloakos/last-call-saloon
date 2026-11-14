@@ -182,8 +182,10 @@ namespace Saloon
                 float bottom=.055f+height;tap.stream.localPosition=new Vector3(0,(.45f+bottom)/2,-.06f);tap.stream.localScale=new Vector3(.023f*Mathf.Sqrt(tap.player.pourFlow),(.45f-bottom)/2,.023f*Mathf.Sqrt(tap.player.pourFlow));
                 tap.handle.localRotation=Quaternion.Euler(tap.pouring?-35*tap.player.pourFlow:0,0,0);
                 var p=tap.player;bool own=p.id==view.ownId;
-                tap.status.text=tap.pouring?(raw>1?"OVERFLOW":"FILL TO THE LINE")+"\n+"+SaloonBeerPour.Healing(elapsed)+"%\nFLOW x"+p.pourFlow.ToString("0.0")+" / SCROLL":
-                    p.carriedBeer>0?"+"+p.beerHealing+"% HEALING\nB DRINK / G OFFER\nSPACE LEAVE":p.drinking?"DRINKING":p.health>=100?"FULL HEALTH\nWATCH THE BAR":(own&&view.beers<=0)?"TAPS EMPTY":(own&&!view.actionAvailable)?"WAIT FOR YOUR TURN":"POUR ONE BEER\nUP TO +20%\nCLICK TAP / E";
+                bool boosted=own&&view.cigaretteBuff;
+                int drinkHealing=SaloonHealth.BeerHealingAmount(p.beerHealing,boosted);
+                tap.status.text=tap.pouring?(raw>1?"OVERFLOW":"FILL TO THE LINE")+"\n+"+SaloonHealth.BeerHealingAmount(SaloonBeerPour.Healing(elapsed),boosted)+"%\nFLOW x"+p.pourFlow.ToString("0.0")+" / SCROLL":
+                    p.carriedBeer>0?(boosted?"+"+drinkHealing+"% DRINK / +"+p.beerHealing+"% POURED":"+"+drinkHealing+"% HEALING")+"\nB DRINK / G OFFER\nSPACE LEAVE":p.drinking?"DRINKING":p.health>=100?"FULL HEALTH\nWATCH THE BAR":(own&&view.beers<=0)?"TAPS EMPTY":(own&&!view.actionAvailable)?"ACTION UNAVAILABLE":"POUR ONE BEER\nUP TO +"+SaloonHealth.BeerHealingAmount(SaloonHealth.BeerHealing,boosted)+"%\nCLICK TAP / E";
             }
         }
         void OnDestroy()

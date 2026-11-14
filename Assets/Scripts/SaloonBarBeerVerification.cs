@@ -20,9 +20,10 @@ namespace Saloon
             yield return null;
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);
             MenuOpen=false;Broadcast();
-            Check(View.phase==Phase.Discussion&&!RoomPlannerOpen&&!NeedsPointer,"discussion begins with ordinary mouse look");
-            ToggleRoomPlanner();Check(RoomPlannerOpen&&NeedsPointer,"planner opens with a usable cursor");
+            Check(View.phase==Phase.Discussion&&RoomPlannerOpen&&NeedsPointer,"discussion opens the planner with a usable cursor");
             ToggleRoomPlanner();Check(!RoomPlannerOpen&&!NeedsPointer,"planner closes and returns to mouse look");
+            ToggleRoomPlanner();Check(RoomPlannerOpen&&NeedsPointer,"planner reopens with a usable cursor");
+            ToggleRoomPlanner();
             float drink=tuning.drinkSeconds,handoff=tuning.handoffSeconds;
             void Window()
             {
@@ -36,8 +37,6 @@ namespace Saloon
                 }
                 rounds.Start(players.Keys,Time.time,30,120,0);foreach(var p in players.Values)rounds.SetReady(p.id,true);
                 rounds.Tick(Time.time,id=>players[id].Alive);phase=rounds.Phase;PositionEveryone(false);
-                roomTurns[0].order=new[]{host.id}.Concat(players.Keys.Where(id=>id!=host.id)).ToArray();
-                roomTurns[0].index=0;roomTurns[0].until=Time.time+30;
             }
             void Cmd(string kind){OnCommand(host.id,new Command{kind=kind});}
             void Pour(float seconds)
@@ -56,8 +55,9 @@ namespace Saloon
             Check(host.beer==0&&host.busyAction==""&&!rounds.HasSpent(host.id)&&beers==stock,"full-health spectator cannot pour or consume stock/action");
             Stand(host);Check(CanWalk(host),"full-health bar spectator can stand and walk");
             Window();OnCommand(peer.id,new Command{kind="interact"});
-            Check(peer.busyAction==""&&beers==tuning.sharedBeers&&!rounds.HasSpent(peer.id),"waiting player cannot start a pour before their turn");
-            host.room=1;Cmd("interact");Check(host.busyAction==""&&beers==tuning.sharedBeers,"side rooms cannot pour beer");
+            Check(peer.busyAction=="pour"&&beers==tuning.sharedBeers-1&&rounds.HasSpent(peer.id),"any Bar player can start a pour immediately");
+            Cmd("interact");Check(host.busyAction=="pour"&&peer.busyAction=="pour"&&beers==tuning.sharedBeers-2,"Bar players can pour concurrently using separate actions and stock");
+            Window();host.room=1;Cmd("interact");Check(host.busyAction==""&&beers==tuning.sharedBeers,"side rooms cannot pour beer");
             Window();beers=0;Cmd("interact");Check(!rounds.HasSpent(host.id),"empty supply preserves action");
             Window();Aim(host,peer);host.drawn=true;Cmd("fire");
             Check(peer.hp==60&&host.ammo==5&&rounds.HasSpent(host.id)&&beers==tuning.sharedBeers,"skipping beer preserves the option to spend the turn shooting");
@@ -83,6 +83,17 @@ namespace Saloon
                 TakeDamage(peer);Check(peer.hp==60&&peer.busyAction=="giftDrink","gift survives damage including its handoff");
                 peer.busyUntil=Time.time-.01f;TickServer();Check(peer.hp==60+healing,"recipient heals exactly "+healing+" points");
             }
+            Window();host.hp=40;host.cigaretteBuff=true;Pour(1.7f);
+            Check(host.beerHealing==15&&host.cigaretteBuff,"pouring stores the original quality and preserves the buff until use");
+            Cmd("drink");Check(host.drinkHealing==30&&!host.cigaretteBuff,"cigarette doubles a 15-point pour and consumes the shared shot/healing buff");
+            host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==70,"boosted beer applies all 30 points instead of stopping at the old 20-point limit");
+            Window();host.hp=90;host.cigaretteBuff=true;Pour(3);Cmd("drink");
+            Check(host.drinkHealing==40&&!host.cigaretteBuff,"perfect buffed beer commits 40 points");
+            host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==100,"boosted healing never exceeds 100% health");
+            Window();host.cigaretteBuff=true;Pour(3);Aim(host,peer);Cmd("give");
+            Check(peer.drinkHealing==20&&host.cigaretteBuff,"offering a beer preserves the giver's unused buff");
+            Window();peer.cigaretteBuff=true;Pour(3);Aim(host,peer);Cmd("give");
+            Check(peer.drinkHealing==40&&!peer.cigaretteBuff,"gifted beer consumes the recipient's buff for double healing");
             Window();host.hp=95;Pour(3);Cmd("drink");host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==100,"perfect pour respects maximum health");
             Window();host.hp=20;Pour(3);Cmd("drink");TakeDamage(host);TickServer();Check(host.hp==0&&host.busyAction=="","lethal hit eliminates without revival");
             Window();host.hp=20;Cmd("interact");TakeDamage(host);TickServer();Check(host.hp==0&&host.beer==0&&host.busyAction=="","death during pour cannot create a beer");

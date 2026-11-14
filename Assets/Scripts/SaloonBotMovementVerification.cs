@@ -45,10 +45,9 @@ namespace Saloon
             Check(bots.All(p=>distances.GetValueOrDefault(p.id)>.3f),"every bot walks after standing rather than only moving to leave its chair");
             Check(bots.All(p=>walking.Contains(p.id)),"all remote bot avatars animate walking from replicated movement");
             Check(bots.All(p=>!rounds.HasSpent(p.id)&&p.ammo==6),"roaming does not spend actions or ammunition");
-            Window(true);Check(roomTurns[0].order.Length==5,"bar test uses the real five-player turn queue");
-            roomTurns[0].order=new[]{host.id}.Concat(bots.Select(p=>p.id)).ToArray();roomTurns[0].index=0;
+            Window(true);Check(!roomTurns.ContainsKey(0)&&bots.All(DuelAllows),"all Bar players are authorized without a turn queue");
             origins.Clear();distances.Clear();walking.Clear();yield return Observe(2.5f,origins,distances,walking);
-            Check(bots.All(p=>!DuelAllows(p)&&distances.GetValueOrDefault(p.id)>.3f),"all bots dodge while waiting for the human's bar turn");
+            Check(bots.All(p=>DuelAllows(p)&&distances.GetValueOrDefault(p.id)>.3f),"all bots can act and dodge concurrently at the Bar");
             foreach(var bot in bots)rounds.TrySpend(bot.id,Time.time);
             origins=bots.ToDictionary(p=>p.id,p=>p.body.transform.position);distances.Clear();walking.Clear();yield return Observe(1.5f,origins,distances,walking);
             Check(bots.All(p=>distances.GetValueOrDefault(p.id)>.15f),"bots keep moving after spending their action");

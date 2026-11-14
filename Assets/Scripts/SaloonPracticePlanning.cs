@@ -1,6 +1,6 @@
 using System;
-using System.Collections.Generic;
 using System.Linq;
+using UnityEngine;
 
 namespace Saloon
 {
@@ -8,56 +8,47 @@ namespace Saloon
     {
         void PlanPracticeBots()
         {
-            if(!Sandbox||(phase!=Phase.Discussion&&phase!=Phase.Choosing))return;
+            if(!Sandbox||(phase!=Phase.Discussion&&phase!=Phase.Choosing)||Time.time>=rounds.Deadline)return;
             var bots=players.Values.Where(p=>p.bot&&p.Alive).OrderBy(p=>p.id).ToArray();
             var humans=players.Values.Where(p=>!p.bot&&p.Alive).OrderBy(p=>p.id).ToArray();
-            var limits=RoomCapacities();var used=new int[4];
-            var plans=new Dictionary<ulong,(int room,ulong? companion)>();
-            foreach(var human in humans)if(rounds.IsReady(human.id))used[human.chosenRoom]++;
-
-            // Give a human and their invited bot space together before autonomous bot plans.
-            foreach(var human in humans)
+            bool BotSpace(int room,Participant first,Participant second)=>HasPlanSpace(room,first,second)&&
+                !bots.Any(b=>b!=first&&b!=second&&!rounds.IsReady(b.id)&&b.chosenRoom==room&&humans.Any(h=>h.id==b.companion&&!rounds.IsReady(h.id)));
+            // Locked plans stay stable, exactly like human reservations.
+            foreach(var human in humans.Where(p=>!rounds.IsReady(p.id)&&p.companion.HasValue))
             {
-                var invited=bots.FirstOrDefault(b=>!b.bag&&b.id==human.companion&&!plans.ContainsKey(b.id));
-                if(invited==null)continue;
-                int room=human.chosenRoom,needed=rounds.IsReady(human.id)?1:2;
-                if(room>0&&used[room]+needed>limits[room])continue;
-                plans[invited.id]=(room,human.id);used[room]+=needed;
+                var bot=bots.FirstOrDefault(p=>p.id==human.companion&&!p.bag&&!rounds.IsReady(p.id));
+                if(bot==null||!HasPlanSpace(human.chosenRoom,human,bot))continue;
+                SetRoomPlan(bot,human.chosenRoom,human.id);TryReady(bot,true);
             }
-
-            // One stable invitation per human, with an open place for its recipient.
-            for(int i=0;i<humans.Length;i++)
+            // A lone human's locked destination is never an invitation. Only explicit
+            // partner requests above can recruit a bot; unmatched choices fall back to Bar.
+            foreach(var human in humans.Where(p=>!rounds.IsReady(p.id)&&!p.companion.HasValue))
             {
-                var human=humans[i];if(human.companion.HasValue||rounds.IsReady(human.id)||bots.Length==0)continue;
-                int room=1+(rounds.Round-1+i)%3;
-                var inviter=Enumerable.Range(0,bots.Length).Select(n=>bots[(rounds.Round-1+i+n)%bots.Length])
-                    .FirstOrDefault(b=>!b.bag&&!plans.ContainsKey(b.id));
-                if(inviter==null||used[room]+2>limits[room])continue;
-                plans[inviter.id]=(room,human.id);used[room]+=2;
+                var bot=bots.FirstOrDefault(p=>!p.bag&&!rounds.IsReady(p.id)&&p.companion==human.id)
+                    ??bots.FirstOrDefault(p=>!p.bag&&!rounds.IsReady(p.id)&&!humans.Any(h=>h.id==p.companion));
+                if(bot==null)continue;
+                int preferred=bot.companion==human.id?bot.chosenRoom:1+(rounds.Round-1+Array.IndexOf(humans,human))%3;
+                int room=Enumerable.Range(0,3).Select(n=>1+(preferred-1+n)%3).FirstOrDefault(r=>BotSpace(r,bot,human));
+                if(room>0)SetRoomPlan(bot,room,human.id);
             }
-
-            foreach(var bot in bots)
+            var available=bots.Where(p=>!rounds.IsReady(p.id)&&!humans.Any(h=>h.id==p.companion&&!rounds.IsReady(h.id))).ToArray();
+            for(int i=0;i<available.Length;i++)
             {
-                if(plans.ContainsKey(bot.id))continue;
-                int room=bot.bag?0:PracticeRoomCycle[(Array.IndexOf(bots,bot)+rounds.Round-1)%PracticeRoomCycle.Length];
-                if(rounds.Round%2==0&&room>0&&room<3)room=3-room;
-                if(room>0&&used[room]>=limits[room])room=0;
-                plans[bot.id]=(room,null);used[room]++;
+                var bot=available[i];
+                if(rounds.IsReady(bot.id))continue;
+                var peer=available.Skip(i+1).FirstOrDefault(p=>!rounds.IsReady(p.id)&&!p.bag);
+                int room=0;
+                if(!bot.bag&&peer!=null)
+                {
+                    int preferred=PracticeRoomCycle[(i+rounds.Round-1)%PracticeRoomCycle.Length];
+                    room=Enumerable.Range(0,3).Select(n=>1+(Math.Max(1,preferred)-1+n)%3).FirstOrDefault(r=>BotSpace(r,bot,peer));
+                }
+                if(room>0)
+                {
+                    SetRoomPlan(bot,room,peer.id);SetRoomPlan(peer,room,bot.id);TryReady(bot,true);
+                }
+                else {SetRoomPlan(bot,0,null);TryReady(bot,true);}
             }
-            // Apply every destination before checking readiness, so old bot reservations
-            // cannot reject a new invitation partway through the replan.
-            foreach(var bot in bots){var plan=plans[bot.id];SetRoomPlan(bot,plan.room,plan.companion);}
-            foreach(var bot in bots)TryReady(bot,true);
-        }
-
-        void YieldPracticeSeats(Participant human,int room,int capacity)
-        {
-            if(!Sandbox||human.bot)return;
-            int humans=players.Values.Count(p=>p!=human&&!p.bot&&p.Alive&&p.chosenRoom==room&&rounds.IsReady(p.id));
-            int keep=Math.Max(0,capacity-humans-1);
-            var bots=players.Values.Where(p=>p.bot&&p.Alive&&p.chosenRoom==room&&rounds.IsReady(p.id))
-                .OrderByDescending(p=>human.companion==p.id&&p.companion==human.id).ThenBy(p=>p.id).ToArray();
-            foreach(var bot in bots.Skip(keep)){SetRoomPlan(bot,0,null);TryReady(bot,true);}
         }
     }
 }
