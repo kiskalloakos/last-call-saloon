@@ -1799,3 +1799,27 @@ functional suite passed (`/tmp/lastcall-0217-functional-verified.log`). Five sep
 Mac players completed three no-bot LAN rounds and entered round four
 (`/tmp/lastcall-0217-lan-final/`). Build log:
 `/tmp/lastcall-release-0217-verified.log`.
+
+Published v0.2.17 with Mac, Windows, Linux, and SHA256 assets. Downloaded the final
+GitHub Mac ZIP and verified SHA256
+`706446e1eac0ec8cbacfca0e56dd8620d10e40b6ff6765e068ebac1a9a88c0ea`.
+Its bundle matched the installed `/Applications/Last Call.app` file for file;
+deep signature verification and native startup reporting 0.2.17 passed. Deleted
+the old 0.2.16 build directory, replaced app backup, and temporary old download,
+removing 1,592,031,983 bytes. Retained historical screenshot/test evidence and
+removed the redundant temporary 0.2.17 archive/extraction after verification.
+
+Native Linux published-package checks passed (run 43587759354). Windows standard
+run 43587756507 passed voice controls, functional gameplay, and five-player
+connections. Its rendered-room fixture is stale: SaloonGame.ApplySnapshot opens
+RoomPlannerOpen on Discussion, while SaloonAutomation's RoomTest immediately
+calls ToggleRoomPlanner and asserts the planner is open. All three legacy room
+cases therefore failed their planner assertion. The first-round cinematic also
+correctly hides the planner until the introduction finishes. This is a test-harness
+limitation; no production gameplay was changed to satisfy the obsolete fixture.
+
+Windows published-package four/five-player LAN, impaired connections, and
+interruption recovery all passed in run 43588065431. Source and packages were
+unchanged for this validation. Release notes link to the native Linux success,
+Windows standard partial result, and Windows LAN success without claiming the
+obsolete rendered-room fixture passed.

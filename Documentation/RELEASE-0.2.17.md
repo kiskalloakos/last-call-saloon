@@ -17,7 +17,14 @@ Validation:
 - Unity 6000.5.10f1 built all three platforms.
 - Production planning, action, healing, and map checks passed 21,008 assertions, including shared money, shared escape, cancellation, loss, and single-Outlaw progress.
 - Unity story-map regression passed 32 checks, including both Outlaws' private snapshots, team-only visibility, and compressed network serialization.
+- The published Mac download passed SHA256 verification and matches the installed app file for file; deep signatures and normal 0.2.17 startup passed.
 - The final packaged Mac gameplay suite passed, including heist, beer, blackjack, social, practice, combat feedback, and round completion.
 - Five independent Mac players completed three no-bot LAN rounds and entered round four, including movement, paired coin/blackjack, headshots, and healing.
 
 The Mac app is ad-hoc signed. Physical microphone/speaker listening and household network behavior require manual testing.
+
+Native published-package validation:
+
+- [Linux voice, gameplay, five-player, and LAN checks passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/43587759354).
+- [Windows voice controls, gameplay, and five-player checks passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/43587756507). That run's three legacy rendered-room cases failed because the fixture toggles the already-open discussion planner closed before checking that it is open. Current room behavior is also covered by the separate multi-round LAN suite.
+- [Windows four/five-player LAN, impaired connections, and interruption recovery passed](https://github.com/kiskalloakos/last-call-saloon/actions/runs/43588065431).
