@@ -203,18 +203,15 @@ namespace Saloon
             if(View.phase==Phase.Lobby||(View.round==1&&View.phase==Phase.Discussion))HealthDeltaUntil=0;
             if(previousHp>=0&&self.health!=previousHp&&!(View.round==1&&View.phase==Phase.Discussion))
             {HealthDelta=self.health-previousHp;HealthDeltaUntil=Time.unscaledTime+2.5f;}
-            if(previousHp>=0&&self.health<previousHp){hitKick=1;HitFlash=.22f;}
+            if(previousHp>=0&&self.health<previousHp&&self.hitAge<.5f)BeginDamageFeedback(self,previousHp-self.health);
             if(previousShots>=0&&self.shots>previousShots)shotKick=1;
             previousHp=self.health;previousShots=self.shots;
         }
         Quaternion CameraImpact()
         {
-            float t=Time.unscaledTime;
-            var offset=new Vector3(-shotKick*1.4f+Mathf.Sin(t*91)*hitKick*1.6f,Mathf.Sin(t*113)*(shotKick*.18f+hitKick*.9f),Mathf.Sin(t*87)*hitKick*.8f);
-            shotKick=Mathf.MoveTowards(shotKick,0,Time.unscaledDeltaTime*9);
-            hitKick=Mathf.MoveTowards(hitKick,0,Time.unscaledDeltaTime*4.5f);
-            HitFlash=Mathf.MoveTowards(HitFlash,0,Time.unscaledDeltaTime*.9f);
-            return Quaternion.Euler(offset);
+            float shot=shotKick;
+            if(Graphics!=null&&Graphics.Current.reducedMotion)return Quaternion.identity;
+            return Quaternion.Euler(new Vector3(-shot*3.4f,shot*.28f,shot*-.65f)+damageCameraImpulse*hitKick*hitKick);
         }
     }
 }

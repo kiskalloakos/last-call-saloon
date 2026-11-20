@@ -52,6 +52,7 @@ namespace Saloon
         float nextBroadcast, nextInput, yaw, pitch, helloAt;
         int beers;
         string outcome = "", voiceRoom = "", pendingOutcome="";
+        MatchResultPlayer[] matchResults;
         bool helloSent,leaving;
         Phase shownPhase;int shownPose=-1;
         bool MatchActive=>phase!=Phase.Lobby&&phase!=Phase.Finished;
@@ -83,7 +84,10 @@ namespace Saloon
             public int reloads,headshots,confirmedHealth,confirmedMaxHealth;
             public bool confirmedKill,confirmedFriendly;public float confirmedAt=-100;
             public int hp,ammo,beer,shots,hits,seat=-1,room,chosenRoom,poseVersion,beerPickupRound=-1;
-            public float hitAt=-10;public Vector3 hitDirection;
+            public float hitAt=-10;public Vector3 hitDirection;public bool hitReflected;
+            public float shotAt=-100,emptyClickAt=-100;
+            public int emptyClicks;public SaloonImpactSurface shotSurface;
+            public Vector3 shotEnd,shotNormal;
             public bool gatherStation;
             public ulong? companion;
             public int planVersion;
@@ -101,6 +105,7 @@ namespace Saloon
             public float pourStarted,beerChoiceUntil,botPourSeconds,pourFlow=1,pourTick;
             public int puffs;public float smokeAt=-100;
             public bool Alive => hp>0;
+            public bool UnlimitedAmmo => role==Role.Renegade;
         }
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
@@ -235,7 +240,7 @@ namespace Saloon
 
         void ReopenLobby()
         {
-            phase=Phase.Lobby;Connection.Accepting=true;outcome="";pendingOutcome="";ResetHeist();int index=0;
+            phase=Phase.Lobby;Connection.Accepting=true;outcome="";pendingOutcome="";matchResults=null;ResetHeist();int index=0;
             foreach(var p in players.Values)
             {
                 p.rematchVote=false;
@@ -301,7 +306,7 @@ namespace Saloon
             var order=players.Keys.OrderBy(_=>UnityEngine.Random.value).ToArray();
             // Give the opening role reveal its own time before the first discussion deadline.
             rounds.Start(order,Time.time+RoleIntroDuration,tuning.discussionSeconds,tuning.turnSeconds,tuning.roundLimit,tuning.choosingSeconds,tuning.regroupSeconds);
-            ResetHeist();beers=tuning.sharedBeers;outcome="";phase=rounds.Phase;PositionEveryone(true);
+            ResetHeist();beers=tuning.sharedBeers;outcome="";matchResults=null;phase=rounds.Phase;PositionEveryone(true);
             Connection.Accepting=false;AddEvent("Roles dealt privately. Round 1: discussion. One action each after discussion.");
             Broadcast();
         }
@@ -366,7 +371,7 @@ namespace Saloon
             }
             if(!RoleIntroActive)BeerTaps.HandlePourInput();
             if(Hosting)TickServer();
-            UpdateCamera();SaloonSmokingArea.ApplyCamera(ViewCamera,externalCamera?SaloonSmokingArea.Contains(externalPosition):CameraPlayer?.room==3);
+            TickCombatFeedback();UpdateCamera();SaloonSmokingArea.ApplyCamera(ViewCamera,externalCamera?SaloonSmokingArea.Contains(externalPosition):CameraPlayer?.room==3);
             UpdateInteractionHint();
         }
 
@@ -378,7 +383,7 @@ namespace Saloon
             {
                 Destroy(expired.body);players.Remove(expired.id);Connection.ForgetPlayer(expired.id);
                 AddEvent(expired.name+" did not reconnect in time.");
-                if(MatchActive)Finish("MATCH ABORTED — RECONNECT WINDOW EXPIRED");
+                if(MatchActive)Finish("MATCH ABORTED — RECONNECT WINDOW EXPIRED",expired);
             }
             foreach(var person in players.Values)TickSafeWork(person);
             TickEvidence();
@@ -477,18 +482,18 @@ namespace Saloon
         bool CanFinishDrawShot(Participant p)=>p.Alive&&p.drawn&&phase==Phase.Turns&&rounds.CanAct(p.id,Time.time)&&DuelAllows(p);
         string ActionBlockReason(Participant p)
         {
-            if(!p.Alive)return "You are eliminated. Spectate until the next match.";
-            if(phase==Phase.Discussion)return "Discussion: lock your plan before the timer ends. Everyone locking in starts early.";
-            if(phase!=Phase.Turns)return phase==Phase.Aftermath?"Round complete. Waiting for the final effects.":phase==Phase.Regroup?"Regrouping. Your next action is next round.":"Actions open during room actions.";
-            if(p.room==3)return "Outside is for talking and smoking. No saloon actions.";
-            if(p.busyUntil>Time.time)return p.busyAction=="pour"?"Pouring · E to stop near the fill line.":p.busyAction=="reload"?"Reloading — wait for the cylinder to finish.":p.busyAction=="drink"||p.busyAction=="giftDrink"?"Drinking — wait for the sip to finish.":"Finish your current action first.";
-            if(rounds.HasSpent(p.id))return "Action spent. One action per round; you can still move and dodge.";
-            if(Time.time>=rounds.Deadline)return "The action deadline has passed.";
+            if(!p.Alive)return "You are out. You can watch the match.";
+            if(phase==Phase.Discussion)return "Lock your plan before time runs out.";
+            if(phase!=Phase.Turns)return phase==Phase.Aftermath?"Round over.":phase==Phase.Regroup?"Wait for the next round.":"Wait for room actions.";
+            if(p.room==3)return "You can talk and smoke here.";
+            if(p.busyUntil>Time.time)return p.busyAction=="pour"?"Pouring beer.":p.busyAction=="reload"?"Reloading.":p.busyAction=="drink"||p.busyAction=="giftDrink"?"Drinking.":"Finish your current action.";
+            if(rounds.HasSpent(p.id))return "Action spent. You can still move.";
+            if(Time.time>=rounds.Deadline)return "Time for actions is over.";
             if(!DuelAllows(p))
             {
                 if(roomTurns.ContainsKey(p.room))return "Wait for your turn at this table.";
                 if(duels.TryGetValue(p.room,out var duel))
-                    return !duel.revealed?"Finish the room minigame before acting.":Time.time<duel.combatAt?"Get ready. You can stand and dodge before weapons unlock.":"Your opponent has the opening action. Wait for their shot or pass.";
+                    return !duel.revealed?"Finish the minigame first.":Time.time<duel.combatAt?"Press F to stand. You can move now.":"Your opponent acts first.";
             }
             return "";
         }
@@ -543,6 +548,11 @@ namespace Saloon
                 return;
             }
             if(cmd.kind=="acceptInvite"||cmd.kind=="joinInvite"){AcceptRoomInvitation(p,cmd,cmd.kind=="joinInvite");return;}
+            if(cmd.kind=="reload"&&p.UnlimitedAmmo)
+            {
+                if(p.Alive&&phase==Phase.Turns&&p.room!=3)p.notice="You have unlimited bullets.";
+                return;
+            }
             if(p.room==3&&SaloonPrivacy.Separated(phase))
             {if(cmd.kind=="smoke")TrySmoke(p);else p.notice="Left-click to smoke. No weapons or saloon actions outside.";return;}
             if(cmd.kind=="coin"){ClaimCoin(p,(int)cmd.x);return;}
@@ -615,12 +625,17 @@ namespace Saloon
             if(p.room==3&&SaloonPrivacy.Separated(phase))return;
             if(!p.drawn){p.notice="Revolver holstered. Press Q to draw before shooting.";return;}
             if(Time.time<p.nextShot){p.notice="Wait for the revolver to recover before firing.";return;}
-            if(p.ammo<=0){p.notice="Empty cylinder — R to reload.";return;}
+            if(!p.UnlimitedAmmo&&p.ammo<=0){p.emptyClicks++;p.emptyClickAt=Time.time;p.notice="Empty cylinder — R to reload.";return;}
             if(!SpendAction(p))return;
-            p.ammo--;p.shots++;NoteBartenderShot(p);p.nextShot=Time.time+tuning.shotInterval;p.notice="";
+            if(!p.UnlimitedAmmo)p.ammo--;
+            p.shots++;NoteBartenderShot(p);p.nextShot=Time.time+tuning.shotInterval;p.notice="";
             int damage=p.cigaretteBuff?SaloonHealth.CigaretteDamage:SaloonHealth.RevolverDamage;
             p.cigaretteBuff=false;
             var hit=Target(p,65);
+            p.shotAt=Time.time;
+            p.shotEnd=hit.HasValue?hit.Value.point:Eye(p)+Forward(p)*65;
+            p.shotNormal=hit.HasValue?hit.Value.normal:-Forward(p);
+            p.shotSurface=hit.HasValue?SaloonShotEffects.Surface(hit.Value.collider):SaloonImpactSurface.None;
             if(hit.HasValue)
             {
                 var body=hit.Value.collider.GetComponentInParent<SaloonBody>();
@@ -628,11 +643,12 @@ namespace Saloon
                 {
                     if(hit.Value.collider!=victim.head)return;
                     bool friendly=SaloonRules.Allies(p.role,victim.role);
+                    p.shotSurface=SaloonImpactSurface.Head;
                     TakeDamage(victim,Forward(p),damage);
                     if(!friendly)p.storyProgress|=StoryProgress.EnemyHit;
                     p.headshots++;p.confirmedAt=Time.time;p.confirmedHealth=victim.hp;p.confirmedMaxHealth=tuning.health;p.confirmedKill=!victim.Alive;p.confirmedFriendly=friendly;
                     victim.notice="";
-                    if(friendly)TakeDamage(p,-Forward(p));
+                    if(friendly)TakeDamage(p,-Forward(p),SaloonHealth.RevolverDamage,true);
                     // Resolve the outcome after both losses, including a double elimination.
                     if(!victim.Alive||!p.Alive)
                     {
@@ -644,10 +660,10 @@ namespace Saloon
         }
 
         bool ObserverReady(Participant p)=>!p.Alive&&p.deathAt>=0&&Time.time-p.deathAt>=SaloonRagdoll.ObserverDelay;
-        void TakeDamage(Participant p,Vector3 direction=default,int damage=SaloonHealth.RevolverDamage)
+        void TakeDamage(Participant p,Vector3 direction=default,int damage=SaloonHealth.RevolverDamage,bool reflected=false)
         {
             if(!p.Alive)return;
-            p.hp=SaloonHealth.AfterDamage(p.hp,damage);p.hits++;p.hitAt=Time.time;p.hitDirection=direction.sqrMagnitude>.01f?direction.normalized:Vector3.back;
+            p.hitReflected=reflected;p.hp=SaloonHealth.AfterDamage(p.hp,damage);p.hits++;p.hitAt=Time.time;p.hitDirection=direction.sqrMagnitude>.01f?direction.normalized:Vector3.back;
             bool keepDrinking=p.Alive&&(p.busyAction=="drink"||p.busyAction=="giftDrink"||p.busyAction=="pour");
             if(!keepDrinking){p.busyUntil=0;p.busyAction="";}
             if(p.Alive)return;
@@ -720,10 +736,15 @@ namespace Saloon
 
         }
 
-        void Finish(string result)
+        void Finish(string result,Participant departed=null)
         {
             pendingOutcome="";
             foreach(var p in players.Values)p.rematchVote=false;
+            var cast=departed==null?players.Values.AsEnumerable():players.Values.Append(departed);
+            matchResults=cast.Select(p=>new MatchResultPlayer
+            {
+                id=p.id.ToString(),name=p.name,role=p.role,alive=p.Alive,winner=SaloonRules.WonMatch(p.role,result)
+            }).ToArray();
             phase=Phase.Finished;outcome=result;Connection.Accepting=true;AddEvent(result);Broadcast();
             Debug.Log("SALOON_RESULT "+result);
         }
@@ -741,7 +762,9 @@ namespace Saloon
             return new Snapshot
             {
                 players=players.Values.Where(p=>SaloonPrivacy.ShareActivity(phase,own.room,p.room)).Select(p=>new PlayerView{id=p.id.ToString(),name=p.name,voiceId=p.voiceId,x=p.body.transform.position.x,y=p.body.transform.position.y,z=p.body.transform.position.z,yaw=p.yaw,pitch=p.pitch,bodyYaw=p.bodyYaw,alive=p.Alive,planSelected=p.planSelected,ready=rounds.IsReady(p.id),drawn=p.drawn,seated=p.seat>=0,crouched=p.crouched,sheriff=p.role==Role.Sheriff,busy=p.busyUntil>Time.time&&(p.busyAction!="rob"||own.id==p.id),shots=p.shots,reloads=p.reloads,reloading=p.busyAction=="reload"&&p.busyUntil>Time.time,reloadRemaining=Mathf.Max(0,p.busyUntil-Time.time),reloadDuration=tuning.reloadSeconds,health=p.hp,maxHealth=tuning.health,carriedBeer=p.beer,beerHealing=p.beerHealing,beerStation=p.beerStation,pouring=p.busyAction=="pour",pourFlow=p.pourFlow,pourElapsed=p.busyAction=="pour"?Mathf.Clamp(Time.time-p.pourStarted,0,SaloonBeerPour.MaxSeconds):0,drinking=(p.busyAction=="drink"||(p.busyAction=="giftDrink"&&Time.time>=p.drinkReady))&&p.busyUntil>Time.time,
-                    hits=p.hits,hitAge=p.hits>0?Mathf.Max(0,Time.time-p.hitAt):99,hitX=p.hitDirection.x,hitY=p.hitDirection.y,hitZ=p.hitDirection.z,
+                    shotResolved=p.shots>0,shotAge=Mathf.Max(0,Time.time-p.shotAt),shotEndX=p.shotEnd.x,shotEndY=p.shotEnd.y,shotEndZ=p.shotEnd.z,
+                    shotNormalX=p.shotNormal.x,shotNormalY=p.shotNormal.y,shotNormalZ=p.shotNormal.z,shotSurface=(int)p.shotSurface,
+                    hitReflected=p.hitReflected,hits=p.hits,hitAge=p.hits>0?Mathf.Max(0,Time.time-p.hitAt):99,hitX=p.hitDirection.x,hitY=p.hitDirection.y,hitZ=p.hitDirection.z,
                     observer=ObserverReady(p),bot=p.bot,disconnected=p.disconnectedUntil>0,rematchVote=p.rematchVote,deathAge=!p.Alive&&p.deathAt>=0?Time.time-p.deathAt:0,deathX=p.deathDirection.x,deathY=p.deathDirection.y,deathZ=p.deathDirection.z,
                     drinkRemaining=(p.busyAction=="drink"||p.busyAction=="giftDrink")?Mathf.Max(0,p.busyUntil-Time.time):0,
                     drinkDuration=tuning.drinkSeconds,giftRemaining=Mathf.Max(0,p.giftUntil-Time.time),
@@ -753,12 +776,14 @@ namespace Saloon
                 knownRoles=players.Values.Where(p=>SaloonRules.KnowsRole(own.role,p.role)).Select(p=>new KnownRole{id=p.id.ToString(),name=p.name,role=p.role.ToString()}).ToArray(),
                 invitations=InvitationsFor(own),
                 ownId=recipient.ToString(),rematchVotes=players.Values.Count(p=>!p.bot&&p.rematchVote),rematchRequired=HumanCount,ownRematchVote=own.rematchVote,
+                matchResults=phase==Phase.Finished?matchResults:null,
                 reconnectNotice=string.Join(" · ",players.Values.Where(p=>p.disconnectedUntil>0).Select(p=>p.name+" reconnecting ("+Mathf.CeilToInt(p.disconnectedUntil-Time.realtimeSinceStartup)+"s)")),
                 phase=phase,remaining=MatchActive?Mathf.Max(0,rounds.Deadline-Time.time):0,
                 round=rounds.Round,roundLimit=rounds.Limit,
                 actionsRemaining=phase==Phase.Turns?players.Values.Count(p=>p.Alive&&p.room!=3&&!rounds.HasSpent(p.id)):0,
                 actionsInProgress=phase==Phase.Turns?players.Values.Count(p=>p.Alive&&p.room!=3&&rounds.HasSpent(p.id)&&(p.busyUntil>Time.time||p.beerChoiceUntil>Time.time)):0,
                 actionBlockReason=ActionBlockReason(own),
+                emptyClicks=own.emptyClicks,emptyClickAge=Time.time-own.emptyClickAt,
                 hitSequence=own.headshots,confirmedHitAge=Time.time-own.confirmedAt,confirmedHealth=own.confirmedHealth,confirmedMaxHealth=own.confirmedMaxHealth,confirmedKill=own.confirmedKill,confirmedFriendly=own.confirmedFriendly,
                 posseStage=SaloonPosse.Stage(rounds.Round,phase),posseRoundsRemaining=SaloonPosse.RoundsRemaining(rounds.Round,phase),
                 activePlayerId=phase==Phase.Turns?rounds.Active?.ToString():"",
@@ -796,7 +821,7 @@ namespace Saloon
             View=snapshot;Voice?.ValidateArea();
             var self=snapshot.players.FirstOrDefault(p=>p.id==LocalId);
             SyncPlanDraft(snapshot,self);
-            ApplyImpactFeedback(self);
+            ApplyImpactFeedback(self);ApplyCombatFeedback(self);
             if(self!=null&&self.poseVersion!=shownPose){shownPose=self.poseVersion;yaw=self.yaw;pitch=self.pitch;}
             if(snapshot.phase!=shownPhase)
             {
@@ -838,24 +863,26 @@ namespace Saloon
         void UpdateInteractionHint()
         {
             InteractionHint="";if(Self==null||!Self.alive)return;
-            if(OutsideForSmoke){InteractionHint="Left-click · Take a drag     V · Talk / T · Open mic     WASD · Stroll";return;}
+            if(OutsideForSmoke){InteractionHint="Left-click to smoke. Hold V to talk.";return;}
             if(PlayingTableGame)return;
             if(View.phase==Phase.Turns&&NearSafe)
             {
-                InteractionHint=View.ownRole=="Sheriff"?"C  /  inspect this safe":View.ownRole=="Outlaw"&&!View.moneyBag?"H  /  work this safe or collect the money":"";
-                if(!string.IsNullOrEmpty(InteractionHint))return;
+                string key=SaloonSafeHighlight.KeyFor(View);
+                if(key!="")
+                {
+                    InteractionHint=key+"   "+SaloonSafeHighlight.ActionFor(View,key);
+                    return;
+                }
             }
-            if(AtBeerBar&&CanQuestionBartender&&NearBartender){InteractionHint="I  /  bartender · "+(View.bartenderUsed?"read your private answer":"one private question per match · mood affects his answer");return;}
+            if(AtBeerBar&&CanQuestionBartender&&NearBartender){InteractionHint=View.bartenderUsed?"Press I to read your answer.":"Press I to ask the bartender.";return;}
             if(AtBeerBar){InteractionHint=BeerTaps.HintForRay(new Ray(ViewCamera.transform.position,ViewCamera.transform.forward));return;}
-            if(View.phase==Phase.Turns)
-            {InteractionHint="";return;}
             if(View.phase!=Phase.Lobby&&View.phase!=Phase.Finished)return;
-            if(Self.seated){InteractionHint="E  /  stand up";return;}
+            if(Self.seated){InteractionHint="Press E to stand.";return;}
             if(Physics.Raycast(ViewCamera.transform.position,ViewCamera.transform.forward,out var hit,tuning.interactionDistance,~0,QueryTriggerInteraction.Ignore))
             {
                 var point=hit.collider.GetComponentInParent<InteractionPoint>();
-                if(point!=null)InteractionHint=point.kind==InteractionKind.Seat?"E  /  take a seat":"E  /  take a beer";
-                if(hit.collider.GetComponentInParent<SaloonBody>()!=null&&View.carriedBeer>0)InteractionHint="G  /  offer your beer";
+                if(point!=null)InteractionHint=point.kind==InteractionKind.Seat?"Press E to sit.":"Press E to take a beer.";
+                if(hit.collider.GetComponentInParent<SaloonBody>()!=null&&View.carriedBeer>0)InteractionHint="Press G to offer beer.";
             }
         }
 
@@ -869,9 +896,9 @@ namespace Saloon
             if(this==null)return;
             foreach(var p in players.Values)Destroy(p.body);players.Clear();
             foreach(var a in avatars.Values)Destroy(a.gameObject);avatars.Clear();
-            HealthDelta=0;HealthDeltaUntil=0;previousHp=previousShots=-1;shotKick=hitKick=HitFlash=0;ResetPlanDraft();RoomPlannerOpen=false;duels.Clear();roomTurns.Clear();pendingOutcome="";
+            ResetCombatFeedback();HealthDelta=0;HealthDeltaUntil=0;previousHp=previousShots=-1;shotKick=hitKick=HitFlash=0;ResetPlanDraft();RoomPlannerOpen=false;duels.Clear();roomTurns.Clear();pendingOutcome="";
             BlackjackTable.ClearHand();CoinTable.Clear();BeerTaps.Clear();
-            spectateId=null;shownViewpoint=null;View=null;phase=Phase.Lobby;Sandbox=false;helloSent=false;outcome="";MenuOpen=true;UnlockCursor();leaving=false;
+            spectateId=null;shownViewpoint=null;View=null;phase=Phase.Lobby;Sandbox=false;helloSent=false;outcome="";matchResults=null;MenuOpen=true;UnlockCursor();leaving=false;
         }
 
         async void LeaveWithReason(string reason)

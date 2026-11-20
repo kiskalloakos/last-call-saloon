@@ -41,7 +41,8 @@ namespace Saloon
                 if(!bot.bag&&peer!=null)
                 {
                     int preferred=PracticeRoomCycle[(i+rounds.Round-1)%PracticeRoomCycle.Length];
-                    room=Enumerable.Range(0,3).Select(n=>1+(Math.Max(1,preferred)-1+n)%3).FirstOrDefault(r=>BotSpace(r,bot,peer));
+                    // Keep the smoking deck available for players' plans.
+                    room=Enumerable.Range(0,3).Select(n=>1+(Math.Max(1,preferred)-1+n)%3).FirstOrDefault(r=>r!=3&&BotSpace(r,bot,peer));
                 }
                 if(room>0)
                 {

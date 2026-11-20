@@ -2,16 +2,15 @@
 
 For role instructions, refer to [Your role, in simple words](#your-role-in-simple-words).
 
-Test release **0.2.17**, dated 2026-11-14, is available for Windows x64, macOS (Intel and Apple Silicon), and Linux x64.
-All players must use **0.2.17**.
+Test release **0.2.18** is available for Windows x64 and macOS (Intel and Apple Silicon).
+Use **0.2.18** on every computer in the match.
 
-1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.17/LastCall-Windows-0.2.17.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.17/LastCall-macOS-0.2.17.zip), or [Linux x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.17/LastCall-Linux-0.2.17.tar.gz).
+1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.18/LastCall-Windows-0.2.18.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.18/LastCall-macOS-0.2.18.zip).
 2. Extract the complete archive.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
-5. On Linux, open `Last Call.x86_64` from the extracted `LastCall-Linux` folder.
 
-This release shares safe-work, money, and escape progress between both Outlaws on their character maps, adds a cinematic private role reveal, and includes the current saloon presentation and gameplay fixes. See [release notes and validation](Documentation/RELEASE-0.2.17.md) for checks performed on this version.
+This release updates the title screen, menus, role cards, and results screen. It also gives the Renegade unlimited bullets and improves combat feedback and spectator audio. See the [0.2.18 patch notes](Documentation/RELEASE-0.2.18.md).
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
@@ -43,8 +42,8 @@ This test release includes planner corrections and more disconnect information.
 
 1. Connect all four computers to the same local network. Do not use guest Wi-Fi that isolates devices.
 2. Start **0.2.17 on every computer**.
-3. Select **LOCAL / LAN** on each computer.
-4. On the host computer, select **NO BOTS**.
+3. Select **Local network** on each computer.
+4. On the host computer, turn **Fill empty seats with bots** off.
 5. Keep port **7777**.
 6. Click **HOST LAN**.
 7. On each other computer, enter the host computer's local IPv4 address, usually `192.168.x.x`.
@@ -87,7 +86,7 @@ The content uses Unity's Standard Asset Store EULA. The previous character used 
 
 Discussion, room planning and companion invitations use one panel.
 Select your plan.
-Click **Lock choice** or press **Space**.
+Click **Lock choice** or press **Space**. For a solo smoke, select **Have a Smoke** and click **Go alone**.
 Discussion has a 30-second countdown. Everyone locking in starts room actions early.
 Unconfirmed plans return to the Bar when time runs out.
 A plan change clears that player's Ready status.
@@ -105,11 +104,10 @@ The Sheriff's Tab card identifies their Deputy, who also has a Deputy label visi
 In five-player matches, Outlaws see their teammate's name on the Tab card and an Outlaw label above them. Four-player matches have only one Outlaw.
 
 Hold Tab for a private illustrated story map for your role. Curved trails connect
-circular milestones in a branching layout. Completed milestones turn grey with
-a checkmark; gold highlights and a NEXT panel show your next move. Optional
-support actions have their own side trails. Every milestone explains what to do,
-where to do it and which keys to press directly below the circle. Your private clues and known allies
-remain alongside the map. Progress survives reconnects and resets for a rematch.
+circular milestones. A checkmark shows completed steps. Gold marks the next
+steps. The panel below the map explains what to do next. Use **Back** and **Next**
+in the private information panel to read more clues. Progress survives reconnects and resets
+for a rematch.
 
 Each role has its own map:
 
@@ -159,7 +157,7 @@ The Renegade knows everyone’s role. The Sheriff also knows who the Deputy is, 
 
 At the start of each round, select a room.
 If necessary, select a companion for that room.
-Click **Lock choice** or press **Space**.
+Click **Lock choice** (**Go alone** for Have a Smoke) or press **Space**.
 Room actions start when the countdown ends, or early when every living player has locked a plan.
 Wait for your turn.
 You have **one action per round**, such as a shot, safe work, an inspection or a drink.
@@ -254,7 +252,7 @@ To shoot:
 2. On your turn, press **Q** to draw your gun.
 3. Aim at the enemy's head.
 4. Click the left mouse button to shoot.
-5. If necessary, press **R** to reload on a later turn.
+5. You have unlimited bullets. You can shoot once per round without reloading.
 
 At the bar, hold **E** to pour as your action; release it to stop.
 **B** drinks the poured beer, restoring its shown healing (5–20%).
@@ -419,7 +417,7 @@ Seats use **first ready, first served** reservations.
 Coin Flip, Blackjack and **Have a Smoke** each have two places.
 
 1. Select a destination.
-2. Choose someone to go with, or **Go Alone**. This reserves your own place and marks you Ready.
+2. Click **Lock choice** (**Go alone** for Have a Smoke) to reserve your own place, or invite someone to go with you.
 
 Clearing Ready or changing your plan releases the place.
 Inviting another human reserves your own place. The other person must accept or set Ready too.
@@ -442,11 +440,10 @@ The Bar keeps its existing layout and rules.
 ### Smoking area
 
 **Have a Smoke** is a separate sunset deck with two places.
-Smoking visits need another player who also chose Have a Smoke or accepted an invitation.
-Nobody is sent there automatically to fill a room.
-Players arrive side by side facing a low desert sun, layered sandstone mesas,
-cacti and an apricot-to-violet evening sky. Walking outside is silent for both
-players; wooden footsteps resume inside the saloon.
+Select **Have a Smoke** and click **Go alone** to reserve your own place, or invite another player.
+Practice bots reserve deck spots when a player selects **Go with** or accepts their invitation.
+Players arrive facing a low desert sun, layered sandstone mesas, cacti and an apricot-to-violet evening sky.
+Walking outside is silent. Wooden footsteps resume inside the saloon.
 
 - Click the left mouse button to smoke.
 - Hold **V** to talk, or press **T** to switch open mic on. **M** mutes either mode.
@@ -573,7 +570,7 @@ The dying player briefly sees the fall, then sees a living player's view.
 
 Each side room has two places. The planner shows both locked seats and players still choosing it.
 Selecting a room immediately publishes your intention; it does not reserve a seat.
-Click **Lock choice** to reserve your own place, or invite an available player.
+Click **Lock choice** (**Go alone** for Have a Smoke) to reserve your own place, or invite an available player.
 Accepting an invitation reserves **both** players together in one step.
 Locked players disappear from invitation choices, and full rooms cannot be selected.
 Use **Unlock / change** to release a plan. Changing a shared plan unlocks both partners.
@@ -640,7 +637,7 @@ The Bar has no queue that delays any of those actions.
 | Action | Function and cost |
 |---|---|
 | **Shoot** | Fires one aimed bullet. A miss also uses your action and ammunition. |
-| **Reload** | Refills the six-shot cylinder in 3.5 seconds. Reserve ammunition is unlimited. |
+| **Reload** | Refills the six-shot cylinder in 3.5 seconds. Reserve ammunition is unlimited. The Renegade can shoot without reloading. |
 | **Pour beer** | Hold your tap handle or E to pour; release to stop. Uses your action and one beer from the shared stock of eight. One pour per round; full-health players cannot pour. |
 | **Drink poured beer** | B drinks in 2.5 seconds, restoring the shown 5–20 percentage points, capped at 100%. Included in the pour action. |
 | **Give poured beer** | Aim + G sends the same healing amount to a nearby living player with free hands. Included in the pour action. |
@@ -776,7 +773,7 @@ A Renegade who is the sole survivor wins after the final-shot effects.
 All roles are shown when the match ends.
 Disconnected players keep their place for 20 seconds. The client automatically tries to reconnect to the same LAN or online room, retaining its role, health, inventory, position and round participation. The match continues during this grace period. If a player does not return in time, the match is aborted and the reserved place is released.
 
-Results show the outcome and every player’s role and survival status. Each human player can vote for a rematch or withdraw their vote. Unanimous votes start another match in the same room; bots do not vote and reserved disconnected players block the next match. **Return everyone to lobby** lets any player bring the whole group back to the existing lobby to change settings or wait for players. Reconnecting requires the original running client; restarting the app or losing the host is not supported.
+Results show a portrait and role for every player. Dead players appear in gray. Each player on the winning team gets a **Winner** label. Each human player can vote for a rematch or withdraw their vote. Unanimous votes start another match in the same room; bots do not vote and reserved disconnected players block the next match. **Return everyone to lobby** lets any player bring the whole group back to the existing lobby to change settings or wait for players. Reconnecting requires the original running client; restarting the app or losing the host is not supported.
 
 Use **Saloon → Verify rematch and reconnect in Play mode** to exercise the four-player UDP flow, including reconnect preservation and reservation expiry.
 
@@ -829,7 +826,7 @@ This aggressive test AI does not simulate human deduction.
 - The Renegade targets living Outlaws first, then the Law.
 - The Renegade never robs or declares a money escape. Its objective is to be the last survivor.
 
-Practice players aim actual shots, draw, reload and take or drink beer when useful.
+Practice players aim their shots, draw their guns, and use beer when needed. They reload when empty. The Renegade has unlimited bullets.
 They pass when no useful action is available.
 They briefly keep a fixed aim point before firing, so movement can avoid a shot.
 They receive no extra actions or HP.
@@ -869,6 +866,7 @@ Press **T** again to return to push-to-talk. The Escape menu also has an open-mi
 **M** mutes either mode. The top-right indicator shows mic mode and mute state.
 Menus pause microphone transmission; closing them restores your selected mode.
 Open mic stays selected across indoor, smoking and spectator channel changes, and resets when you leave the session.
+After elimination, you hear the game audio and proximity chat from the viewpoint you're spectating, including the watched player's own voice when they speak. Use the arrow keys to change viewpoints. Your microphone stays in eliminated-player chat during the match.
 The cigarette area uses a separate private channel: smokers cannot hear inside, and indoor players cannot hear smokers.
 Regroup returns everyone to indoor proximity voice. These rules apply in both microphone modes.
 It has full volume within two metres and fades by 10 metres.
@@ -908,9 +906,9 @@ This prototype does not change it.
 
 ## Graphics settings — development source
 
-The development source adds **Graphics Settings** to the main menu and Escape menu:
-Low / Medium / High presets, resolution, windowed / borderless mode, VSync and
-frame-rate limits. Defaults are Medium, VSync off and a 60 FPS limit. Settings save
+Open **Graphics settings** on the title screen or **Graphics** in the Escape menu.
+You can change the quality preset, resolution, window mode, VSync, and frame rate
+limit. Defaults are Medium, VSync off and a 60 FPS limit. Settings save
 locally; unconfirmed display changes revert after 15 seconds.
 See [graphics settings](Documentation/GRAPHICS-SETTINGS.md).
 

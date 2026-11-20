@@ -43,6 +43,9 @@ Shader "Saloon/Scanned Surface"
             float3 bitangent = WorldNormalVector(IN,float3(0,1,0));
             float3 normal = WorldNormalVector(IN,float3(0,0,1));
             o.Normal = normalize(float3(dot(detail,tangent),dot(detail,bitangent),dot(detail,normal)));
+            // Restore color separation in scanned albedo before applying the wood/plaster tint.
+            half luminance = dot(color, half3(0.2126,0.7152,0.0722));
+            color = saturate(lerp(luminance.xxx, color, 1.15) * 1.12);
             o.Albedo = color * _Color.rgb;
             o.Metallic = 0;
             o.Smoothness = saturate((1-rough)*0.65 + _Polish);

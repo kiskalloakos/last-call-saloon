@@ -111,7 +111,7 @@ namespace Saloon
                     if(!p.drawn){OnCommand(p.id,new Command{kind="draw"});continue;}
                     if(Time.time<p.botAimAt)continue;
                     p.botAimAt=-1;
-                    if(p.ammo==0)OnCommand(p.id,new Command{kind="reload"});else OnCommand(p.id,new Command{kind="fire"});
+                    if(!p.UnlimitedAmmo&&p.ammo<=0)OnCommand(p.id,new Command{kind="reload"});else OnCommand(p.id,new Command{kind="fire"});
                 }
                 else if(SaloonRules.CanRob(p.role)&&p.room==0&&!p.bag&&!players.Values.Any(x=>x.Alive&&x.bag))
                 {if(AtSafe(p))BeginRobbery(p);}
@@ -195,10 +195,10 @@ namespace Saloon
             Window();robber.role=Role.Outlaw;robber.botThink=Time.time-1;
             foreach(var p in players.Values.Where(p=>p.bot&&p!=robber))p.botThink=Time.time+100;
             TickPracticeBots();Check(robber.busyAction=="rob","practice criminal works the safe toward victory");
-            ResetHeist();Window();renegade.drawn=true;renegade.ammo=6;renegade.nextShot=0;renegade.botThink=Time.time-1;
+            ResetHeist();Window();renegade.drawn=true;renegade.ammo=0;renegade.nextShot=0;renegade.botThink=Time.time-1;
             foreach(var p in players.Values.Where(p=>p.bot&&p!=renegade))p.botThink=Time.time+100;
             int lawHealth=witness.hp+outsider.hp;int outlawHealth=robber.hp+otherRobber.hp;shots=renegade.shots;
-            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&robber.hp+otherRobber.hp==outlawHealth-SaloonHealth.RevolverDamage&&witness.hp+outsider.hp==lawHealth&&renegade.busyAction!="rob","practice Renegade attacks Outlaws first and never robs");
+            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&renegade.ammo==0&&robber.hp+otherRobber.hp==outlawHealth-SaloonHealth.RevolverDamage&&witness.hp+outsider.hp==lawHealth&&renegade.busyAction!="rob","practice Renegade fires even at zero ammo, attacks Outlaws first and never robs");
             Window();robber.hp=otherRobber.hp=0;robber.hitbox.enabled=otherRobber.hitbox.enabled=false;
             renegade.drawn=true;renegade.ammo=6;renegade.nextShot=0;renegade.botThink=Time.time-1;outsider.botThink=Time.time+100;
             lawHealth=witness.hp+outsider.hp;shots=renegade.shots;

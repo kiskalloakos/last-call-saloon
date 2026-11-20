@@ -81,7 +81,7 @@ namespace Saloon
             step+=delta*Mathf.Lerp(.8f,1.45f,speed/3.5f)*Mathf.PI*2;
             float breath=Mathf.Sin(Time.time*1.8f)*.004f;
             float hitTime=Time.time-hitAt;
-            HitAmount=hitTime<0||hitTime>.70f?0:hitTime<.055f?Mathf.SmoothStep(0,1,hitTime/.055f):Mathf.Pow(1-Mathf.Clamp01((hitTime-.055f)/.645f),2);
+            HitAmount=hitTime<0||hitTime>.70f?0:hitTime<.035f?Mathf.SmoothStep(0,1,hitTime/.035f):Mathf.Pow(1-Mathf.Clamp01((hitTime-.09f)/.61f),2);
             var hips=Bone(HumanBodyBones.Hips);
             var hipLocal=transform.InverseTransformPoint(hips.position);
             // A real seated pose: lower the pelvis and solve bent knees, retaining scale.
@@ -89,7 +89,7 @@ namespace Saloon
             hipLocal.y-=SaloonMovement.CrouchDrop*crouching;
             hipLocal.z-=.025f*sitting+.10f*crouching;
             hips.position=transform.TransformPoint(hipLocal);
-            hips.position+=impactDirection*(.025f*HitAmount)-Vector3.up*(.018f*HitAmount);
+            hips.position+=impactDirection*(.06f*HitAmount)-Vector3.up*(.03f*HitAmount);
             Rotate(HumanBodyBones.Spine,transform.right,3*sitting-7*kick-3*drinking);
             float headYaw=Mathf.Clamp(lookYaw,-HeadYawLimit,HeadYawLimit)*(1-drinking);
             float headPitch=Mathf.Clamp(lookPitch,-HeadPitchLimit,HeadPitchLimit)*(1-drinking);
@@ -101,9 +101,9 @@ namespace Saloon
             Rotate(HumanBodyBones.Head,lookRight,headPitch*(1-neckShare));
             Rotate(HumanBodyBones.Head,transform.right,-9*drinking);
             var hitAxis=Vector3.Cross(Vector3.up,impactDirection).normalized;
-            Rotate(HumanBodyBones.Spine,hitAxis,13*HitAmount);
-            Rotate(HumanBodyBones.Chest,hitAxis,10*HitAmount);
-            Rotate(HumanBodyBones.Head,hitAxis,-6*HitAmount);
+            Rotate(HumanBodyBones.Spine,hitAxis,22*HitAmount);
+            Rotate(HumanBodyBones.Chest,hitAxis,16*HitAmount);
+            Rotate(HumanBodyBones.Head,hitAxis,-10*HitAmount);
             AnimateLeg(true,leftFoot,leftFootRotation,step);
             AnimateLeg(false,rightFoot,rightFootRotation,step+Mathf.PI);
             AnimateArm(true,step+Mathf.PI);

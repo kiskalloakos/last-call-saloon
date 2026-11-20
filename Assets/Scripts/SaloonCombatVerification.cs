@@ -35,6 +35,7 @@ namespace Saloon
             }
             IEnumerator Capture(string name,bool close=true,bool profile=false)
             {
+                if(SystemInfo.graphicsDeviceType==UnityEngine.Rendering.GraphicsDeviceType.Null)yield break;
                 externalCamera=true;MenuOpen=false;ShowRole=false;RefreshViewpoint();ViewCamera.fieldOfView=close?45:65;
                 var rotation=Quaternion.Euler(0,hero.yaw,0);
                 var center=hero.body.transform.position+rotation*new Vector3(.17f,hero.seat>=0?1.12f:1.35f,.22f);
@@ -42,6 +43,7 @@ namespace Saloon
                 externalRotation=Quaternion.LookRotation(center-externalPosition);
                 yield return null;yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(directory,"combat-"+name+".png"));yield return null;
             }
+            yield return VerifyDrawClearance(Check);
             Window();yield return new WaitForSeconds(.4f);
             var lightObject=new GameObject("Combat preview light");var previewLight=lightObject.AddComponent<Light>();previewLight.type=LightType.Point;previewLight.range=5;previewLight.intensity=1.8f;lightObject.transform.position=hero.body.transform.position+Vector3.up*1.8f+Forward(hero)*1.1f;
             OnCommand(hero.id,new Command{kind="draw"});Broadcast();yield return new WaitForSeconds(tuning.drawSeconds+.1f);
@@ -81,6 +83,75 @@ namespace Saloon
             Destroy(lightObject);
             Debug.Log("SALOON_COMBAT PASS native wrist and arm lengths, palm attachment, seated/standing aim, real shot flinch/flash, hit wire, duplicate handling, recovery and lethal ragdoll; previews="+directory);
             VerificationPassed=VerificationFinished=true;
+        }
+
+        IEnumerator VerifyDrawClearance(Action<bool,string> check)
+        {
+            var model=Instantiate(Resources.Load<GameObject>(SaloonCharacterMotion.ResourcePath));
+            model.SetActive(false);
+            model.transform.rotation=Quaternion.Euler(0,137,0);
+            var weapon=new GameObject("Draw clearance probe");
+            try
+            {
+                var motion=model.GetComponent<SaloonCharacterMotion>();motion.Initialize(false);
+                var grip=new SaloonGunGrip(motion);
+                var chest=motion.Bone(HumanBodyBones.Chest);
+                var shoulder=motion.Bone(HumanBodyBones.RightUpperArm);
+                var elbow=motion.Bone(HumanBodyBones.RightLowerArm);
+                var wrist=motion.Bone(HumanBodyBones.RightHand);
+                var outward=(model.transform.right+model.transform.forward).normalized;
+                float upperLength=Vector3.Distance(shoulder.position,elbow.position),lowerLength=Vector3.Distance(elbow.position,wrist.position);
+                float Depth(Vector3 point)=>Vector3.Dot(point-chest.position,outward);
+                foreach(var stance in new[]{"standing","seated","crouched","walking"})
+                {
+                    bool seated=stance=="seated",crouched=stance=="crouched";
+                    var velocity=stance=="walking"?model.transform.forward*2:Vector3.zero;
+                    for(float until=Time.time+.4f;Time.time<until;)
+                    {
+                        motion.Pose(seated,velocity,0,0,0,0,crouched);
+                        yield return null;
+                    }
+                    float closestHand=1,closestElbow=1,longestStep=0,lengthError=0,aimError=0;
+                    string longestStepPose="";
+                    int gaitSamples=stance=="walking"?8:1;
+                    for(int gait=0;gait<gaitSamples;gait++)
+                    {
+                        // Hold this point of the gait cycle while sampling the draw.
+                        var shoulderRest=shoulder.localRotation;
+                        var elbowRest=elbow.localRotation;
+                        var wristRest=wrist.localRotation;
+                        foreach(float yaw in new[]{-65f,-45f,0,45f,65f})foreach(float pitch in new[]{-75f,-35f,0,35f,75f})
+                        {
+                            var aim=model.transform.rotation*Quaternion.Euler(pitch,yaw,0);
+                            var previous=Vector3.zero;
+                            for(int frame=0;frame<=50;frame++)
+                            {
+                                float amount=frame/50f;
+                                shoulder.localRotation=shoulderRest;elbow.localRotation=elbowRest;wrist.localRotation=wristRest;
+                                grip.Pose(weapon.transform,aim*SaloonWeaponPose.DrawRotation(amount),amount);
+                                if(amount>=.45f)
+                                {
+                                    closestHand=Mathf.Min(closestHand,Depth(wrist.position),Depth(grip.Mount));
+                                    closestElbow=Mathf.Min(closestElbow,Depth(elbow.position));
+                                }
+                                float step=frame==0?0:Vector3.Distance(previous,grip.Mount);
+                                if(step>longestStep){longestStep=step;longestStepPose=$"yaw {yaw}, pitch {pitch}, draw {amount:F2}";}
+                                previous=grip.Mount;
+                                lengthError=Mathf.Max(lengthError,Mathf.Abs(Vector3.Distance(shoulder.position,elbow.position)-upperLength),Mathf.Abs(Vector3.Distance(elbow.position,wrist.position)-lowerLength));
+                            }
+                            aimError=Mathf.Max(aimError,Quaternion.Angle(weapon.transform.rotation,aim));
+                        }
+                        if(gait+1<gaitSamples)for(float until=Time.time+.1f;Time.time<until;)
+                        {
+                            motion.Pose(seated,velocity,0,0,0,0,crouched);
+                            yield return null;
+                        }
+                    }
+                    check(closestHand>.198f&&closestElbow>.14f,$"{stance} draw clears the coat at extreme aim angles (hand {closestHand:F3}, elbow {closestElbow:F3})");
+                    check(longestStep<.065f&&lengthError<.001f&&aimError<.1f,$"{stance} draw is continuous and preserves arm lengths and final aim (step {longestStep:F3} at {longestStepPose}, error {aimError:F2}°)");
+                }
+            }
+            finally{Destroy(model);Destroy(weapon);}
         }
     }
 }

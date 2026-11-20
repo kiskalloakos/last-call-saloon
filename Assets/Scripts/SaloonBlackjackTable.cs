@@ -32,9 +32,9 @@ namespace Saloon
         public void Initialize(SaloonGame owner)
         {
             art=new SaloonCardArt();
-            oak=Mat("Blackjack walnut",new Color(.22f,.105f,.047f),.25f);
-            rail=Mat("Blackjack leather rail",new Color(.13f,.065f,.042f),.18f);
-            felt=Mat("Blackjack green baize",new Color(.045f,.20f,.145f),0);
+            oak=Mat("Blackjack walnut",new Color(.38f,.18f,.075f),.25f);
+            rail=Mat("Blackjack leather rail",new Color(.25f,.105f,.055f),.18f);
+            felt=Mat("Blackjack green baize",new Color(.035f,.38f,.24f),0);
             brass=Mat("Blackjack brass inlay",new Color(.69f,.50f,.24f),.5f);
             BuildFurniture();
             board=new GameObject("Blackjack cards").transform;board.SetParent(transform,false);board.position=Center;

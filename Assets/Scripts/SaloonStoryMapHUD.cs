@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace Saloon
@@ -6,10 +7,11 @@ namespace Saloon
     public partial class SaloonHUD
     {
         static readonly Color StoryGold=new Color(.98f,.73f,.35f),StoryCream=new Color(.94f,.90f,.80f),
-            StoryGrey=new Color(.57f,.60f,.59f),StoryNight=new Color(.055f,.075f,.073f),StoryQuiet=new Color(.40f,.46f,.44f);
+            StoryGrey=new Color(.69f,.73f,.71f),StoryNight=new Color(.055f,.075f,.073f),StoryQuiet=new Color(.48f,.54f,.52f);
         Texture2D storyAtlas,storyGreyAtlas,storyDisc;
         SaloonStoryMap storyMap;
         Snapshot storySnapshot;
+        int storyIntelPage;
 
         void EnsureStoryArt()
         {
@@ -34,9 +36,8 @@ namespace Saloon
             storyDisc.Apply(false,true);uiTextures.Add(storyDisc);
         }
 
-        void StoryText(float x,float y,float w,float h,string text,int size,Color color,bool center=false,bool heading=false)
-            =>Text(x,y,w,h,text,new GUIStyle(heading?title:body){fontSize=size,richText=false,wordWrap=true,
-                alignment=center?TextAnchor.MiddleCenter:TextAnchor.UpperLeft,normal={textColor=color}});
+        GUIStyle StoryStyle(int size,Color color,TextAnchor alignment=TextAnchor.UpperLeft,bool heading=false)
+            =>new GUIStyle(heading?title:body){fontSize=size,richText=false,wordWrap=true,alignment=alignment,normal={textColor=color}};
 
         void StoryLine(Vector2 a,Vector2 b,Color color,float thickness=2)
         {
@@ -47,137 +48,265 @@ namespace Saloon
             Fill(new Rect(0,-thickness/2,Vector2.Distance(a,b),thickness),color);GUI.matrix=matrix;
         }
 
-        void StoryTrail(StoryMilestone from,StoryMilestone to)
+        void StoryTrail(Vector2 start,Vector2 end,StoryState state)
         {
-            var start=new Vector2(from.X,from.Y);var end=new Vector2(to.X,to.Y);
             var a=start+Vector2.right*(end.x-start.x)*.48f;var b=end-Vector2.right*(end.x-start.x)*.48f;
-            Color color=to.State==StoryState.Complete?new Color(.42f,.47f,.45f):
-                to.State==StoryState.Next?new Color(.70f,.51f,.26f):new Color(.23f,.29f,.27f);
+            Color color=state==StoryState.Complete?new Color(.42f,.47f,.45f):
+                state==StoryState.Next?new Color(.70f,.51f,.26f):new Color(.30f,.35f,.33f);
             var previous=start;
             for(int i=1;i<=36;i++)
             {
                 float t=i/36f,u=1-t;var point=u*u*u*start+3*u*u*t*a+3*u*t*t*b+t*t*t*end;
-                if(to.State!=StoryState.Later||i%3!=0)StoryLine(previous,point,color,to.State==StoryState.Next?2.5f:1.5f);
+                if(state!=StoryState.Later||i%3!=0)StoryLine(previous,point,color,state==StoryState.Next?2.5f:1.5f);
                 previous=point;
             }
         }
 
-        void StoryNode(StoryMilestone node)
+        const float StoryLabelWidth=148;
+        const float StoryLabelOffset=43;
+
+        string StoryNodeStatus(StoryMilestone node)
+            =>node.State==StoryState.Complete?"Done":node.State==StoryState.Next?"Next":node.Optional?"Optional":"";
+
+        void StoryNode(StoryMilestone node,Vector2 position,GUIStyle labelStyle,GUIStyle statusStyle)
         {
             bool done=node.State==StoryState.Complete,next=node.State==StoryState.Next;
             Color color=done?StoryGrey:next?StoryGold:StoryQuiet;
-            float x=node.X,y=node.Y;
+            float x=position.x,y=position.y;
             if(next)
             {
-                float pulse=.13f+.05f*Mathf.Sin(Time.unscaledTime*2.5f);
-                Graphic(new Rect(x-52,y-52,104,104),storyDisc,new Color(StoryGold.r,StoryGold.g,StoryGold.b,pulse));
-                Fill(new Rect(x-32,y-70,64,20),StoryGold);
-                StoryText(x-32,y-70,64,20,"NEXT",12,StoryNight,true);
+                Graphic(new Rect(x-42,y-42,84,84),storyDisc,new Color(StoryGold.r,StoryGold.g,StoryGold.b,.15f));
             }
-            Graphic(new Rect(x-46,y-46,92,92),storyDisc,color);
-            Graphic(new Rect(x-43,y-43,86,86),storyDisc,StoryNight);
+            Graphic(new Rect(x-38,y-38,76,76),storyDisc,color);
+            Graphic(new Rect(x-36,y-36,72,72),storyDisc,StoryNight);
             var atlas=done?storyGreyAtlas:storyAtlas;
             if(atlas!=null)
             {
                 var previous=GUI.color;GUI.color=done?new Color(.65f,.68f,.67f):next?Color.white:new Color(.46f,.49f,.46f);
-                GUI.DrawTextureWithTexCoords(new Rect(x-41,y-41,82,82),atlas,new Rect((node.Art%4)*.25f,node.Art<4?.5f:0,.25f,.5f));
+                GUI.DrawTextureWithTexCoords(new Rect(x-34,y-34,68,68),atlas,new Rect((node.Art%4)*.25f,node.Art<4?.5f:0,.25f,.5f));
                 GUI.color=previous;
             }
             if(done)
             {
-                Graphic(new Rect(x+23,y+23,24,24),storyDisc,new Color(.65f,.71f,.68f));
-                StoryLine(new Vector2(x+29,y+35),new Vector2(x+33,y+39),StoryNight,2.5f);
-                StoryLine(new Vector2(x+33,y+39),new Vector2(x+41,y+30),StoryNight,2.5f);
+                Graphic(new Rect(x+19,y+19,22,22),storyDisc,new Color(.65f,.71f,.68f));
+                StoryLine(new Vector2(x+24,y+30),new Vector2(x+28,y+34),StoryNight,2.5f);
+                StoryLine(new Vector2(x+28,y+34),new Vector2(x+36,y+26),StoryNight,2.5f);
             }
-            Fill(new Rect(x-81,y+48,162,88),StoryNight);
-            StoryText(x-81,y+48,162,24,node.Title,17,done?StoryGrey:StoryCream,true);
-            StoryText(x-81,y+73,162,17,done?"COMPLETED":next?"YOUR NEXT MOVE":node.Optional?"OPTIONAL":"AHEAD",11,color,true);
-            StoryText(x-81,y+92,162,42,node.Detail.Replace("Optional · ",""),13,
-                done?StoryGrey:next?StoryCream:new Color(.75f,.79f,.73f),true);
+            string status=StoryNodeStatus(node);
+            float left=x-StoryLabelWidth/2,top=y+StoryLabelOffset;
+            float height=WrappedHeight(node.Title,StoryLabelWidth,labelStyle)+WrappedHeight(status,StoryLabelWidth,statusStyle);
+            Fill(new Rect(left,top,StoryLabelWidth,height),StoryNight);
+            labelStyle.normal.textColor=done?StoryGrey:StoryCream;
+            statusStyle.normal.textColor=next?StoryGold:StoryGrey;
+            top+=WrappedText(left,top,StoryLabelWidth,node.Title,labelStyle);
+            WrappedText(left,top,StoryLabelWidth,status,statusStyle);
         }
 
-        void BartenderIntel(float y)
+        void StoryIntel(Role role,Rect panel)
         {
             var view=Game.View;
-            StoryText(959,y,220,24,"BARTENDER · PRIVATE",12,StoryGold);
-            StoryText(959,y+27,220,79,!view.bartenderArrived?$"Not here yet. Arrives in round {SaloonRules.BartenderArrivalRound}, after five complete rounds. Save your one question.":view.bartenderUsed?view.bartenderQuestion+"\n"+view.bartenderAnswer:
-                "One question per match. I beside him at the Bar; uses your action. Gunfire lowers his mood. Maybe also spends it.",14,StoryCream);
-        }
+            var lines=new List<(string Text,bool Heading)>();
+            void Add(string text,bool heading=false)=>lines.Add((text,heading));
+            void Bartender()
+            {
+                Add("Bartender",true);
+                if(!view.bartenderArrived)Add($"The bartender arrives in round {SaloonRules.BartenderArrivalRound}.");
+                else if(view.bartenderUsed)Add(view.bartenderQuestion+"\n"+view.bartenderAnswer);
+                else Add("Press I near the bartender. You can ask one question per match.");
+            }
 
-        void StoryIntel(Role role)
-        {
-            var view=Game.View;
-            Fill(new Rect(937,151,1,353),new Color(.40f,.46f,.39f,.3f));
-            StoryText(959,152,220,24,"PRIVATE INTEL",13,StoryGold);
             if(role==Role.Sheriff)
             {
                 var deputy=Array.Find(view.knownRoles??Array.Empty<KnownRole>(),p=>p.role=="Deputy");
-                StoryText(959,187,220,43,"Your Deputy: "+(deputy?.name??"Unknown"),17,StoryCream);
+                Add("Your Deputy",true);
+                Add(deputy?.name??"Unknown");
+                Add("Safe clues",true);
                 var clues=view.evidence??Array.Empty<string>();
-                BartenderIntel(236);
-                StoryText(959,351,220,24,"SAFE REPORTS & CLUES",12,StoryGrey);
-                if(clues.Length==0)StoryText(959,380,220,115,"No clues yet.\n\nF to stand; WASD to the safe at the counter's right end. Press C beside it on your turn. Reports appear here.",15,StoryCream);
-                else
-                {
-                    evidenceScroll=GUI.BeginScrollView(new Rect(955,378,230,121),evidenceScroll,new Rect(0,0,206,clues.Length*118));
-                    for(int i=0;i<clues.Length;i++)
-                    {StoryText(4,i*118,200,108,clues[clues.Length-i-1],15,StoryCream);Fill(new Rect(4,i*118+112,200,1),StoryQuiet);}
-                    GUI.EndScrollView();
-                }
+                if(clues.Length==0)Add("No clues yet. Press C by the safe to check it.");
+                for(int i=clues.Length-1;i>=0;i--)Add(clues[i]);
+                Bartender();
             }
             else if(role==Role.Renegade)
             {
                 var roles=view.knownRoles??Array.Empty<KnownRole>();
-                for(int i=0;i<roles.Length;i++)
+                foreach(var person in roles)
                 {
-                    StoryText(959,187+i*54,220,25,roles[i].name,17,StoryCream);
-                    StoryText(959,212+i*54,220,20,roles[i].role.ToUpperInvariant(),12,StoryGrey);
+                    Add(person.name+(person.id==view.ownId?" (you)":"")+" · "+person.role);
                 }
             }
             else if(role==Role.Outlaw)
             {
                 var ally=Array.Find(view.knownRoles??Array.Empty<KnownRole>(),p=>p.role=="Outlaw"&&p.id!=view.ownId);
-                StoryText(959,187,220,27,ally==null?"Riding solo":"Your fellow Outlaw",17,StoryCream);
-                StoryText(959,220,220,52,ally==null?"You are the only Outlaw in this match.":ally.name+"\nEither Outlaw can escape to win for both.",14,StoryCream);
-                BartenderIntel(276);
-                StoryText(959,394,220,25,"THE ESCAPE WINDOW",12,StoryGold);
-                StoryText(959,420,220,85,$"Three safe jobs; X on a later turn.\nBar again next round.\nDeclare by round {SaloonPosse.LastEscapeRound}.\nPosse arrives after round {SaloonPosse.ArrivalRound}.",13,StoryCream);
+                Add(ally==null?"You are the only Outlaw.":"Your partner",ally!=null);
+                if(ally!=null)Add(ally.name+"\nEither Outlaw can win for both.");
+                if(view.safeProgress>=0)Add($"{Math.Min(3,view.safeProgress)} of 3 safe jobs done.");
+                Add("Escape deadline",true);
+                Add($"Press X by round {SaloonPosse.LastEscapeRound}. The posse arrives after round {SaloonPosse.ArrivalRound}.");
+                Bartender();
             }
-            else
+            else if(role==Role.Deputy)
             {
                 var sheriff=Array.Find(view.players??Array.Empty<PlayerView>(),p=>p.sheriff);
-                StoryText(959,187,220,53,"Your Sheriff: "+(sheriff?.name??"Watch the public Sheriff marker"),17,StoryCream);
-                BartenderIntel(251);
-                StoryText(959,373,220,130,"Ask the Sheriff about safe inspections.\nE pours beer; E stops. Aim + G to offer healing.\nYou can still win if the Sheriff falls.",14,StoryCream);
+                Add("Your Sheriff",true);
+                Add(sheriff?.name??"Look for the Sheriff badge.");
+                Add("Ask the Sheriff about safe clues.");
+                Add("Aim at the Sheriff. Press G to offer beer.");
+                Add("You can win if the Sheriff dies.");
+                Bartender();
+            }
+
+            const float inset=16;
+            Fill(panel,new Color(.084f,.105f,.097f));
+            float left=panel.x+inset,width=panel.width-2*inset;
+            float top=panel.y+inset;
+            top+=WrappedText(left,top,width,role==Role.Renegade?"Player roles":"Private information",StoryStyle(20,StoryCream))+12;
+            Fill(new Rect(left,top-6,width,1),new Color(1,1,1,.10f));
+            var style=StoryStyle(17,StoryCream);
+            var heights=new float[lines.Count];
+            float total=0;
+            for(int i=0;i<lines.Count;i++)
+            {
+                var line=lines[i];
+                heights[i]=WrappedHeight(line.Text,width,style)+(line.Heading?2:6);
+                total+=heights[i];
+            }
+            float available=panel.yMax-inset-top;
+            var pages=new List<(int First,int End)>();
+            if(total>available)
+            {
+                available-=36;
+                int start=0;
+                float used=0;
+                for(int i=0;i<lines.Count;i++)
+                {
+                    float needed=heights[i];
+                    if(lines[i].Heading&&i+1<lines.Count)needed+=heights[i+1];
+                    if(i>start&&used+needed>available)
+                    {
+                        pages.Add((start,i));
+                        start=i;
+                        used=0;
+                    }
+                    used+=heights[i];
+                }
+                pages.Add((start,lines.Count));
+            }
+            else pages.Add((0,lines.Count));
+
+            storyIntelPage=Mathf.Clamp(storyIntelPage,0,pages.Count-1);
+            if(pages.Count>1)
+            {
+                var evt=Event.current;
+                if(evt.type==EventType.ScrollWheel&&panel.Contains(evt.mousePosition))
+                {
+                    storyIntelPage=Mathf.Clamp(storyIntelPage+(evt.delta.y>0?1:-1),0,pages.Count-1);
+                    evt.Use();
+                }
+                float navY=panel.yMax-inset-26;
+                bool enabled=GUI.enabled;
+                GUI.enabled=enabled&&storyIntelPage>0;
+                if(PlannerAction(left,navY,73,26,"Back"))storyIntelPage--;
+                GUI.enabled=enabled&&storyIntelPage<pages.Count-1;
+                if(PlannerAction(left+width-73,navY,73,26,"Next"))storyIntelPage++;
+                GUI.enabled=enabled;
+                WrappedText(left+76,navY+3,width-152,$"{storyIntelPage+1} of {pages.Count}",StoryStyle(15,StoryGrey,TextAnchor.UpperCenter));
+            }
+            var page=pages[storyIntelPage];
+            float y=top;
+            for(int i=page.First;i<page.End;i++)
+            {
+                var line=lines[i];
+                style.normal.textColor=line.Heading?StoryGold:StoryCream;
+                WrappedText(left,y,width,line.Text,style);
+                y+=heights[i];
             }
         }
 
         void RoleStoryMap(Role role)
         {
             EnsureStoryArt();
-            if(storySnapshot!=Game.View){storySnapshot=Game.View;storyMap=SaloonStoryMap.Build(Game.View);}
+            if(storySnapshot!=Game.View)
+            {
+                if(storySnapshot?.ownRole!=Game.View.ownRole||storySnapshot?.ownId!=Game.View.ownId)storyIntelPage=0;
+                storySnapshot=Game.View;
+                storyMap=SaloonStoryMap.Build(Game.View);
+            }
             var map=storyMap;
-            Fill(new Rect(0,0,1280,720),new Color(.015f,.022f,.021f,.78f));
-            Fill(new Rect(64,42,1152,638),StoryNight);
-            Outline(new Rect(64,42,1152,638),new Color(.34f,.37f,.29f));
-            Fill(new Rect(64,42,1152,3),StoryGold);
-            StoryText(87,60,800,43,role.ToString().ToUpperInvariant()+" / YOUR STORY",28,StoryCream,false,true);
-            StoryText(87,104,1090,20,map.Caption,14,StoryGrey);
-            StoryText(950,66,240,24,"ROUND "+Game.View.round+" / "+SaloonPosse.ArrivalRound,14,StoryGold,true);
-            StoryText(950,91,240,24,map.Completed+" milestones reached",13,StoryGrey,true);
-            // Faint contour trails give the graph a map-like field without adding a second bitmap.
-            for(int row=0;row<5;row++)
-                for(int col=0;col<12;col++)
-                    Graphic(new Rect(112+col*69,171+row*70,2,2),storyDisc,new Color(.31f,.39f,.34f,.23f));
-            foreach(var node in map.Nodes)foreach(int source in node.From)StoryTrail(map.Nodes[source],node);
-            foreach(var node in map.Nodes)StoryNode(node);
-            StoryIntel(role);
-            Fill(new Rect(87,555,1105,84),new Color(.10f,.14f,.12f));
-            Fill(new Rect(87,555,3,84),StoryGold);
-            StoryText(106,568,64,20,"NEXT",12,StoryGold);
-            StoryText(170,564,997,28,map.NextTitle,21,StoryCream);
-            StoryText(170,598,997,38,map.NextDetail,15,StoryCream);
-            StoryText(87,650,1105,22,"GREY + CHECK  completed     GOLD  next move     DOTTED TRAIL  ahead     /     One action per round. Headshots only. Release Tab to close.",13,StoryGrey);
+            var guiMatrix=GUI.matrix;
+            GUI.matrix=Matrix4x4.identity;
+            Fill(new Rect(0,0,Screen.width,Screen.height),new Color(.015f,.022f,.021f,.84f));
+            GUI.matrix=guiMatrix;
+            var panel=new Rect(56,32,1168,656);
+            const float margin=32,sectionGap=16,sidebarWidth=282;
+            float left=panel.x+margin,right=panel.xMax-margin,width=right-left;
+            float sidebarX=right-sidebarWidth;
+            Fill(panel,StoryNight);
+            Outline(panel,new Color(.34f,.37f,.29f));
+            Fill(new Rect(panel.x,panel.y,panel.width,3),StoryGold);
+
+            float headerY=panel.y+22;
+            float captionY=headerY+WrappedText(left,headerY,sidebarX-left,role==Role.Unknown?"Your role":role.ToString(),
+                StoryStyle(32,StoryCream,heading:true))+3;
+            float headerEnd=captionY+WrappedText(left,captionY,sidebarX-left,map.Caption,StoryStyle(19,StoryCream));
+            WrappedText(sidebarX,headerY+8,sidebarWidth,$"Round {Game.View.round} of {SaloonPosse.ArrivalRound}",
+                StoryStyle(17,StoryGold,TextAnchor.UpperRight));
+
+            const float closeWidth=182;
+            const string controls="You have one action per round. Press Q to draw. Left-click to shoot. Only headshots do damage.";
+            const string close="Release Tab to close.";
+            var footerStyle=StoryStyle(16,StoryGrey);
+            float controlsWidth=width-closeWidth-sectionGap;
+            float footerHeight=Mathf.Max(WrappedHeight(controls,controlsWidth,footerStyle),WrappedHeight(close,closeWidth,footerStyle));
+            float footerY=panel.yMax-18-footerHeight;
+            WrappedText(left,footerY,controlsWidth,controls,footerStyle);
+            WrappedText(right-closeWidth,footerY,closeWidth,close,StoryStyle(16,StoryGrey,TextAnchor.UpperRight));
+
+            const float nextInset=16,tagWidth=62;
+            var nextTitleStyle=StoryStyle(22,StoryCream);
+            var nextDetailStyle=StoryStyle(18,StoryCream);
+            var nextControlStyle=StoryStyle(16,StoryGrey);
+            float nextWidth=width-2*nextInset;
+            float nextTitleHeight=WrappedHeight(map.NextTitle,nextWidth-tagWidth,nextTitleStyle);
+            float nextContentHeight=WrappedHeight(map.NextDetail,nextWidth,nextDetailStyle)+WrappedHeight(map.NextControl,nextWidth,nextControlStyle);
+            float nextHeight=2*nextInset+nextTitleHeight+nextContentHeight+4+(string.IsNullOrEmpty(map.NextControl)?0:4);
+            float nextY=footerY-sectionGap-nextHeight;
+            Fill(new Rect(left,nextY,width,nextHeight),new Color(.10f,.14f,.12f));
+            Fill(new Rect(left,nextY,3,nextHeight),StoryGold);
+            float nextTextX=left+nextInset,nextTextY=nextY+nextInset;
+            WrappedText(nextTextX,nextTextY+3,tagWidth,"NEXT",StoryStyle(15,StoryGold));
+            nextTextY+=WrappedText(nextTextX+tagWidth,nextTextY,nextWidth-tagWidth,map.NextTitle,nextTitleStyle)+4;
+            nextTextY+=WrappedText(nextTextX,nextTextY,nextWidth,map.NextDetail,nextDetailStyle)+4;
+            WrappedText(nextTextX,nextTextY,nextWidth,map.NextControl,nextControlStyle);
+
+            float contentY=headerEnd+sectionGap;
+            float contentHeight=nextY-sectionGap-contentY;
+            StoryGraph(map,new Rect(left,contentY,sidebarX-left-24,contentHeight));
+            StoryIntel(role,new Rect(sidebarX,contentY,sidebarWidth,contentHeight));
+        }
+
+        void StoryGraph(SaloonStoryMap map,Rect area)
+        {
+            if(map.Nodes.Count==0)return;
+            var labelStyle=StoryStyle(18,StoryCream,TextAnchor.UpperCenter);
+            var statusStyle=StoryStyle(14,StoryGold,TextAnchor.UpperCenter);
+            float labelHeight=0;
+            foreach(var node in map.Nodes)
+            {
+                float height=WrappedHeight(node.Title,StoryLabelWidth,labelStyle)+WrappedHeight(StoryNodeStatus(node),StoryLabelWidth,statusStyle);
+                labelHeight=Mathf.Max(labelHeight,height);
+            }
+            float xInset=StoryLabelWidth/2+6;
+            var positions=new Vector2[map.Nodes.Count];
+            for(int i=0;i<positions.Length;i++)
+            {
+                var node=map.Nodes[i];
+                positions[i]=new Vector2(Mathf.Lerp(area.xMin+xInset,area.xMax-xInset,Mathf.InverseLerp(145,820,node.X)),
+                    Mathf.Lerp(area.yMin+44,area.yMax-StoryLabelOffset-labelHeight-4,Mathf.InverseLerp(198,415,node.Y)));
+            }
+            for(int i=0;i<positions.Length;i++)
+                foreach(int source in map.Nodes[i].From)StoryTrail(positions[source],positions[i],map.Nodes[i].State);
+            for(int i=0;i<positions.Length;i++)
+                StoryNode(map.Nodes[i],positions[i],labelStyle,statusStyle);
         }
     }
 }

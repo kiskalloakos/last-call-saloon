@@ -80,6 +80,18 @@ namespace Saloon
             return "";
         }
 
+        public static bool WonMatch(Role role,string outcome)
+        {
+            switch(role)
+            {
+                case Role.Sheriff:
+                case Role.Deputy: return outcome=="LAW WINS"||outcome=="LAW WINS — POSSE ARRIVED";
+                case Role.Outlaw: return outcome=="OUTLAWS WIN — MONEY ESCAPED";
+                case Role.Renegade: return outcome=="RENEGADE WINS — LAST STANDING";
+                default: return false;
+            }
+        }
+
         public static string Objective(Role role)
         {
             switch (role)
@@ -118,7 +130,7 @@ namespace Saloon
                     "HOW TO TAKE THE MONEY & ESCAPE",EscapeGuide);
                 case Role.Renegade:return new RoleGuide(
                     "You know everyone’s role. Eliminate the Outlaws first, then the Sheriff and Deputy.",
-                    "Use your turn to shoot an enemy or heal yourself. <b>H and X are Outlaw-only.</b> You do not steal money.",
+                    "Use your turn to shoot or drink beer. You have unlimited bullets.",
                     $"Be the only player left alive before the posse arrives after round {SaloonPosse.ArrivalRound}. An Outlaw escaping with the money does not count as your win.",
                     "Keep the Law alive while you fight the Outlaws. After the Outlaws are gone, turn on the Law.",
                     "OUTLAWS FIRST, THEN THE LAW",
@@ -179,7 +191,10 @@ namespace Saloon
         public int shots,health,maxHealth,carriedBeer,hits,puffs,reloads;
         public bool reloading;public float reloadRemaining,reloadDuration;
         public float smokeAge;
-        public float hitAge,hitX,hitY,hitZ;
+        public float hitAge,hitX,hitY,hitZ;public bool hitReflected;
+        public bool shotResolved;
+        public float shotAge,shotEndX,shotEndY,shotEndZ,shotNormalX,shotNormalY,shotNormalZ;
+        public int shotSurface;
         public bool drinking, robbing, moneyBag, escaping;
         public bool pouring;public float pourElapsed;public int beerHealing,beerStation;public float pourFlow=1;
         public int room, chosenRoom, poseVersion,planVersion;
@@ -203,6 +218,14 @@ namespace Saloon
     }
 
     [Serializable]
+    public class MatchResultPlayer
+    {
+        public string id,name;
+        public Role role;
+        public bool alive,winner;
+    }
+
+    [Serializable]
     public class Snapshot
     {
         public KnownRole[] knownRoles;
@@ -211,6 +234,7 @@ namespace Saloon
         public int rematchVotes,rematchRequired;
         public bool ownRematchVote;
         public PlayerView[] players;
+        public MatchResultPlayer[] matchResults;
         public Phase phase;
         public float remaining;
         public string outcome, ownRole, ally, notice, voiceRoom;
@@ -220,6 +244,7 @@ namespace Saloon
         public int actionsRemaining,actionsInProgress,hitSequence,confirmedHealth,confirmedMaxHealth;
         public bool confirmedKill,confirmedFriendly;
         public float confirmedHitAge;
+        public int emptyClicks;public float emptyClickAge;
         public string actionBlockReason;
         public int posseStage,posseRoundsRemaining;
         public bool actionAvailable,plannedRoomFull;
@@ -236,6 +261,7 @@ namespace Saloon
         public StoryProgress storyProgress;
         public string[] evidence;
         public int health, ammo, beers, carriedBeer,beerHealing;
+        public bool UnlimitedAmmo=>ownRole==nameof(Role.Renegade);
         public bool pouring;public float pourElapsed,beerChoiceRemaining;
         public bool sandbox, moneyBag, escapePending;
         // Shared Outlaw map state; possession and action permissions remain personal.

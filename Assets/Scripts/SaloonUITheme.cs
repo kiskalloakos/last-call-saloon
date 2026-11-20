@@ -70,13 +70,12 @@ namespace Saloon
             var quiet=Swatch(new Color(.055f,.065f,.06f,.65f));
             FlatStates(tableActionDisabled,quiet,quiet,quiet,new Color(.59f,.59f,.53f));
             tableActionCaption=new GUIStyle(subtitle){fontSize=13,alignment=TextAnchor.MiddleCenter,normal={textColor=new Color(.94f,.88f,.75f)}};
-            field=new GUIStyle(GUI.skin.textField){font=bodyFont,fontSize=18,padding=new RectOffset(12,12,8,8)};
-            FlatStates(field,blank,blank,hover,ink);
-            flatSkin.settings.cursorColor=gold;flatSkin.settings.selectionColor=new Color(.44f,.34f,.18f);
+            BuildMenuStyles();
+            flatSkin.settings.cursorColor=MenuAccent;flatSkin.settings.selectionColor=new Color(.44f,.34f,.18f);
             FlatStates(flatSkin.horizontalSlider,line,line,line,ink);flatSkin.horizontalSlider.fixedHeight=3;flatSkin.horizontalSlider.margin=new RectOffset(0,0,10,10);
-            FlatStates(flatSkin.horizontalSliderThumb,accent,accent,accent,ink);flatSkin.horizontalSliderThumb.fixedWidth=12;flatSkin.horizontalSliderThumb.fixedHeight=16;
+            FlatStates(flatSkin.horizontalSliderThumb,amber,amberHover,amberHover,ink);flatSkin.horizontalSliderThumb.fixedWidth=12;flatSkin.horizontalSliderThumb.fixedHeight=16;
             FlatStates(flatSkin.verticalScrollbar,line,line,line,ink);flatSkin.verticalScrollbar.fixedWidth=5;
-            FlatStates(flatSkin.verticalScrollbarThumb,accent,accent,accent,ink);flatSkin.verticalScrollbarThumb.fixedWidth=5;
+            FlatStates(flatSkin.verticalScrollbarThumb,amber,amberHover,amberHover,ink);flatSkin.verticalScrollbarThumb.fixedWidth=5;
             foreach(var style in new[]{flatSkin.verticalScrollbarUpButton,flatSkin.verticalScrollbarDownButton,flatSkin.horizontalScrollbarLeftButton,flatSkin.horizontalScrollbarRightButton})
             {style.fixedHeight=style.fixedWidth=0;FlatStates(style,line,line,line,ink);}
             flatSkin.scrollView=new GUIStyle();

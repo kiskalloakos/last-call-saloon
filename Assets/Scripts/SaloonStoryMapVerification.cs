@@ -70,7 +70,7 @@ namespace Saloon
             partnerView=PrivateSnapshot(partner.id);
             Check(Node(partnerView,"Take the money").State==StoryState.Complete&&!partnerView.moneyBag&&partnerView.outlawTeamMoneyBag,"money milestone is shared without creating a second carrier");
             Actions();DeclareEscape(host);
-            Check(Node(Snapshot(),"Declare escape").State==StoryState.Complete&&SaloonStoryMap.Build(Snapshot()).NextTitle=="Ride out alive","accepted escape advances to the response round");
+            Check(Node(Snapshot(),"Declare escape").State==StoryState.Complete&&SaloonStoryMap.Build(Snapshot()).NextTitle=="Finish the escape","accepted escape advances to the response round");
             partnerView=PrivateSnapshot(partner.id);
             Check(Node(partnerView,"Declare escape").State==StoryState.Complete&&!partnerView.escapePending&&partnerView.outlawTeamEscapePending,"partner shares the escape milestone without declaring their own escape");
             Check(players.Values.Where(p=>p.role!=Role.Outlaw).All(p=>!PrivateSnapshot(p.id).outlawTeamMoneyBag&&!PrivateSnapshot(p.id).outlawTeamEscapePending),"team money and escape state stay private to Outlaws");
@@ -92,7 +92,7 @@ namespace Saloon
             foreach(var p in players.Values.Where(p=>p.role==Role.Outlaw))p.hp=0;
             Check(!Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone),"smoking separation does not reveal unseen indoor deaths");
             host.room=0;
-            Check(Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone)&&SaloonStoryMap.Build(Snapshot()).NextTitle=="Turn on the Law","observed Outlaw deaths advance the Renegade's route");
+            Check(Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone)&&SaloonStoryMap.Build(Snapshot()).NextTitle=="Fight the Law","observed Outlaw deaths advance the Renegade's route");
             host.room=3;
             Check(Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone),"already observed deaths remain complete across area changes");
             host.room=0;
@@ -100,6 +100,23 @@ namespace Saloon
             ScreenCapture.CaptureScreenshot(Path.Combine(directory,"Renegade-progress.png"));yield return null;
             Deal(Role.Deputy);phase=Phase.Finished;outcome="LAW WINS — POSSE ARRIVED";
             Check(Node(Snapshot(),"Hold for the posse").State==StoryState.Complete&&Node(Snapshot(),"Stop the criminals").State!=StoryState.Complete,"alternative victory routes are not falsely both completed");
+
+            Deal(Role.Renegade);Actions();
+            host.drawn=true;host.ammo=tuning.cylinder;host.nextShot=0;host.pitch=-75;
+            int shots=host.shots,reloads=host.reloads,emptyClicks=host.emptyClicks;
+            OnCommand(host.id,new Command{kind="reload"});
+            Check(!rounds.HasSpent(host.id)&&host.busyAction==""&&host.reloads==reloads,"Renegade reload spends no action and starts no animation");
+            OnCommand(host.id,new Command{kind="fire"});
+            Check(host.shots==shots+1&&host.ammo==tuning.cylinder&&rounds.HasSpent(host.id),"Renegade can fire immediately after pressing reload without spending a bullet");
+            host.ammo=0;
+            for(int i=0;i<tuning.cylinder;i++)
+            {
+                Actions();host.nextShot=0;
+                OnCommand(host.id,new Command{kind="fire"});
+            }
+            Check(host.shots==shots+1+tuning.cylinder&&host.ammo==0&&host.emptyClicks==emptyClicks,"Renegade fires past the cylinder capacity without empty clicks");
+            var renegadeWire=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(Snapshot(),out _));
+            Check(renegadeWire.UnlimitedAmmo&&players.Values.Where(p=>p!=host).All(p=>!PrivateSnapshot(p.id).UnlimitedAmmo),"only the Renegade gets the unlimited bullet display");
             ResetHeist();
             Check(players.Values.All(p=>p.storyProgress==StoryProgress.None&&p.storySeenDead.Count==0),"rematch resets every private milestone and observed death");
             ShowRole=false;Debug.Log("SALOON_STORY_MAP PASS "+checks+" checks; screenshots="+directory);

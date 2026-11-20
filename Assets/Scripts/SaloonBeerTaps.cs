@@ -163,11 +163,12 @@ namespace Saloon
         public string HintForRay(Ray ray)
         {
             string action=ActionForRay(ray);
-            if(action=="interact")return "Hold tap / E · Pour beer";
-            if(action=="stopPour")return "Release to stop · Scroll to adjust flow";
-            if(action=="drink")return "Click mug / B · Drink +"+self.beerHealing+"%";
-            if(action=="leaveBeer")return "Click / Space · Leave your beer";
-            return self?.pouring==true?"Release to stop · Scroll to adjust flow":Ready?"B · Drink    Aim + G · Offer    Space · Leave beer":"";
+            if(action=="interact")return "Hold E or hold the tap to pour.";
+            if(action=="stopPour"||self?.pouring==true)
+                return holdingTap?"Release the mouse button to stop. Scroll to change the flow.":"Use E to stop pouring.";
+            if(action=="drink")return $"Press B or click to drink. Heal {SaloonHealth.BeerHealingAmount(self.beerHealing,game.View.cigaretteBuff)}%.";
+            if(action=="leaveBeer")return "Press Space or click to leave the beer.";
+            return Ready?"B to drink. G to offer. Space to leave the beer.":"";
         }
         void Update()
         {

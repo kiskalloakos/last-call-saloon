@@ -99,7 +99,8 @@ namespace Saloon
                 hitbox.height=next.crouched?SaloonMovement.CrouchingHeight:SaloonMovement.StandingHeight;
                 hitbox.center=Vector3.up*(hitbox.height*.5f);hitbox.enabled=next.alive;
             }
-            drinkAudio.spatialBlend=isLocal?0:1;drinkAudio.volume=isLocal?.5f:.32f;
+            target=nextPosition;
+            SetViewpoint(isLocal);
             if(next.drinking&&!wasDrinking)
             {
                 drinkAudio.pitch=Mathf.Clamp(drinkAudio.clip.length/Mathf.Max(.2f,next.drinkDuration),.25f,4);
@@ -110,8 +111,6 @@ namespace Saloon
             {
                 lastGift=next.giftSequence;audioSource.PlayOneShot(SaloonBeerAudio.Handoff,.25f);StartCoroutine(Handoff(next.giftTarget,next.giftRemaining));
             }
-            target=new Vector3(next.x,next.y,next.z);
-            SetViewpoint(isLocal);
             label.text=next.name+(!next.alive?"  ·  eliminated":"")+(next.sheriff&&string.IsNullOrEmpty(next.revealedRole)?"\nSHERIFF":"")+(!string.IsNullOrEmpty(next.revealedRole)?"\n"+next.revealedRole:"");
             label.color=!next.alive?new Color(.61f,.57f,.51f):next.sheriff?new Color(1,.77f,.3f):new Color(.94f,.86f,.69f);
             if(next.health!=shownHealth||next.maxHealth!=shownMaxHealth)
@@ -126,7 +125,6 @@ namespace Saloon
                 dots.Append(shots==1?"<color=#FF6757>  ":"<color=#F1E4CB>  ").Append(SaloonHealth.Percentage(next.health)).Append("</color>");
                 healthDots.text=dots.ToString();
             }
-            reloadAudio.spatialBlend=isLocal?0:1;reloadAudio.volume=isLocal?.55f:.35f;
             if(next.reloads>lastReload&&next.reloading)
             {
                 reloadAudio.clip=SaloonGunAudio.Reload;reloadAudio.pitch=Mathf.Clamp(reloadAudio.clip.length/Mathf.Max(.2f,next.reloadDuration),.25f,4);
@@ -136,15 +134,17 @@ namespace Saloon
             bool holdingBeer=next.alive&&next.room!=3&&!next.drawn&&((next.carriedBeer>0&&next.room!=0)||next.drinking);
             mug.SetActive(!local&&holdingBeer);
             if(firstPersonMug!=null)firstPersonMug.SetActive(local&&holdingBeer);
-            if(next.shots>lastShot)
+            if(next.shots>lastShot&&(!next.shotResolved||next.shotAge<.5f))
             {
-                audioSource.spatialBlend=local?0:1;audioSource.pitch=1+(next.shots%3-1)*.015f;
-                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);shotAt=Time.time;muzzleUntil=Time.time+.09f;
-                var tracer=new GameObject("Shot trail");tracer.layer=SaloonSmokingArea.IndoorLayer;var line=tracer.AddComponent<LineRenderer>();
-                line.sharedMaterial=SaloonWorld.Material("Shot trail",new Color(1,.7f,.3f));line.startWidth=.018f;line.endWidth=.003f;line.positionCount=2;
-                var eye=target+Vector3.up*SaloonMovement.EyeHeight(next.seated,next.crouched);var dir=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
+                audioSource.spatialBlend=local?0:1;audioSource.pitch=1+(next.shots%3-1)*.025f;
+                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);
+                shotAt=Time.time;muzzleUntil=shotAt+.075f;
                 var weapon=local&&firstPersonGun!=null?firstPersonGun:gun;
-                line.SetPosition(0,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip));line.SetPosition(1,SaloonRoomWindows.ClipShotTrail(eye,dir,20));Destroy(tracer,.055f);
+                var eye=target+Vector3.up*SaloonMovement.EyeHeight(next.seated,next.crouched);
+                var direction=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
+                var end=next.shotResolved?new Vector3(next.shotEndX,next.shotEndY,next.shotEndZ):SaloonRoomWindows.ClipShotTrail(eye,direction,65);
+                SaloonShotEffects.Play(transform,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip),
+                    end,new Vector3(next.shotNormalX,next.shotNormalY,next.shotNormalZ),(SaloonImpactSurface)next.shotSurface,local);
             }
             lastShot=next.shots;
         }
@@ -152,6 +152,8 @@ namespace Saloon
         public void SetViewpoint(bool isViewpoint)
         {
             local=isViewpoint;
+            audioSource.spatialBlend=drinkAudio.spatialBlend=reloadAudio.spatialBlend=local?0:1;
+            drinkAudio.volume=local?.5f:.32f;reloadAudio.volume=local?.55f:.35f;
             model.SetActive(!local||!state.alive);
             label.gameObject.SetActive(!state.observer&&(!local||!state.alive));healthDots.gameObject.SetActive(!local&&state.alive);
             if(local&&state.alive&&firstPersonGun==null)
@@ -268,9 +270,9 @@ namespace Saloon
 
         static void AnimateMuzzle(Light light,float elapsed)
         {
-            float fade=1-Mathf.Clamp01(elapsed/.09f);
-            light.intensity=6*fade*fade;
-            light.transform.localScale=Vector3.one*(.6f+.6f*fade);
+            float fade=1-Mathf.Clamp01(elapsed/.075f);
+            light.intensity=10*fade*fade;
+            light.transform.localScale=Vector3.one*(.8f+.85f*fade);
             light.transform.localRotation=Quaternion.Euler(0,0,(int)(elapsed*120)*37);
         }
         static Light MakeMuzzle(Transform parent)
@@ -307,7 +309,11 @@ namespace Saloon
             return go;
         }
 
-        public void Silence(){if(audioSource!=null)audioSource.Stop();if(drinkAudio!=null)drinkAudio.Stop();if(reloadAudio!=null)reloadAudio.Stop();}
+        public void Silence()
+        {
+            foreach(var source in GetComponentsInChildren<AudioSource>())source.Stop();
+            foreach(var effect in GetComponentsInChildren<SaloonShotEffects>())Destroy(effect.gameObject);
+        }
 
         void OnDestroy(){if(handoffMug!=null)Destroy(handoffMug);if(firstPersonGun!=null)Destroy(firstPersonGun);if(firstPersonMug!=null)Destroy(firstPersonMug);}
     }

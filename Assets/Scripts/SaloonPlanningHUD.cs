@@ -6,9 +6,10 @@ namespace Saloon
     public partial class SaloonHUD
     {
         static readonly Color PlannerInk=new Color(.94f,.90f,.80f),PlannerMuted=new Color(.67f,.69f,.62f),PlannerGold=new Color(.91f,.69f,.40f);
+        Vector2 plannerInvitationScroll,plannerPlayersScroll;
 
-        void PlannerText(float x,float y,float width,float height,string text,int size=15,bool muted=false)
-            =>Text(x,y,width,height,text,new GUIStyle(body){fontSize=size,normal={textColor=muted?PlannerMuted:PlannerInk}});
+        GUIStyle PlannerStyle(int size,bool muted=false)
+            =>new GUIStyle(body){fontSize=size,richText=false,wordWrap=true,normal={textColor=muted?PlannerMuted:PlannerInk}};
 
         bool PlannerAction(float x,float y,float width,float height,string text,bool primary=false)
             =>GUI.Button(new Rect(x,y,width,height),text,primary?plannerPrimary:plannerButton);
@@ -18,8 +19,8 @@ namespace Saloon
             if(!person.planSelected&&!person.ready)return "No room selected";
             var partner=Game.View.players.FirstOrDefault(p=>p.id==person.companion);
             string room=SaloonStations.Name(person.chosenRoom);
-            return person.ready?"LOCKED · "+room+(partner==null?" · no partner":" with "+partner.name)
-                :partner!=null?"Inviting "+partner.name+" · "+room:"Choosing · "+room;
+            return person.ready?room+(partner==null?"":" with "+partner.name)+" (locked)"
+                :partner!=null?"Invited "+partner.name+" to "+room:"Choosing "+room;
         }
         void IncomingInvitationNotice()
         {
@@ -27,11 +28,11 @@ namespace Saloon
             float y=145;
             foreach(var person in Game.View.players.Where(p=>p.alive))
             {
-                Text(908,y,350,20,person.name+(person.id==Game.LocalId?" (you)":""),new GUIStyle(body){fontSize=14});
-                Text(908,y+19,350,27,PlanDescription(person),new GUIStyle(small){fontSize=12});y+=49;
+                y+=WrappedText(908,y,338,person.name+(person.id==Game.LocalId?" (you)":""),new GUIStyle(body){fontSize=14});
+                y+=WrappedText(908,y,338,PlanDescription(person),new GUIStyle(small){fontSize=12})+8;
             }
             if(Game.IncomingInvitations.Length>0)
-                Text(280,145,600,28,"You have an invitation · Right-click to accept",new GUIStyle(body){fontSize=15,alignment=TextAnchor.MiddleCenter});
+                Text(280,145,600,28,"Right-click to see your invitations.",new GUIStyle(body){fontSize=16,alignment=TextAnchor.MiddleCenter});
         }
 
         void RoomChoices()
@@ -41,59 +42,120 @@ namespace Saloon
             var living=Game.View.players.Where(p=>p.alive).ToArray();
             var invitations=Game.IncomingInvitations;
             int selected=Game.PlannedRoom;
-            const float left=120,top=100,width=1040,height=584;
-            Fill(new Rect(left+4,top+5,width,height),new Color(0,0,0,.22f));
-            Fill(new Rect(left,top,width,height),new Color(.055f,.07f,.065f,.98f));
-            Fill(new Rect(left,top,3,height),PlannerGold);
-            PlannerText(144,119,640,40,"Choose a room. Lock your plan.",27);
-            if(PlannerAction(1068,122,68,29,"Close"))Game.RoomPlannerOpen=false;
-            PlannerText(144,163,500,24,"Bar and smoking allow solo visits. Minigames need two players.",13,true);
+            var panel=new Rect(108,88,1064,596);
+            const float inset=28,gap=24;
+            float left=panel.x+inset,right=panel.xMax-inset,width=right-left;
+            const float roomColumn=488;
+            float planX=left+roomColumn+gap,planWidth=right-planX;
+            Fill(new Rect(panel.x+4,panel.y+5,panel.width,panel.height),new Color(0,0,0,.22f));
+            Fill(panel,new Color(.055f,.07f,.065f,.98f));
+            Fill(new Rect(panel.x,panel.y,3,panel.height),PlannerGold);
+            float top=panel.y+inset;
+            top+=WrappedText(left,top,roomColumn,"Choose a room",PlannerStyle(27))+10;
+            if(PlannerAction(right-80,panel.y+inset,80,32,"Close"))Game.RoomPlannerOpen=false;
+            WrappedText(left,top,roomColumn,"Minigames need two players.",PlannerStyle(16,true));
+            float gridTop=top+32;
+            const float roomGap=12,roomHeight=74;
+            const float roomWidth=(roomColumn-roomGap)/2;
             for(int room=0;room<4;room++)
             {
-                float x=144+(room%2)*252,y=199+(room/2)*91;
+                float x=left+(room%2)*(roomWidth+roomGap),y=gridTop+(room/2)*(roomHeight+roomGap);
                 int capacity=Game.View.roomCapacities?[room]??(room==0?5:2);
                 int locked=living.Count(p=>p.chosenRoom==room&&p.ready),interested=living.Count(p=>p.chosenRoom==room&&p.planSelected&&!p.ready);
                 bool full=locked>=capacity,own=selected==room&&(self.planSelected||Game.PlanPending||Game.PlanReady);
                 bool enabled=GUI.enabled;GUI.enabled=enabled&&(!full||(self.ready&&self.chosenRoom==room));
                 var style=new GUIStyle(own?plannerPrimary:plannerButton){alignment=TextAnchor.UpperLeft,padding=new RectOffset(13,10,10,4),fontSize=19};
-                if(GUI.Button(new Rect(x,y,240,79),(own?"✓ ":"")+SaloonStations.Name(room),style))Game.ChooseRoom(room,"");
+                if(GUI.Button(new Rect(x,y,roomWidth,roomHeight),(own?"✓ ":"")+SaloonStations.Name(room),style))Game.ChooseRoom(room,"");
                 GUI.enabled=enabled;
-                PlannerText(x+13,y+40,220,28,locked+" / "+capacity+" locked · "+interested+" choosing"+(full?" · FULL":""),12,true);
+                WrappedText(x+13,y+39,roomWidth-26,full?"Full":locked+" of "+capacity+" locked. "+interested+" choosing.",PlannerStyle(15,true));
             }
-            PlannerText(674,163,460,24,"EVERYONE'S PLAN",13,true);
-            for(int i=0;i<living.Length;i++)
-            {
-                var person=living[i];float y=199+i*67;
-                Fill(new Rect(674,y,462,60),person.ready?new Color(.13f,.19f,.14f):new Color(.09f,.11f,.10f));
-                PlannerText(686,y+7,330,22,person.name+(person.id==self.id?" (you)":""),16);
-                PlannerText(686,y+31,435,24,PlanDescription(person),12,!person.ready);
-                bool available=person.id!=self.id&&!person.ready&&!Game.PlanReady;
-                int capacity=Game.View.roomCapacities?[selected]??(selected==0?5:2);
-                int reserved=living.Count(p=>p.ready&&p.chosenRoom==selected);
-                bool inviting=Game.PlannedCompanion==person.id;
-                if(available&&!inviting&&reserved+2<=capacity)
-                    if(PlannerAction(1038,y+7,86,26,person.bot?"Go with":"Invite"))
-                    {if(person.bot)Game.LeaveForRoom(selected,person.id);else Game.ChooseRoom(selected,person.id);}
-            }
-            PlannerText(144,390,490,25,invitations.Length>0?"INVITATIONS · ACCEPT TO LOCK BOTH PLAYERS":"Invite an available player, or lock your room choice.",13,true);
-            for(int i=0;i<Mathf.Min(invitations.Length,3);i++)
-            {
-                var invitation=invitations[i];float y=426+i*48;
-                PlannerText(144,y,376,40,invitation.fromName+" · "+SaloonStations.Name(invitation.room),15);
-                if(PlannerAction(532,y-2,104,34,"Accept",true))Game.JoinInvitation(invitation.fromId);
-            }
-            Fill(new Rect(144,575,992,1),new Color(1,1,1,.1f));
+            var helpStyle=PlannerStyle(15,true);
+            string help=Game.View.phase==Phase.Discussion?"Press Space to lock or unlock. Right-click to close.":"Select Lock choice when you are ready.";
+            float helpY=panel.yMax-18-WrappedHeight(help,width,helpStyle);
+            WrappedText(left,helpY,width,help,helpStyle);
+            const float actionWidth=206,actionHeight=42;
+            float statusWidth=width-actionWidth-gap;
             string status=Game.PlanPending?"Saving your plan…":Game.PlanReady?"Your plan is locked.":Game.View.notice;
-            if(string.IsNullOrEmpty(status))status="Select a room, then lock your choice or invite someone.";
-            PlannerText(144,588,764,42,status,14,true);
-            string action=Game.PlanReady?"Unlock / change":!string.IsNullOrEmpty(Game.PlannedCompanion)?"Cancel invitation":"Lock choice";
-            if(PlannerAction(930,591,206,42,action,true))
+            var statusStyle=PlannerStyle(16,true);
+            float statusHeight=WrappedHeight(status,statusWidth,statusStyle);
+            float footerY=helpY-12-Mathf.Max(actionHeight,statusHeight);
+            Fill(new Rect(left,footerY-12,width,1),new Color(1,1,1,.14f));
+            WrappedText(left,footerY+Mathf.Max(0,(actionHeight-statusHeight)/2),statusWidth,status,statusStyle);
+            bool invitingCompanion=!string.IsNullOrEmpty(Game.PlannedCompanion);
+            string action=Game.PlanReady?"Unlock / change":invitingCompanion?"Cancel invitation":selected==3?"Go alone":"Lock choice";
+            if(PlannerAction(right-actionWidth,footerY,actionWidth,actionHeight,action,true))
             {
                 if(Game.PlanReady)Game.ToggleReady();
-                else if(!string.IsNullOrEmpty(Game.PlannedCompanion))Game.ChooseRoom(selected,"");
+                else if(invitingCompanion)Game.ChooseRoom(selected,"");
                 else Game.LeaveForRoom(selected);
             }
-            PlannerText(144,644,992,24,"Space · lock / unlock    |    Everyone locked starts early. Otherwise, move when the discussion timer ends.",12,true);
+            float bodyBottom=footerY-18;
+            WrappedText(planX,top,planWidth,"Player plans",PlannerStyle(17,true));
+            DrawPlayerPlans(new Rect(planX,gridTop,planWidth,bodyBottom-gridTop),living,self,selected);
+
+            float invitesY=gridTop+2*roomHeight+roomGap+15;
+            string inviteHint=invitations.Length>0?"Accept an invite to lock both plans.":"Lock your room choice or invite another player.";
+            invitesY+=WrappedText(left,invitesY,roomColumn,inviteHint,PlannerStyle(16,true))+8;
+            if(invitations.Length>0)DrawPlannerInvitations(new Rect(left,invitesY,roomColumn,bodyBottom-invitesY),invitations);
+        }
+
+        void DrawPlayerPlans(Rect area,PlayerView[] living,PlayerView self,int selected)
+        {
+            const float inset=12,verticalInset=6,actionWidth=86,rowGap=4;
+            float rowWidth=area.width-14;
+            float nameWidth=rowWidth-actionWidth-3*inset,planWidth=rowWidth-2*inset;
+            var nameStyle=PlannerStyle(17);
+            var planStyle=PlannerStyle(15);
+            var rows=living.Select(person=>
+            {
+                string name=person.name+(person.id==self.id?" (you)":"");
+                string plan=PlanDescription(person);
+                float height=Mathf.Max(62,2*verticalInset+WrappedHeight(name,nameWidth,nameStyle)+WrappedHeight(plan,planWidth,planStyle));
+                return (Name:name,Plan:plan,Height:height);
+            }).ToArray();
+            float total=rows.Sum(row=>row.Height)+Mathf.Max(0,rows.Length-1)*rowGap;
+            int capacity=Game.View.roomCapacities?[selected]??(selected==0?5:2);
+            bool hasSeats=living.Count(p=>p.ready&&p.chosenRoom==selected)+2<=capacity;
+            plannerPlayersScroll=GUI.BeginScrollView(area,plannerPlayersScroll,new Rect(0,0,rowWidth,total));
+            float y=0;
+            for(int i=0;i<rows.Length;i++)
+            {
+                var row=rows[i];
+                var person=living[i];
+                Fill(new Rect(0,y,rowWidth,row.Height),person.ready?new Color(.13f,.19f,.14f):new Color(.09f,.11f,.10f));
+                float nameHeight=WrappedText(inset,y+verticalInset,nameWidth,row.Name,nameStyle);
+                planStyle.normal.textColor=person.ready?PlannerInk:PlannerMuted;
+                WrappedText(inset,y+verticalInset+nameHeight,planWidth,row.Plan,planStyle);
+                if(hasSeats&&person.id!=self.id&&!person.ready&&!Game.PlanReady&&Game.PlannedCompanion!=person.id)
+                {
+                    if(PlannerAction(rowWidth-inset-actionWidth,y+8,actionWidth,27,person.bot?"Go with":"Invite"))
+                    {if(person.bot)Game.LeaveForRoom(selected,person.id);else Game.ChooseRoom(selected,person.id);}
+                }
+                y+=row.Height+rowGap;
+            }
+            GUI.EndScrollView();
+        }
+
+        void DrawPlannerInvitations(Rect area,RoomInvitation[] invitations)
+        {
+            const float buttonWidth=104,rowGap=4;
+            float rowWidth=area.width-14,textWidth=rowWidth-buttonWidth-16;
+            var style=PlannerStyle(16);
+            var rows=invitations.Select(invitation=>
+            {
+                string text=invitation.fromName+" · "+SaloonStations.Name(invitation.room);
+                return (Text:text,Height:Mathf.Max(32,WrappedHeight(text,textWidth,style)+4));
+            }).ToArray();
+            plannerInvitationScroll=GUI.BeginScrollView(area,plannerInvitationScroll,new Rect(0,0,rowWidth,rows.Sum(row=>row.Height)+(rows.Length-1)*rowGap));
+            float y=0;
+            for(int i=0;i<rows.Length;i++)
+            {
+                float textHeight=WrappedHeight(rows[i].Text,textWidth,style);
+                WrappedText(0,y+(rows[i].Height-textHeight)/2,textWidth,rows[i].Text,style);
+                if(PlannerAction(rowWidth-buttonWidth,y,buttonWidth,32,"Accept",true))Game.JoinInvitation(invitations[i].fromId);
+                y+=rows[i].Height+rowGap;
+            }
+            GUI.EndScrollView();
         }
     }
 }

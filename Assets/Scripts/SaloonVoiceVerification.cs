@@ -15,7 +15,7 @@ namespace Saloon
             verifying=true;AutomatedInput=true;VerificationFinished=VerificationPassed=false;
             void Check(bool ok,string message)
             {
-                if(!ok){Debug.LogError("SALOON_VOICE_CONTROLS FAIL "+message);Application.Quit(8);throw new InvalidOperationException(message);}
+                if(!ok){VerificationFinished=true;Debug.LogError("SALOON_VOICE_CONTROLS FAIL "+message);Application.Quit(8);throw new InvalidOperationException(message);}
                 Debug.Log("SALOON_VOICE_CONTROLS_CHECK "+message);
             }
             Check(!Voice.OpenMicrophone,"new session starts in push-to-talk");
@@ -46,6 +46,17 @@ namespace Saloon
                 Check(Voice.Channel==VoiceRoom+suffix&&service.ActiveChannels.Count==1&&service.ActiveChannels.ContainsKey(Voice.Channel),"exactly one live channel "+suffix);
                 Check(!Voice.Transmitting&&service.IsInputDeviceMuted,"verification never captures the physical microphone");
             }
+            IEnumerator SpectatorChannels(string suffix)
+            {
+                string playback=VoiceRoom+suffix;
+                float until=Time.realtimeSinceStartup+30;
+                while((Voice.SpectatorChannel!=playback||Voice.Busy||service.IsOutputDeviceMuted)&&Time.realtimeSinceStartup<until)yield return null;
+                Check(Voice.Channel==VoiceRoom+"-dead"&&Voice.SpectatorChannel==playback&&service.ActiveChannels.Count==2&&
+                    service.ActiveChannels.ContainsKey(Voice.Channel)&&service.ActiveChannels.ContainsKey(playback)&&!service.IsOutputDeviceMuted,
+                    "spectator hears "+suffix+" alongside eliminated chat");
+                Check(service.TransmittingChannels.SequenceEqual(new[]{Voice.Channel})&&service.IsInputDeviceMuted,
+                    "spectator microphone is routed to eliminated chat only");
+            }
             OnlyChannel("-alive");Voice.OpenMicrophone=true;
             var hero=players[Connection.LocalId];
             rounds.Start(players.Keys,Time.time,30,60,6);
@@ -66,9 +77,28 @@ namespace Saloon
             while((Voice.Channel!=VoiceRoom+"-dead"||Voice.Busy)&&Time.realtimeSinceStartup<deadline)yield return null;
             OnlyChannel("-dead");Voice.Muted=true;
             Check(service.IsInputDeviceMuted,"mute overrides open mic");
+            hero.deathAt=Time.time-SaloonRagdoll.ObserverDelay;Broadcast();
+            Check(IsSpectating&&CameraPlayer.alive,"eliminated player is watching a living player");
+            yield return SpectatorChannels("-alive");
+            var previous=ViewpointId;
+            bool AvatarAudioIs(string id,float spatialBlend)=>avatars[id].GetComponents<AudioSource>().All(source=>source.spatialBlend==spatialBlend);
+            Check(AvatarAudioIs(previous,0),"watched player's game sounds use the first-person mix");
+            CycleSpectator(1);yield return null;
+            Check(ViewpointId!=previous&&!Voice.Busy&&!service.IsOutputDeviceMuted,"changing between indoor viewpoints keeps proximity playback active");
+            Check(AvatarAudioIs(previous,1)&&AvatarAudioIs(ViewpointId,0),"changing viewpoints also changes the first-person game audio mix");
+
+            var smoker=players.Values.First(p=>p!=hero);
+            rounds.Start(players.Keys,Time.time,30,60,6);
+            foreach(var p in players.Values){p.chosenRoom=p==smoker?3:0;rounds.SetReady(p.id,true);}
+            rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);Broadcast();
+            Check(View.players.All(p=>p.room!=3)&&Voice.SpectatorChannel==VoiceRoom+"-alive","indoor spectators stay isolated from the smoking deck");
+            hero.room=3;Broadcast();
+            Check(CameraPlayer?.room==3&&service.IsOutputDeviceMuted,"an outdoor spectator viewpoint mutes indoor playback before switching");
+            yield return SpectatorChannels("-smoke");
+
             Finish("VOICE REMATCH TEST");deadline=Time.realtimeSinceStartup+30;
             while((Voice.Channel!=VoiceRoom+"-alive"||Voice.Busy)&&Time.realtimeSinceStartup<deadline)yield return null;
-            OnlyChannel("-alive");Check(!Self.alive,"eliminated player rejoins proximity for results voting");
+            OnlyChannel("-alive");Check(!Self.alive&&Voice.SpectatorChannel=="","eliminated player rejoins shared proximity for results voting");
             ReopenLobby();Broadcast();yield return null;
             OnlyChannel("-alive");Check(MenuOpen&&Voice.OpenMicrophone,"host setup retains proximity and open mic preference");
             var leave=Voice.Leave();while(!leave.IsCompleted)yield return null;

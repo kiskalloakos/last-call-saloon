@@ -17,6 +17,7 @@ namespace Saloon
             int index=System.Array.FindIndex(living,p=>p.id==ViewpointId);
             spectateId=living[(index+direction+living.Length)%living.Length].id;cameraCut=true;
             RefreshViewpoint();
+            Voice.ValidateArea();
         }
         void UpdateSpectator()
         {
@@ -32,6 +33,7 @@ namespace Saloon
         {
             string id=ViewpointId;if(id==shownViewpoint)return;
             shownViewpoint=id;cameraCut=true;cameraVelocity=Vector3.zero;
+            Voice?.RefreshListener();
             foreach(var avatar in avatars)avatar.Value.SetViewpoint(avatar.Key==id);
         }
 

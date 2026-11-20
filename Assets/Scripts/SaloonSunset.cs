@@ -16,12 +16,12 @@ namespace Saloon
             skyMaterial.SetVector("_Center",vista.position);skyMaterial.SetVector("_SunDirection",Direction);
             var skyRenderer=sky.GetComponent<Renderer>();skyRenderer.sharedMaterial=skyMaterial;
             skyRenderer.shadowCastingMode=ShadowCastingMode.Off;skyRenderer.receiveShadows=false;
-            var dust=Mat("Sunset sand",new Color(.58f,.33f,.19f));
-            var far=Mat("Distant violet mesas",new Color(.26f,.19f,.29f));
-            var middle=Mat("Dusk terracotta mesas",new Color(.43f,.23f,.24f));
-            var near=Mat("Warm sandstone",new Color(.56f,.29f,.17f));
-            var cactus=Mat("Desert sage silhouettes",new Color(.13f,.20f,.16f));
-            var rock=Mat("Desert ochre rocks",new Color(.39f,.25f,.17f));
+            var dust=Mat("Sunset sand",new Color(.78f,.43f,.22f));
+            var far=Mat("Distant violet mesas",new Color(.40f,.28f,.52f));
+            var middle=Mat("Dusk terracotta mesas",new Color(.64f,.29f,.30f));
+            var near=Mat("Warm sandstone",new Color(.79f,.38f,.19f));
+            var cactus=Mat("Desert sage silhouettes",new Color(.16f,.36f,.23f));
+            var rock=Mat("Desert ochre rocks",new Color(.62f,.36f,.19f));
             // Broad, gently rising desert; decorative terrain has no gameplay collision.
             var ground=new GameObject("Desert fading into the horizon");ground.transform.SetParent(vista,false);
             var groundMesh=new Mesh();var vertices=new List<Vector3>();var triangles=new List<int>();
@@ -59,8 +59,8 @@ namespace Saloon
             }
             var sunset=new GameObject("Last light over the desert");sunset.transform.SetParent(vista,false);
             sunset.transform.rotation=Quaternion.LookRotation(-Direction);
-            var light=sunset.AddComponent<Light>();light.type=LightType.Directional;light.color=new Color(1,.47f,.23f);
-            light.intensity=1.4f;light.shadows=LightShadows.Soft;light.cullingMask=1<<SaloonSmokingArea.OutdoorLayer;
+            var light=sunset.AddComponent<Light>();light.type=LightType.Directional;light.color=new Color(1,.70f,.42f);
+            light.intensity=1.6f;light.shadows=LightShadows.Soft;light.cullingMask=1<<SaloonSmokingArea.OutdoorLayer;
             SaloonSmokingArea.SetLayer(vista,SaloonSmokingArea.OutdoorLayer);
         }
         static Material Mat(string name,Color color)=>SaloonWorld.Material(name,color);

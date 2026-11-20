@@ -10,6 +10,7 @@ namespace Saloon
     {
         public SaloonGame Game;
         int count,index,round,completedMask,initialHealth;
+        int expectedAmmoAfterShot;
         bool host,started,connected,planSent,stanceSent,stood,moved,actionSent,actionSeen,drawSent,beerSent,reported,privacy;
         float began,roomAt,nextCommand,quitAt,drawAt,discussionAt,outageSeconds;Vector3 origin;
         string Arg(string key,string fallback){var args=Environment.GetCommandLineArgs();int n=Array.IndexOf(args,key);return n>=0&&n+1<args.Length?args[n+1]:fallback;}
@@ -72,7 +73,12 @@ namespace Saloon
             }
             if(view.phase==Phase.Turns)
             {
-                if(roomAt==0){roomAt=Time.unscaledTime;initialHealth=self.health;Debug.Log("SALOON_LAN_MATCH_PHASE index="+index+" round="+round+" Turns room="+self.room);}
+                if(roomAt==0)
+                {
+                    roomAt=Time.unscaledTime;initialHealth=self.health;
+                    expectedAmmoAfterShot=view.ammo-(view.UnlimitedAmmo?0:1);
+                    Debug.Log("SALOON_LAN_MATCH_PHASE index="+index+" round="+round+" Turns room="+self.room);
+                }
                 int expected=round==2&&index<4?(index<2?1:2):0;
                 if(self.room!=expected){Report(false,"wrong room assignment");return;}
                 if(round==1)
@@ -103,7 +109,7 @@ namespace Saloon
                     Game.Connection.Send(new Command{kind="input",yaw=yaw,pitch=pitch,poseVersion=self.poseVersion});
                     if(view.actionAvailable&&!self.drawn&&!drawSent){Game.Act("draw");drawSent=true;drawAt=Time.unscaledTime;}
                     if(view.actionAvailable&&self.drawn&&view.busyRemaining<=0&&Time.unscaledTime-drawAt>.85f&&!actionSent){Game.Act("fire");actionSent=true;}
-                    if(actionSent&&self.shots==1&&view.ammo==5)actionSeen=true;
+                    if(actionSent&&self.shots==1&&view.ammo==expectedAmmoAfterShot)actionSeen=true;
                 }
                 else if(round==3&&initialHealth<Game.tuning.health)
                 {
@@ -124,7 +130,7 @@ namespace Saloon
             if(actionSent)
             {
                 if(round==1||(round==2&&index>=4)||(round==3&&initialHealth>=SaloonHealth.Maximum))actionSeen|=view.notice.StartsWith("Passed.");
-                else if(round==2)actionSeen|=self.shots==1&&view.ammo==5;
+                else if(round==2)actionSeen|=self.shots==1&&view.ammo==expectedAmmoAfterShot;
                 else if(round==3)actionSeen|=self.health==SaloonHealth.AfterBeer(initialHealth);
             }
             if(view.phase==Phase.Aftermath&&(completedMask&(1<<round))==0)

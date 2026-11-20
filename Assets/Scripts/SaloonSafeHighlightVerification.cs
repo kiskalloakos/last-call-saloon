@@ -33,6 +33,7 @@ namespace Saloon
                 {p.hp=100;p.deathAt=-1;p.role=p==host?role:deck[i++];p.chosenRoom=p.room=0;p.companion=null;p.busyAction="";p.busyUntil=0;p.botThink=Time.time+100;p.beer=0;p.beerChoiceUntil=0;}
                 rounds.Start(players.Keys,Time.time,300,300,0);foreach(var id in players.Keys)rounds.SetReady(id,true);
                 rounds.Tick(Time.time,id=>true);phase=Phase.Turns;PositionEveryone(false);Place(SafeApproach);Publish();
+                roleIntroStarted=float.NegativeInfinity;
             }
             var shader=Resources.Load<Shader>("Shaders/SaloonSafeHighlight");
             Check(shader!=null&&shader.isSupported,"bundled depth-tested highlight shader is supported");
@@ -40,7 +41,7 @@ namespace Saloon
             {
                 Window(role);string key=role==Role.Outlaw?"H":"C";
                 Check(marker.Highlighted&&marker.Key==key&&marker.OverlayCount>0,role+" receives a highlighted physical safe with the correct key");
-                Check(marker.Status=="Press "+key+" to interact",role+" receives an actionable prompt");
+                Check(marker.Action==(role==Role.Outlaw?"Work on the safe":"Inspect the safe"),role+" receives an actionable prompt");
                 Check(safe.GetComponentsInChildren<Transform>().Where(t=>t.name=="Safe proximity highlight").All(t=>t.GetComponent<Collider>()==null),"visual highlight adds no gameplay colliders");
                 externalCamera=true;externalPosition=SaloonArt.SafePosition+new Vector3(-1.9f,1.8f,-2.6f);
                 externalRotation=Quaternion.LookRotation(safe.GetComponent<Collider>().bounds.center-externalPosition);
@@ -70,9 +71,9 @@ namespace Saloon
             {Window(role);Check(!marker.Highlighted&&marker.Key=="",role+" receives no unauthorized safe key");}
             Window(Role.Outlaw);host.bag=true;Publish();Check(!marker.Highlighted,"money carrier is not invited to collect the bag again");
             Window(Role.Outlaw);BeginRobbery(host);Publish();
-            Check(marker.Highlighted&&marker.Key=="H"&&marker.Status.Contains("stay beside"),"active safe work keeps its highlight and tells the player to stay nearby");
+            Check(marker.Highlighted&&marker.Key=="H"&&marker.Status=="Stay beside the safe.","active safe work keeps its highlight and tells the player to stay nearby");
             host.busyAction="";host.busyUntil=0;Publish();
-            Check(marker.Highlighted&&marker.Key=="H"&&marker.Status!="Press H to interact","spent action retains the safe location with an unavailable status");
+            Check(marker.Highlighted&&marker.Key=="H"&&marker.Status.StartsWith("Action spent."),"spent action retains the safe location with an unavailable status");
             for(int i=0;i<originals.Length;i++)
                 Check(originals[i].sharedMaterials.SequenceEqual(materials[i])&&materials[i].Select(m=>m.color).SequenceEqual(colors[i]),"original safe material identities and colors remain unchanged");
             marker.enabled=false;Check(!marker.Highlighted&&safe.GetComponentsInChildren<MeshRenderer>().Where(r=>r.name=="Safe proximity highlight").All(r=>!r.enabled),"disabling the component clears every overlay");

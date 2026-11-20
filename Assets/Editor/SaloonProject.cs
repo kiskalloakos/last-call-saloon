@@ -154,17 +154,26 @@ public static class SaloonProject
             Debug.Log("SALOON_RELEASE_BUILD PASS "+target+" "+report.summary.totalSize+" bytes");
         }
     }
-    public const string ReleaseVersion="0.2.17";
+    public const string ReleaseVersion="0.2.18";
     [MenuItem("Saloon/Build current downloadable release")]
     public static void BuildCurrentRelease()
+        =>BuildRelease(BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64);
+
+    public static void BuildCurrentMacRelease()=>BuildRelease(BuildTarget.StandaloneOSX);
+    public static void BuildCurrentWindowsRelease()=>BuildRelease(BuildTarget.StandaloneWindows64);
+
+    static void BuildRelease(params BuildTarget[] targets)
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
         EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
-        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="17";AssetDatabase.SaveAssets();
-        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64,BuildTarget.StandaloneLinux64})
+        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber=new Version(ReleaseVersion).Build.ToString();
+        AssetDatabase.SaveAssets();
+        foreach(var target in targets)
         {
             bool mac=target==BuildTarget.StandaloneOSX;
-            string path="Builds/"+ReleaseVersion+(mac?"/macOS/Last Call.app":target==BuildTarget.StandaloneLinux64?"/Linux/Last Call.x86_64":"/Windows/Last Call.exe");
+            var standalone=UnityEditor.Build.NamedBuildTarget.Standalone;
+            PlayerSettings.SetArchitecture(standalone,mac?2:0); // Universal on macOS, x64 on Windows.
+            string path="Builds/"+ReleaseVersion+(mac?"/macOS/Last Call.app":"/Windows/Last Call.exe");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
             if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Release build failed: "+target+" "+report.summary.result);

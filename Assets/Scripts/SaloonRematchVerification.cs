@@ -36,6 +36,7 @@ namespace Saloon
                 yield return Wait(()=>HumanCount==4&&peers.All(p=>states.ContainsKey(p)),"four real UDP players share the lobby");
                 StartMatch();
                 yield return Wait(()=>peers.All(p=>states[p].phase==Phase.Discussion),"match starts for everyone");
+                Check(peers.All(p=>(states[p].matchResults?.Length??0)==0),"the full results roster stays private until the match ends");
                 var peer0=peers[0];ulong id=peer0.LocalId;var original=players[id];
                 original.hp=40;original.ammo=3;original.cigaretteBuff=true;original.evidence.Add("Reconnect evidence");
                 var originalRole=original.role;var originalPosition=original.body.transform.position;
@@ -45,8 +46,14 @@ namespace Saloon
                 yield return Wait(()=>peer0.Connected&&original.disconnectedUntil==0&&states[peer0].ownId==id.ToString()&&states[peer0].health==40&&states[peer0].cigaretteBuff&&peer0.SnapshotAge<2,"automatic reconnect reclaims the reserved place");
                 Check(peer0.LocalId==id&&players[id]==original&&original.role==originalRole&&original.hp==40&&original.ammo==3&&original.evidence.Contains("Reconnect evidence")&&original.body.transform.position==originalPosition,"reconnect preserves identity, role, health, inventory, evidence and position");
                 Check(HumanCount==4,"reconnect creates no duplicate player");
-                Finish("VERIFICATION RESULTS");
+                var sheriff=players.Values.Single(p=>p.role==Role.Sheriff);
+                sheriff.hp=0;
+                Finish("LAW WINS — POSSE ARRIVED");
                 yield return Wait(()=>peers.All(p=>states[p].phase==Phase.Finished),"results reach every player");
+                Check(peers.All(p=>states[p].matchResults.Length==4&&states[p].matchResults.Count(entry=>entry.winner)==2
+                    &&states[p].matchResults.Any(entry=>entry.role==Role.Sheriff&&!entry.alive&&entry.winner)
+                    &&states[p].matchResults.Any(entry=>entry.role==Role.Deputy&&entry.alive&&entry.winner)),
+                    "every client receives the whole cast and both Law winners, including the dead Sheriff");
                 peer0.Send(new Command{kind="rematch"});
                 yield return Wait(()=>players[id].rematchVote,"client vote reaches host");
                 peer0.Send(new Command{kind="rematch"});
@@ -54,6 +61,7 @@ namespace Saloon
                 Act("rematch");foreach(var peer in peers)peer.Send(new Command{kind="rematch"});
                 yield return Wait(()=>phase==Phase.Discussion&&peers.All(p=>states[p].phase==Phase.Discussion),"unanimous vote starts another match for the same group");
                 Check(players.Values.All(p=>!p.rematchVote)&&HumanCount==4,"new match clears all votes and keeps the group");
+                Check(peers.All(p=>(states[p].matchResults?.Length??0)==0),"the rematch clears the old results roster");
                 Finish("RETURN TEST");yield return Wait(()=>states[peer0].phase==Phase.Finished,"client receives second results");
                 peer0.Send(new Command{kind="lobby"});
                 yield return Wait(()=>phase==Phase.Lobby&&peers.All(p=>states[p].phase==Phase.Lobby),"one return action sends everyone to the same lobby");
@@ -64,6 +72,8 @@ namespace Saloon
                 Check(!CanStartMatch,"reserved seats cannot be replaced by starting a match");
                 original.disconnectedUntil=Time.realtimeSinceStartup-1;TickServer();
                 Check(phase==Phase.Finished&&outcome.Contains("RECONNECT WINDOW EXPIRED")&&!players.ContainsKey(id),"expired reservation aborts match and releases the seat");
+                Check(PrivateSnapshot(Connection.LocalId).matchResults.Length==4&&matchResults.Any(entry=>entry.id==id.ToString())
+                    &&matchResults.All(entry=>!entry.winner),"the aborted match shows the departed player and has no winners");
                 Debug.Log("SALOON_REMATCH PASS");VerificationPassed=VerificationFinished=true;
             }
             finally

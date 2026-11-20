@@ -71,9 +71,9 @@ namespace Saloon
                 storyProgress=StoryProgress.Bar|StoryProgress.SafeWork,safeProgress=3,outlawTeamMoneyBag=true};
             StoryState State(string title)=>SaloonStoryMap.Build(view).Nodes.Single(n=>n.Title==title).State;
             Check(State("Take the money")==StoryState.Complete&&!view.moneyBag,"partner's money completes the map without granting possession");
-            Check(State("Declare escape")==StoryState.Next&&SaloonStoryMap.Build(view).NextDetail.Contains("fellow Outlaw"),"noncarrier gets team support guidance");
+            Check(State("Declare escape")==StoryState.Next&&SaloonStoryMap.Build(view).NextDetail.StartsWith("Your partner has the money."),"noncarrier gets team support guidance");
             view.outlawTeamEscapePending=true;
-            Check(State("Declare escape")==StoryState.Complete&&SaloonStoryMap.Build(view).NextTitle=="Ride out alive","partner's escape declaration advances both maps");
+            Check(State("Declare escape")==StoryState.Complete&&SaloonStoryMap.Build(view).NextTitle=="Finish the escape","partner's escape declaration advances both maps");
             view.outlawTeamEscapePending=false;
             Check(State("Declare escape")==StoryState.Next,"cancelled partner escape reopens the declaration milestone");
             view.outlawTeamMoneyBag=false;
@@ -264,6 +264,24 @@ namespace Saloon
             g.PlanPracticeBots();Check(g.players[1].companion==ulong.Parse(offer.fromId),"bot tick preserves accepted human pair");
             g=Fixture(sandbox:true);g.SetRoomPlan(g.players[1],3,2);g.PlanPracticeBots();
             Check(g.rounds.IsReady(1)&&g.rounds.IsReady(2)&&g.players[2].chosenRoom==3,"Go with an available bot locks the requested pair");
+            g=Fixture(sandbox:true);
+            for(int round=1;round<=5;round++)
+            {
+                float now=UnityEngine.Time.time;
+                g.PlanPracticeBots();
+                var human=g.players[1];
+                Check(g.CanSelectPlan(human,3,null),"practice bots leave the deck available for a solo visit in round "+round);
+                g.SetRoomPlan(human,3,null);
+                Check(g.TryReady(human,true),"a solo smoke plan locks after practice bots have planned");
+                g.PlanPracticeBots();
+                g.rounds.Tick(now,id=>true);
+                var rooms=g.rounds.AssignRooms(g.players.Keys,id=>g.players[id].chosenRoom,preventSolo:true);
+                Check(g.rounds.Phase==Phase.Turns&&rooms[1]==3&&rooms.Values.Count(room=>room==3)==1,"the solo smoker is the only deck occupant");
+                g.rounds.BeginAftermath(now);
+                g.rounds.Tick(now+3,id=>true);g.rounds.Tick(now+6,id=>true);
+                g.phase=g.rounds.Phase;UnityEngine.Time.time=now+6;
+                foreach(var p in g.players.Values){p.chosenRoom=0;p.companion=null;}
+            }
             foreach(int room in new[]{0,1,2,3})
             {
                 g=Fixture(sandbox:true);g.SetRoomPlan(g.players[1],room,null);g.TryReady(g.players[1],true);g.PlanPracticeBots();

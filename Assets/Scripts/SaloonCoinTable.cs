@@ -22,9 +22,9 @@ namespace Saloon
 
         public void Initialize(SaloonGame owner)
         {
-            oak=Mat("Coin table walnut",new Color(.22f,.105f,.047f),.25f);
-            rail=Mat("Coin table leather",new Color(.13f,.065f,.042f),.18f);
-            felt=Mat("Coin table baize",new Color(.045f,.20f,.145f),0);
+            oak=Mat("Coin table walnut",new Color(.38f,.18f,.075f),.25f);
+            rail=Mat("Coin table leather",new Color(.25f,.105f,.055f),.18f);
+            felt=Mat("Coin table baize",new Color(.035f,.38f,.24f),0);
             brass=Mat("Coin table brass",new Color(.69f,.50f,.24f),.5f);
             furniture=SaloonTableFurniture.Build(1,"Coin Flip room table",oak,rail,felt,brass);
             board=new GameObject("Coin toss").transform;board.SetParent(transform,false);board.position=Center;

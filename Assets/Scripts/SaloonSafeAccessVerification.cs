@@ -55,11 +55,13 @@ namespace Saloon
             Check(!rounds.HasSpent(host.id)&&!host.bag,"money cannot be collected remotely from an open safe");
             Place(host,SafeApproach);Cmd("rob");host.busyUntil=Time.time-.01f;TickServer();
             Check(host.bag&&host.storyProgress.HasFlag(StoryProgress.SafeWork),"finishing work beside an open safe collects the money");
-            Broadcast();UpdateInteractionHint();Check(!InteractionHint.Contains("H  /"),"carrier is not prompted to collect again");
+            Broadcast();UpdateInteractionHint();Check(!InteractionHint.StartsWith("H   "),"carrier is not prompted to collect again");
             Window(Role.Sheriff);Place(host,SafeApproach);Broadcast();UpdateInteractionHint();
-            Check(NearSafe&&InteractionHint=="C  /  inspect this safe","nearby Sheriff receives the physical safe prompt");
+            Check(NearSafe&&InteractionHint=="C   Inspect the safe","nearby Sheriff receives the physical safe prompt");
             Window(Role.Outlaw);Place(host,SafeApproach);Broadcast();UpdateInteractionHint();
-            Check(NearSafe&&InteractionHint=="H  /  work this safe or collect the money","nearby Outlaw receives the physical safe prompt");
+            Check(NearSafe&&InteractionHint=="H   Work on the safe","nearby Outlaw receives the physical safe prompt");
+            safeProgress=2;Broadcast();UpdateInteractionHint();
+            Check(InteractionHint=="H   Take the money","last safe job tells the Outlaw they can take the money");
             Window(Role.Sheriff);bot.botThink=Time.time-1;bot.controller.enabled=true;
             float until=Time.time+12;var start=bot.body.transform.position;
             while(Time.time<until&&!AtSafe(bot))

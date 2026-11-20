@@ -11,7 +11,7 @@ namespace Saloon
         public static float Kick(float elapsed)
         {
             if(elapsed<0)return 0;
-            return elapsed<.035f?Ease(elapsed/.035f):1-Ease((elapsed-.035f)/.21f);
+            return elapsed<.035f?Ease(elapsed/.035f):1-Ease((elapsed-.060f)/.225f);
         }
         // A continuous backward roll with zero velocity and acceleration at either end.
         public static float Flip(float elapsed)=>-360*Ease((elapsed-FlipStart)/FlipSeconds);
@@ -20,8 +20,8 @@ namespace Saloon
             float progress=Ease((elapsed-FlipStart)/FlipSeconds);
             float arc=Mathf.Sin(progress*Mathf.PI);return arc*arc;
         }
-        public static Vector3 Offset(float elapsed)=>new Vector3(.012f*Flourish(elapsed),-.022f*Flourish(elapsed),-.075f*Kick(elapsed));
-        public static Quaternion Rotation(float elapsed)=>Quaternion.Euler(-19*Kick(elapsed),-2*Flourish(elapsed),-2.5f*Kick(elapsed)+6*Flourish(elapsed));
+        public static Vector3 Offset(float elapsed)=>new Vector3(.012f*Flourish(elapsed),-.022f*Flourish(elapsed),-.14f*Kick(elapsed));
+        public static Quaternion Rotation(float elapsed)=>Quaternion.Euler(-32*Kick(elapsed),-2*Flourish(elapsed),-2.5f*Kick(elapsed)+6*Flourish(elapsed));
         public static Vector3 DrawOffset(float amount)=>new Vector3(0,-.34f,-.025f)*(1-Ease(amount));
         public static Quaternion DrawRotation(float amount)=>Quaternion.Euler(14*(1-Ease(amount)),0,0);
 
