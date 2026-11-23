@@ -24,7 +24,7 @@ The supplied Kenney/Poly Haven websites are sources, not game branding.
 | Asset | Creator / source | License and integration |
 |---|---|---|
 | Tavern bar, table, chair, shelf, door, window, cup, plate | [Donnee](https://donnee.itch.io/3d-tavern-pack) | Creator page explicitly CC0; archive Readme retained. Runtime meshes use simplified materials/256 px textures. |
-| Ale mug | [Frakassets / Pixor](https://pixor.art/library/food/mug-ale/) | CC0 on creator page; original GLB retained, exported FBX. Visible on tables and when carried/drunk. |
+| Ale mug | [Frakassets / Pixor](https://pixor.art/library/food/mug-ale/) | CC0 on creator page; original GLB retained, exported FBX. Original candidate, now unused; replaced by the OpenDungeons tankard below. |
 | Office Safe | [Grab3D](https://grab3d.com/models/props/office-safe/) | CC0; original license and origin JSON retained. Procedural geometry, AI-assisted generator code disclosed by creator. Decimated to 3,724 triangles. Visual/collision only; no robbery action yet. |
 | Colt lowpoly revolver | [TimDev / OpenGameArt](https://opengameart.org/content/colt-lowpoly-revolver) | CC BY 4.0; FBX/texture adaptation. Attribution included in the pause menu and Resources/AssetCredits.txt. Replaces first/third-person placeholder gun. |
 | WRAD ARMS | [wriks](https://wriks.itch.io/wrad-arms) | CC0 LICENSE and README retained. Rig imported for animation work; not yet fitted to the live weapon/drink poses. |
@@ -62,16 +62,16 @@ runtime PCM WAV copies, source URLs and hashes are under `Assets/Resources/Audio
 |---|---|---|
 | Reload | Clean Revolver Reload — Dredile | [Clean Revolver Reload](https://freesound.org/people/Dredile/sounds/177863/) |
 | Drinking | Water_Drink.wav — Q.K. | [Water_Drink.wav](https://freesound.org/people/Q.K./sounds/56270/) |
-| Hoofbeats | Horse Galloping.wav — Max_Headroom | [Horse Galloping.wav](https://freesound.org/people/Max_Headroom/sounds/175356/) |
-| DistantShot | Distant Gunshot — Resaural | [Distant Gunshot](https://freesound.org/people/Resaural/sounds/541164/) |
+| Archived Hoofbeats source (not bundled) | Horse Galloping.wav — Max_Headroom | [Horse Galloping.wav](https://freesound.org/people/Max_Headroom/sounds/175356/) |
+| Archived DistantShot source (not bundled) | Distant Gunshot — Resaural | [Distant Gunshot](https://freesound.org/people/Resaural/sounds/541164/) |
 
 License: https://creativecommons.org/publicdomain/zero/1.0/
 
 Changes: mono conversion, loudness adjustment and short edge fades. Drinking uses
 pitch-preserving tempo adjustment to retain the full performance in the 2.5-second
-action. Horse audio has rumble filtering and an 80 ms loop crossfade. Runtime
-approach uses a gradual volume increase and distance filtering, without speeding
-up the horse recording or restarting it at every warning stage.
+action. The retired hoofbeat and distant-shot originals remain archived in
+ArtSource for provenance; their runtime WAVs, playback and arrival warnings were
+removed on 2026-11-23. The preparation script now exports only active recordings.
 Reproduce with `python3 Tools/prepare_library_audio.py` (ffmpeg required).
 
 
@@ -121,3 +121,31 @@ indoor directional sun, used a neutral three-color ambient fill, reduced indoor
 fog and timber gloss, and raised the low/medium/high pixel-light budgets to 2/4/8.
 The existing saved interior is migrated on startup, as well as fresh procedural rooms.
 The sunset's outdoor light remains isolated on its own layer.
+
+## Replacement beer tankard — 2026-11-23
+
+The tray, table decorations and first/third-person drinking views now use the mug
+from [Dwarf Beer Barrel [OpenDungeons] by eugeneloza](https://opengameart.org/content/dwarf-beer-barrel-opendungeons),
+released by its creator under [CC0](https://creativecommons.org/publicdomain/zero/1.0/).
+This replaces the previous Pixor ale mug. The original archive, Blender file,
+texture, source URL and SHA256 hashes are retained in `ArtSource/Beer/`.
+
+`Tools/import_beer_mug.py` extracts the 84-vertex mug without the barrel, tap or
+stool, preserves its UVs, resizes the texture to 512 px and adds an original beer/foam surface inside the rim. Run with Blender
+`--background --factory-startup --disable-autoexec --python Tools/import_beer_mug.py`.
+Runtime derivatives: `Assets/Resources/Art/LowPoly/BeerMug.fbx` and
+`Textures/BeerMug_Tankard.png`. Saved scene table mugs migrate at startup too.
+
+
+## Toilet Foley — 2026-11-23
+
+- Plunger suction: [Breviceps — Cartoon - Smoochy Squeak + Plop](https://freesound.org/people/Breviceps/sounds/444494/).
+- Gurgling water: [harrisonlace — toilet bubbles](https://freesound.org/people/harrisonlace/sounds/830332/).
+- Flush: [buzzatsea — sound toilet flushing - homemade.wav](https://freesound.org/people/buzzatsea/sounds/427906/).
+
+All three creators publish these recordings under CC0 1.0. Public HQ preview
+files and SHA-256 hashes are retained in ArtSource/Audio/Toilet/. Runtime mono
+PCM WAVs, credits, processing filters and hashes are in Assets/Resources/Audio/Toilet/.
+Reproduce the trims, normalization and fades with Tools/prepare_toilet_audio.py.
+The plunger recording is sped up to fit the existing 0.4-second stroke. Gurgle
+and flush recordings are trimmed for gameplay. No synthesized Foley is used.

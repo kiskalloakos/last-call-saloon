@@ -55,7 +55,7 @@ namespace Saloon
             Check(hero.shots==1&&motion.CurrentAnimation=="Shooting","real shot drives the new rig's recoil (shots="+hero.shots+", pose="+motion.CurrentAnimation+")");yield return Capture("05-shooting");
             yield return new WaitForSeconds(.32f);yield return Capture("06-revolver-flip");yield return new WaitForSeconds(.9f);
             rounds.Start(players.Keys,Time.time,0,60,6);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
-            hero.yaw=180;hero.drawn=false;hero.hp=40;hero.beer=1;hero.beerHealing=SaloonHealth.BeerHealing;hero.lastAction=-100;OnCommand(hero.id,new Command{kind="drink"});Broadcast();
+            hero.yaw=180;hero.drawn=false;hero.hp=40;hero.beer=1;hero.beerHealing=SaloonHealth.BeerHealing;hero.lastAction=-100;MoveToBeerTrayForVerification(hero);OnCommand(hero.id,new Command{kind="interact"});Broadcast();
             yield return new WaitForSeconds(tuning.drinkSeconds*.3f);
             Check(motion.CurrentAnimation=="Drinking"&&hero.busyAction=="drink","real drink lifts the mug and animates the character");yield return Capture("07-drinking");
             var mug=avatar.GetComponentsInChildren<Transform>().First(t=>t.name=="Mug visual");

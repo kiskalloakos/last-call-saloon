@@ -13,6 +13,15 @@ namespace Saloon
             var humans=players.Values.Where(p=>!p.bot&&p.Alive).OrderBy(p=>p.id).ToArray();
             bool BotSpace(int room,Participant first,Participant second)=>HasPlanSpace(room,first,second)&&
                 !bots.Any(b=>b!=first&&b!=second&&!rounds.IsReady(b.id)&&b.chosenRoom==room&&humans.Any(h=>h.id==b.companion&&!rounds.IsReady(h.id)));
+            // Announce before pairing anyone away: this intent is public to humans too.
+            foreach(var carrier in bots.Where(p=>p.bag&&p.bagRound<rounds.Round))
+            {DeclareEscape(carrier);TryReady(carrier,true);}
+            if(players.Values.Any(p=>p.Alive&&p.escapePlanned))
+            {
+                var guard=bots.FirstOrDefault(p=>!p.bag&&(p.role==Role.Sheriff||p.role==Role.Deputy||p.role==Role.Renegade)&&
+                    !humans.Any(h=>h.companion==p.id||p.companion==h.id));
+                if(guard!=null){SetRoomPlan(guard,0,null);TryReady(guard,true);}
+            }
             // Locked plans stay stable, exactly like human reservations.
             foreach(var human in humans.Where(p=>!rounds.IsReady(p.id)&&p.companion.HasValue))
             {
@@ -41,13 +50,14 @@ namespace Saloon
                 if(!bot.bag&&peer!=null)
                 {
                     int preferred=PracticeRoomCycle[(i+rounds.Round-1)%PracticeRoomCycle.Length];
-                    room=Enumerable.Range(0,3).Select(n=>1+(Math.Max(1,preferred)-1+n)%3).FirstOrDefault(r=>BotSpace(r,bot,peer));
+                    // Keep the smoking deck available for players' plans.
+                    room=Enumerable.Range(0,3).Select(n=>1+(Math.Max(1,preferred)-1+n)%3).FirstOrDefault(r=>r!=3&&BotSpace(r,bot,peer));
                 }
                 if(room>0)
                 {
                     SetRoomPlan(bot,room,peer.id);SetRoomPlan(peer,room,bot.id);TryReady(bot,true);
                 }
-                else {SetRoomPlan(bot,0,null);TryReady(bot,true);}
+                else {SetRoomPlan(bot,0,null);if(bot.bag)DeclareEscape(bot);TryReady(bot,true);}
             }
         }
     }

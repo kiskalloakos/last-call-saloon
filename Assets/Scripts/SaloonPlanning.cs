@@ -28,6 +28,11 @@ namespace Saloon
             if(invitation!=null)EditRoom(invitation.room,invitation.fromId,"joinInvite",invitation.planVersion,true);
         }
 
+        public void ChooseEscape(bool attempt)
+        {
+            if(Self?.alive!=true||View?.phase!=Phase.Discussion)return;
+            Connection.Send(new Command{kind=attempt?"escape":"cancelEscape",planVersion=++nextPlanVersion,planRound=View.round});
+        }
         public void LeaveForRoom(int room,string companion="")=>EditRoom(room,companion,"planReady",0,true);
 
         void ResetPlanDraft(){hasPlanDraft=draftReady=false;draftRound=-1;draftRoom=0;draftCompanion="";draftVersion=0;}

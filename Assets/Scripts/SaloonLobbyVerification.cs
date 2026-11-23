@@ -15,6 +15,8 @@ namespace Saloon
         public IEnumerator VerifyEditorLobby()
         {
             verifying=true;AutomatedInput=true;VerificationFinished=false;VerificationPassed=false;
+            PlayerName="Eight-player host";
+            players[Connection.LocalId].name=PlayerName;
             var clients=new List<SaloonConnection>();
             var snapshots=new Dictionary<SaloonConnection,Snapshot>();
             void Cleanup()
@@ -45,7 +47,8 @@ namespace Saloon
             }
             void Deck(int count)
             {
-                Check(players.Count==count&&players.Values.Count(p=>p.role==Role.Sheriff)==1&&players.Values.Count(p=>p.role==Role.Deputy)==1&&players.Values.Count(p=>p.role==Role.Renegade)==1&&players.Values.Count(p=>p.role==Role.Outlaw)==count-3,count+"-player match has the exact requested roles");
+                var expected=SaloonRules.DeckFor(count,players.Values.Single(p=>SaloonRules.IsIndependent(p.role)).role);
+                Check(players.Count==count&&expected.All(role=>players.Values.Count(p=>p.role==role)==expected.Count(r=>r==role)),count+"-player match has the exact requested roles");
             }
             IEnumerator PlayRound(int count)
             {
@@ -53,6 +56,9 @@ namespace Saloon
                 foreach(var c in clients)c.Send(new Command{kind="voice",name="editor-voice-"+c.LocalId});
                 yield return Wait(()=>clients.All(c=>players[c.LocalId].voiceId=="editor-voice-"+c.LocalId),"voice identities arrive over reliable LAN commands");
                 StartMatch();Deck(count);
+                Check(players.Values.Select(p=>p.body.transform.position).Distinct().Count()==count,"discussion positions are distinct for all "+count+" players");
+                Check(BeerTaps.transform.Find("Shared beer tray")!=null,"the shared ready-beer tray exists");
+                Check(FindObjectsByType<InteractionPoint>().Where(p=>p.kind==InteractionKind.Seat).Select(p=>p.index).Distinct().Count()==20,"all twenty seat interaction IDs are unique");
                 yield return Wait(()=>clients.All(c=>snapshots.TryGetValue(c,out var s)&&s.phase==Phase.Discussion&&s.players.Length==count),count+"-player discussion reaches all LAN clients");
                 Check(clients.All(c=>snapshots[c].ownRole==players[c.LocalId].role.ToString()&&snapshots[c].players.Count(p=>p.sheriff)==1&&snapshots[c].players.All(p=>SaloonRules.KnowsRole(players[c.LocalId].role,players[ulong.Parse(p.id)].role)?p.revealedRole==players[ulong.Parse(p.id)].role.ToString():p.revealedRole=="")&&!snapshots[c].botsEnabled),"private roles and no-bots mode survive the wire");
                 Check(clients.All(c=>snapshots[c].players.Where(p=>p.id!=LocalId).All(p=>p.voiceId=="editor-voice-"+p.id)),"all LAN clients map each voice ID to the correct avatar");
@@ -87,39 +93,60 @@ namespace Saloon
             Check(!CanStartMatch,"one human cannot start a no-bots match");
             for(int n=2;n<=4;n++){Connect();int expected=n;yield return Wait(()=>HumanCount==expected,"human "+n+" joins over UDP");}
             Check(CanStartMatch,"four humans can start without filling a fifth place");
-            MenuOpen=true;Broadcast();yield return new WaitForEndOfFrame();
+            MenuOpen=true;Broadcast();yield return null;
             string directory=Path.Combine(Path.GetTempPath(),"SaloonPrototype-EditorPreview");Directory.CreateDirectory(directory);
             ScreenCapture.CaptureScreenshot(Path.Combine(directory,"lobby-four-no-bots.png"));
             yield return PlayRound(4);
-            Connect();yield return Wait(()=>HumanCount==5&&phase==Phase.Lobby,"fifth human reopens the lobby after a match");
+            Act("lobby");Connect();yield return Wait(()=>HumanCount==5&&phase==Phase.Lobby,"fifth human joins after returning to the lobby");
             Check(CanStartMatch,"five humans can start without bots");yield return PlayRound(5);
             for(int n=6;n<=8;n++)
             {
-                Connect();int expected=n;yield return Wait(()=>HumanCount==expected,"human "+n+" joins within the eight-place lobby");
-                Check(!CanStartMatch,"undefined "+n+"-player deck cannot start");StartMatch();Check(phase==Phase.Lobby,"unsupported start keeps everyone in the lobby");
+                Act("lobby");Connect();int expected=n;yield return Wait(()=>HumanCount==expected,"human "+n+" joins within the eight-place lobby");
+                Check(CanStartMatch,n+" humans can start without bots");
+                yield return PlayRound(n);
+                if(n==8)
+                {
+                    MenuOpen=false;Broadcast();yield return null;
+                    ScreenCapture.CaptureScreenshot(Path.Combine(directory,"results-eight.png"));
+                    yield return null;
+                }
             }
+            ReopenLobby();MenuOpen=true;Broadcast();yield return null;
+            ScreenCapture.CaptureScreenshot(Path.Combine(directory,"lobby-eight.png"));
             yield return Wait(()=>clients.All(c=>snapshots.TryGetValue(c,out var s)&&s.players.Length==8&&s.lobbyCapacity==8),"eight-player lobby roster reaches all peers");
             Check(players.Values.Select(p=>p.body.transform.position).Distinct().Count()==8,"eight lobby participants have separate spawn positions");
             var ninth=Connect();yield return Wait(()=>!ninth.Manager.IsListening,"ninth player is rejected");
             Check(ninth.Status.Contains("full")&&HumanCount==8&&clients.Where(c=>c!=ninth).All(c=>c.Connected),"full-lobby rejection preserves all eight existing connections");
-            Cleanup();yield return Wait(()=>HumanCount==1,"disconnecting test clients leaves only the host");
+            clients.Remove(ninth);ninth.Manager.Shutdown();Destroy(ninth.Manager.gameObject);Destroy(ninth.gameObject);
+            Cleanup();
+            yield return Wait(()=>players.Values.Where(p=>p.id!=Connection.LocalId).All(p=>p.disconnectedUntil>0),"disconnected test clients enter the reconnect grace period");
+            foreach(var p in players.Values.Where(p=>p.id!=Connection.LocalId))p.disconnectedUntil=Time.realtimeSinceStartup-1;
+            TickServer();yield return Wait(()=>HumanCount==1,"expired test reservations leave only the host");
             SetBotsEnabled(true);SetBotMatchSize(4);
             Check(PlayerCount==1&&CanStartMatch,"bots wait until Start so friends can join first");
-            MenuOpen=true;Broadcast();yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(directory,"lobby-four-with-bots.png"));
+            MenuOpen=true;Broadcast();yield return null;ScreenCapture.CaptureScreenshot(Path.Combine(directory,"lobby-four-with-bots.png"));
             StartMatch();Deck(4);Check(HumanCount==1&&players.Values.Count(p=>p.bot)==3,"four-player bot mode fills exactly three missing places");
             Finish("LOBBY VERIFICATION: BOTS");SetBotsEnabled(false);
             Check(phase==Phase.Lobby&&PlayerCount==1&&!CanStartMatch,"turning bots off removes them and prevents an underfilled start");
             StartMatch();Check(PlayerCount==1&&phase==Phase.Lobby,"no-bots Start never silently fills places");
             SetBotsEnabled(true);SetBotMatchSize(5);StartMatch();Deck(5);
             Check(players.Values.Count(p=>p.bot)==4,"five-player bot mode fills exactly four missing places");
-            Finish("LOBBY VERIFICATION: BOT REPLACEMENT");Connect();
+            Finish("LOBBY VERIFICATION: BOT REPLACEMENT");Act("lobby");Connect();
             yield return Wait(()=>HumanCount==2&&phase==Phase.Lobby,"a friend can join after a practice match");
             Check(PlayerCount==5&&players.Values.Count(p=>p.bot)==3,"a joining human replaces one bot");
             SetBotMatchSize(4);StartMatch();Deck(4);
             Check(HumanCount==2&&players.Values.Count(p=>p.bot)==2,"switching from five to four trims only surplus bots");
-            Finish("LOBBY VERIFICATION COMPLETE");Cleanup();
-            Debug.Log("SALOON_LOBBY PASS real LAN four/five-player rounds, exact roles, eight-place capacity, ninth rejection, bot settings and replacement; previews="+directory);
-            VerificationPassed=true;VerificationFinished=true;
+            Finish("LOBBY VERIFICATION COMPLETE");
+            for(int count=6;count<=8;count++)
+            {
+                SetBotMatchSize(count);StartMatch();Deck(count);
+                Check(HumanCount==2&&PlayerCount==count,"bot fill reaches "+count+" without removing humans");
+                Finish("LOBBY VERIFICATION: BOT FILL");
+            }
+            ReopenLobby();MenuOpen=true;Broadcast();yield return null;
+            ScreenCapture.CaptureScreenshot(Path.Combine(directory,"lobby-eight-bots.png"));yield return null;
+            Debug.Log("SALOON_LOBBY PASS real LAN four-to-eight-player rounds, exact roles, distinct seating, eight-place capacity, ninth rejection, bot settings and replacement; previews="+directory);
+            Cleanup();VerificationPassed=true;VerificationFinished=true;
         }
     }
 }

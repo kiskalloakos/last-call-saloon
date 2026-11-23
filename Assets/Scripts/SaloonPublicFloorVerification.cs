@@ -34,7 +34,7 @@ namespace Saloon
                 Assign(new[]{1,1,3,3});
                 Check(phase==Phase.Turns&&host.room==0&&players.Values.Count(p=>p.Alive&&p.room==0)==1,"explicit Bar choice can start alone");
                 Check(peers[0].room==1&&peers[1].room==1&&peers[2].room==3&&peers[3].room==3,"a solo Bar leaves both side-room pairs in their chosen destinations");
-                Check(host.escapeRound==1&&View.actionAvailable,"solo Bar preserves the carrier's escape and available action");
+                Check(host.bag&&View.actionAvailable,"solo Bar preserves the carrier's money and available action");
                 Check(!View.players.Any(p=>p.id==peers[2].id.ToString()||p.id==peers[3].id.ToString()),"private smoking activity stays separate from the solo Bar");
                 Assign(new[]{1,2,3,3});
                 Check(host.room==0&&peers[0].room==0&&peers[1].room==0,"only unmatched side-room occupants fall back to the Bar");
@@ -53,6 +53,27 @@ namespace Saloon
                 UpdatePlayerColliders(host);host.controller.enabled=true;Physics.SyncTransforms();
                 Check(SaloonMovement.InRoom(new Vector3(0,.08f,-2.4f),0)&&SaloonMovement.InRoom(new Vector3(0,.08f,-6.4f),0),"Bar movement includes the back of the center table and entrance aisle");
                 Check(!SaloonMovement.InRoom(new Vector3(-5,.08f,-3.8f),0)&&!SaloonMovement.InRoom(new Vector3(5,.08f,-3.8f),0),"public walking area excludes both private minigame interiors");
+                foreach(float side in new[]{-1f,1f})
+                {
+                    Check(!SaloonMovement.InRoom(new Vector3(side*5,.08f,-6.4f),0),"Bar bounds exclude the rear passage on side "+side);
+                    Check(!SaloonMovement.InRoom(new Vector3(side*7.5f,.08f,-3.8f),0),"Bar bounds exclude the outer passage on side "+side);
+                }
+                SaloonRoomWindows.Apply();SaloonRoomWindows.Apply();
+                var infill=GameObject.Find("Saloon World").transform.Find("Room perimeter infill");
+                Check(infill!=null&&infill.GetComponentsInChildren<BoxCollider>().Length==4,"saved room layout gains four solid infill walls without duplicates");
+                var probe=new GameObject("Room perimeter collision probe");
+                var controller=probe.AddComponent<CharacterController>();controller.height=1.8f;controller.radius=.3f;controller.skinWidth=.02f;
+                foreach(float side in new[]{-1f,1f})
+                {
+                    // Direct controller moves bypass the room clamp, as lobby walking does.
+                    controller.enabled=false;probe.transform.position=new Vector3(side*7.5f,1,-.9f);controller.enabled=true;
+                    Physics.SyncTransforms();controller.Move(Vector3.back*3);
+                    Check(probe.transform.position.z>-1.5f,"physical wall closes the outer gap from the Bar on side "+side);
+                    controller.enabled=false;probe.transform.position=new Vector3(side*2.4f,1,-6.35f);controller.enabled=true;
+                    Physics.SyncTransforms();controller.Move(Vector3.right*side*3.5f);
+                    Check(Mathf.Abs(probe.transform.position.x)<2.9f,"physical wall closes the rear gap from the entrance on side "+side);
+                }
+                probe.SetActive(false);Destroy(probe);
                 IEnumerator WalkTo(Vector3 target)
                 {
                     float until=Time.time+4;

@@ -6,22 +6,24 @@ namespace Saloon
 {
     public static class SaloonSunset
     {
+        public const int EntranceLayer=15;
         public static readonly Vector3 Direction=new Vector3(1,.065f,.18f).normalized;
-        public static void Build(Transform yard)
+        public static void Build(Transform yard,int layer=SaloonSmokingArea.OutdoorLayer)
         {
             var vista=new GameObject("Wild West sunset overlook").transform;vista.SetParent(yard,false);
             var sky=GameObject.CreatePrimitive(PrimitiveType.Sphere);sky.name="Apricot and violet sunset sky";
             sky.transform.SetParent(vista,false);sky.transform.localScale=Vector3.one*230;RemoveCollider(sky);
             var skyMaterial=new Material(Resources.Load<Shader>("Shaders/SaloonSunset")){name="Desert sunset sky"};
-            skyMaterial.SetVector("_Center",vista.position);skyMaterial.SetVector("_SunDirection",Direction);
+            var sunDirection=vista.TransformDirection(Direction);
+            skyMaterial.SetVector("_Center",vista.position);skyMaterial.SetVector("_SunDirection",sunDirection);
             var skyRenderer=sky.GetComponent<Renderer>();skyRenderer.sharedMaterial=skyMaterial;
             skyRenderer.shadowCastingMode=ShadowCastingMode.Off;skyRenderer.receiveShadows=false;
-            var dust=Mat("Sunset sand",new Color(.58f,.33f,.19f));
-            var far=Mat("Distant violet mesas",new Color(.26f,.19f,.29f));
-            var middle=Mat("Dusk terracotta mesas",new Color(.43f,.23f,.24f));
-            var near=Mat("Warm sandstone",new Color(.56f,.29f,.17f));
-            var cactus=Mat("Desert sage silhouettes",new Color(.13f,.20f,.16f));
-            var rock=Mat("Desert ochre rocks",new Color(.39f,.25f,.17f));
+            var dust=Mat("Sunset sand",new Color(.78f,.43f,.22f));
+            var far=Mat("Distant violet mesas",new Color(.40f,.28f,.52f));
+            var middle=Mat("Dusk terracotta mesas",new Color(.64f,.29f,.30f));
+            var near=Mat("Warm sandstone",new Color(.79f,.38f,.19f));
+            var cactus=Mat("Desert sage silhouettes",new Color(.16f,.36f,.23f));
+            var rock=Mat("Desert ochre rocks",new Color(.62f,.36f,.19f));
             // Broad, gently rising desert; decorative terrain has no gameplay collision.
             var ground=new GameObject("Desert fading into the horizon");ground.transform.SetParent(vista,false);
             var groundMesh=new Mesh();var vertices=new List<Vector3>();var triangles=new List<int>();
@@ -58,10 +60,19 @@ namespace Saloon
                 else Mesa(vista,p,new Vector3(.3f+(float)random.NextDouble()*.6f,.25f+(float)random.NextDouble()*.45f,.45f),rock,i+50);
             }
             var sunset=new GameObject("Last light over the desert");sunset.transform.SetParent(vista,false);
-            sunset.transform.rotation=Quaternion.LookRotation(-Direction);
-            var light=sunset.AddComponent<Light>();light.type=LightType.Directional;light.color=new Color(1,.47f,.23f);
-            light.intensity=1.4f;light.shadows=LightShadows.Soft;light.cullingMask=1<<SaloonSmokingArea.OutdoorLayer;
-            SaloonSmokingArea.SetLayer(vista,SaloonSmokingArea.OutdoorLayer);
+            sunset.transform.rotation=Quaternion.LookRotation(-sunDirection);
+            var light=sunset.AddComponent<Light>();light.type=LightType.Directional;light.color=new Color(1,.70f,.42f);
+            light.intensity=1.6f;light.shadows=LightShadows.Soft;light.cullingMask=1<<layer;
+            SaloonSmokingArea.SetLayer(vista,layer);
+        }
+        public static void ApplyEntrance()
+        {
+            if(GameObject.Find("Saloon entrance sunset")!=null)return;
+            // The front gets the same desert vista, rotated toward the doorway.
+            // It contains scenery only; the private back deck uses another layer.
+            var root=new GameObject("Saloon entrance sunset").transform;
+            root.position=new Vector3(0,0,-9);root.rotation=Quaternion.Euler(0,90,0);
+            Build(root,EntranceLayer);SaloonSurfaces.Apply(root);
         }
         static Material Mat(string name,Color color)=>SaloonWorld.Material(name,color);
         static void RemoveCollider(GameObject go)

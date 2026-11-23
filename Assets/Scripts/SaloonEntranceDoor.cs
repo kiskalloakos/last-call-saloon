@@ -8,7 +8,8 @@ namespace Saloon
         public static SaloonEntranceDoor Build()
         {
             var world=GameObject.Find("Saloon World");
-            var existing=world.GetComponentInChildren<SaloonEntranceDoor>();if(existing!=null)return existing;
+            var existing=world.GetComponentInChildren<SaloonEntranceDoor>();
+            if(existing!=null){existing.PlaceLeaves();return existing;}
             var root=new GameObject("Saloon entrance doors");root.transform.SetParent(world.transform,false);root.transform.position=Position;
             var door=root.AddComponent<SaloonEntranceDoor>();
             Transform Leaf(string name,float hinge,float center)
@@ -19,8 +20,21 @@ namespace Saloon
                 return pivot;
             }
             Leaf("Left entrance hinge",-1.5f,.75f);Leaf("Right entrance hinge",1.5f,-.75f);
-            // The entrance stays closed. Room selection is the only route to the private deck.
+            door.PlaceLeaves();
+            // Half-height doors frame the sunset; full-height collision keeps room selection
+            // as the only route to the private back deck.
             SaloonSmokingArea.SetLayer(root.transform,SaloonSmokingArea.IndoorLayer);return door;
+        }
+        void PlaceLeaves()
+        {
+            foreach(var solid in GetComponentsInChildren<BoxCollider>())
+            {
+                var model=solid.transform;model.localPosition=new Vector3(model.localPosition.x,.32f,0);
+                model.localScale=new Vector3(1,1.05f/2.94f,1);
+                // Collider dimensions compensate for the shorter visual model.
+                solid.center=Vector3.up*((1.47f-.32f)/model.localScale.y);
+                solid.size=new Vector3(1.52f,2.94f/model.localScale.y,.16f);
+            }
         }
     }
 }

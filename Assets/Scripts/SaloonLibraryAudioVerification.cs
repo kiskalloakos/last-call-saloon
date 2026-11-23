@@ -14,7 +14,7 @@ namespace Saloon
             void Check(bool ok,string text)
             {if(!ok){VerificationFinished=true;throw new InvalidOperationException("Library audio: "+text);}Debug.Log("SALOON_LIBRARY_AUDIO_CHECK "+text);}
             yield return null;
-            foreach(var clip in new[]{SaloonLibraryAudio.Reload,SaloonLibraryAudio.Drinking,SaloonLibraryAudio.Hoofbeats,SaloonLibraryAudio.DistantShot,SaloonLibraryAudio.RevolverShot})
+            foreach(var clip in new[]{SaloonLibraryAudio.Reload,SaloonLibraryAudio.Drinking,SaloonLibraryAudio.RevolverShot})
             {
                 var samples=new float[clip.samples*clip.channels];bool loaded=clip.GetData(samples,0);
                 Check(loaded&&clip.channels==1&&clip.frequency==44100&&samples.Any(v=>Mathf.Abs(v)>.05f)&&samples.All(v=>!float.IsNaN(v)&&Mathf.Abs(v)<.75f),clip.name+" is a bundled, non-silent recording with bounded peaks");
@@ -36,7 +36,7 @@ namespace Saloon
             var avatar=avatars[host.id.ToString()];
             var drink=avatar.GetComponents<AudioSource>().Single(a=>a.clip==SaloonBeerAudio.Drinking);
             Check(!drink.playOnAwake&&!drink.isPlaying,"avatars do not drink audibly when they spawn");
-            host.hp=80;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;OnCommand(host.id,new Command{kind="drink"});Broadcast();yield return new WaitForSeconds(.15f);
+            host.hp=80;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;MoveToBeerTrayForVerification(host);OnCommand(host.id,new Command{kind="interact"});Broadcast();yield return new WaitForSeconds(.15f);
             Check(drink.isPlaying&&Mathf.Abs(drink.pitch-1)<.01f&&drink.spatialBlend==0,"real drink plays the recording at natural pitch for the local player");
             yield return new WaitForSeconds(tuning.drinkSeconds+.1f);
             Check(host.hp==100&&!drink.isPlaying,"beer heals once when the recorded drinking action finishes");
@@ -45,20 +45,9 @@ namespace Saloon
             Check(reload.isPlaying&&!reload.playOnAwake&&Mathf.Abs(reload.pitch-SaloonGunAudio.Reload.length/tuning.reloadSeconds)<.01f,"real reload plays the downloaded cylinder recording in sync with the action");
             yield return new WaitForSeconds(tuning.reloadSeconds+.1f);
             Check(host.ammo==tuning.cylinder&&!reload.isPlaying,"reload completion refills ammo and stops the recording");
-            Window();host.hp=20;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;OnCommand(host.id,new Command{kind="drink"});Broadcast();yield return new WaitForSeconds(.15f);TakeDamage(host);Broadcast();yield return null;
+            Window();host.hp=20;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;MoveToBeerTrayForVerification(host);OnCommand(host.id,new Command{kind="interact"});Broadcast();yield return new WaitForSeconds(.15f);TakeDamage(host);Broadcast();yield return null;
             Check(!drink.isPlaying&&host.hp==0,"lethal interruption stops the drinking recording without revival");
-            Window();nextBroadcast=Time.unscaledTime+30;View.posseStage=1;MenuOpen=false;
-            yield return new WaitForSeconds(.35f);
-            var horses=GetComponents<AudioSource>().Single(a=>a.clip==SaloonLibraryAudio.Hoofbeats);
-            Check(horses.isPlaying&&horses.loop&&horses.pitch==1&&horses.volume>0,"backup warning uses the recorded gallop at its original pitch with a fade-in");
-            float position=horses.time;View.posseStage=2;yield return new WaitForSeconds(.15f);
-            Check(horses.isPlaying&&horses.time>position,"warning progression does not restart the gallop loop");
-            View.posseStage=4;yield return new WaitForSeconds(2.2f);
-            Check(GetComponents<AudioSource>().Any(a=>!a.loop&&a.isPlaying),"arrival plays a recorded distant gunshot alongside the horses");
-            View.phase=Phase.Finished;yield return null;yield return null;
-            Check(GetComponents<AudioSource>().All(a=>!a.isPlaying),"results stop all backup arrival audio");
-            Check(SaloonLibraryAudio.Hoofbeats!=null&&SaloonLibraryAudio.DistantShot!=null,"stopping arrival keeps shared imported clips available");
-            Debug.Log("SALOON_LIBRARY_AUDIO PASS recorded resources, peaks, startup silence, real drink/reload timing, lethal interruption and staged backup playback");
+            Debug.Log("SALOON_LIBRARY_AUDIO PASS recorded resources, peaks, startup silence, real drink/reload timing, lethal interruption");
             VerificationFinished=VerificationPassed=true;
         }
     }

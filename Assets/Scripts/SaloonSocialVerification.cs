@@ -75,8 +75,8 @@ namespace Saloon
             Check(PrivateSnapshot(host.id).safeReport==report&&report.Contains("money inside"),"inspection is a last-known report, not live theft telemetry");
             Actions(false);host.controller.enabled=false;host.body.transform.position=SafeApproach;Physics.SyncTransforms();peer.bag=true;safeProgress=3;InspectSafe(host);
             Check(host.safeReport.Contains("money missing")&&!rounds.CanAct(host.id,Time.time),"Sheriff inspection finds missing money and spends one action");
-            Check(players.Values.Where(p=>p!=host).All(p=>string.IsNullOrEmpty(PrivateSnapshot(p.id).safeReport)&&PrivateSnapshot(p.id).safeProgress==(p.role==Role.Outlaw?3:-1)),"inspection reports stay Sheriff-private while Outlaws share live safe progress");
-            InspectSafe(peer);Check(rounds.CanAct(peer.id,Time.time),"non-Sheriff inspection rejected without spending action");
+            Check(players.Values.Where(p=>p!=host).All(p=>string.IsNullOrEmpty(PrivateSnapshot(p.id).safeReport)&&PrivateSnapshot(p.id).safeProgress==(p.role==Role.Outlaw?3:-1)),"inspection reports stay private to their author while Outlaws share live safe progress");
+            InspectSafe(peer);Check(rounds.CanAct(peer.id,Time.time),"Outlaw inspection rejected without spending action");
             Check(events.Count==eventsBefore,"inspection and concealed theft create no global event");
             Debug.Log("SALOON_SOCIAL PASS");
         }

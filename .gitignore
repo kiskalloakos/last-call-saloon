@@ -17,3 +17,13 @@ Assets/Resources/Art/Western.meta
 Assets/_Recovery/
 Assets/_Recovery.meta
 __pycache__/
+
+# Local cleanup inventory contains machine-specific paths.
+Documentation/CleanupManifest.json
+
+# Reproducible visual verification artifacts.
+Documentation/*Previews/
+Documentation/*Preview.png
+
+# Unity/Mono process diagnostics are local build output.
+mono_crash.*

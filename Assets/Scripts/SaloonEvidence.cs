@@ -35,7 +35,7 @@ namespace Saloon
         void TickEvidence()
         {
             if(phase!=Phase.Turns){foreach(var p in players.Values)p.safeWatch.Clear();return;}
-            var workers=players.Values.Where(p=>p.busyAction=="rob"&&p.busyUntil>Time.time&&SaloonRules.CanRob(p.role)).ToArray();
+            var workers=players.Values.Where(p=>(p.busyAction=="rob"||p.busyAction=="inspect")&&p.busyUntil>Time.time).ToArray();
             if(workers.Length>0)Physics.SyncTransforms();
             foreach(var witness in players.Values)
             {
@@ -45,7 +45,7 @@ namespace Saloon
                     if(!CanWitnessSafeWork(witness,worker)){witness.safeWatch.Remove(worker.id);continue;}
                     witness.safeWatch.TryGetValue(worker.id,out float watched);
                     watched+=Mathf.Min(Time.deltaTime,.1f);witness.safeWatch[worker.id]=watched;
-                    if(watched>=.75f)NoteEvidence(witness,"Round "+rounds.Round+": you saw "+worker.name+" working the safe. You did not see whether they finished.");
+                    if(watched>=.75f)NoteEvidence(witness,"Round "+rounds.Round+": you saw "+worker.name+" checking the cash drawer. You did not see what they did inside.");
                 }
             }
         }

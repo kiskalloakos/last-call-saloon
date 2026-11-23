@@ -46,6 +46,8 @@ namespace Saloon
             if(mode=="preview")return;
             Game.AutomatedInput=!mode.StartsWith("preview");
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+            if(mode=="release-features"){Game.HostLan(true);StartCoroutine(VerifyCurrentReleaseFeatures());return;}
+            if(mode=="breakables"){Game.HostLan(false);StartCoroutine(VerifyPackagedBreakables());return;}
             if(mode=="presentation"){Game.HostLan(true);StartCoroutine(Game.VerifyPresentation());return;}
             if(mode=="voice-controls"){Game.HostLan(true);StartCoroutine(Game.VerifyVoiceControls());return;}
             if(mode=="model-room-fixes"){Game.tuning.turnSeconds=120;Game.HostLan(true);StartCoroutine(VerifyModelRoomFixes());return;}
@@ -65,6 +67,19 @@ namespace Saloon
             reported=true;resultCode=ok?0:8;quitAfter=Time.unscaledTime+(Game.Hosting?1:.5f);
         }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
+        System.Collections.IEnumerator VerifyCurrentReleaseFeatures()
+        {
+            yield return Game.VerifyCashDrawer();
+            yield return Game.VerifyMedicalSupplies();
+            yield return Game.VerifyToiletDuty();
+            yield return Game.VerifyBluffDice();
+            Debug.Log("SALOON_RELEASE_FEATURES PASS");Application.Quit(0);
+        }
+        System.Collections.IEnumerator VerifyPackagedBreakables()
+        {
+            yield return Game.VerifyBreakableProps();
+            Application.Quit(Game.VerificationPassed?0:8);
+        }
         System.Collections.IEnumerator VerifyModelRoomFixes()
         {
             yield return Game.VerifyModelRoomFixes();
@@ -75,6 +90,11 @@ namespace Saloon
         void Update()
         {
             if(string.IsNullOrEmpty(mode))return;
+            if(mode=="release-features"||mode=="breakables")
+            {
+                if(Time.unscaledTime-started>240){Debug.LogError("SALOON_RELEASE_FEATURES FAIL timeout");Application.Quit(9);}
+                return;
+            }
             if(mode=="voice-controls"||mode=="functional"||mode=="presentation"||mode=="roles"||mode=="model-room-fixes")return;
             if(reported){if(Time.unscaledTime>=quitAfter)Application.Quit(resultCode);return;}
             if(mode=="tab-input")

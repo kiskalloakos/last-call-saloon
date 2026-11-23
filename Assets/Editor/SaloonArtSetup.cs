@@ -56,7 +56,7 @@ public static class SaloonArtSetup
     [MenuItem("Saloon/Verify low-poly art")]
     public static void Verify()
     {
-        foreach(string name in new[]{"Bar","Chair","Table","Shelf","Door","Window","Cup","Plate","Mug","Safe","Revolver","Arms"})
+        foreach(string name in new[]{"Bar","Chair","Table","Shelf","Door","Plate","BeerMug","Safe","Revolver"})
         {
             var prefab=Resources.Load<GameObject>("Art/LowPoly/"+name);
             if(prefab==null||prefab.GetComponentsInChildren<Renderer>().Length==0)throw new Exception("Missing asset: "+name);
@@ -65,6 +65,6 @@ public static class SaloonArtSetup
                     if(mat==null||mat.shader==null||mat.shader.name.Contains("InternalError"))throw new Exception("Invalid material: "+name);
         }
         if(Resources.Load<Texture2D>("Art/LowPoly/Textures/WoodPlanks")==null)throw new Exception("Missing wood texture");
-        Debug.Log("SALOON_LOW_POLY_ART PASS: twelve models, materials, and wood texture");
+        Debug.Log("SALOON_LOW_POLY_ART PASS: nine retained models, materials, and wood texture");
     }
 }

@@ -1,0 +1,13 @@
+Toilet Foley recordings — CC0 1.0 Universal
+https://creativecommons.org/publicdomain/zero/1.0/
+
+Plunger: Breviceps — Cartoon - Smoochy Squeak + Plop
+https://freesound.org/people/Breviceps/sounds/444494/
+Gurgle: harrisonlace — toilet bubbles
+https://freesound.org/people/harrisonlace/sounds/830332/
+Flush: buzzatsea — sound toilet flushing - homemade.wav
+https://freesound.org/people/buzzatsea/sounds/427906/
+
+Public HQ preview recordings were trimmed, converted to mono, normalized,
+and faded for gameplay. Source downloads and hashes: ArtSource/Audio/Toilet.
+Reproduce with python3 Tools/prepare_toilet_audio.py (requires ffmpeg).

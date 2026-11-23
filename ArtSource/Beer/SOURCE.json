@@ -1,0 +1,15 @@
+{
+  "title": "Dwarf Beer Barrel [OpenDungeons] \u2014 tankard subset",
+  "author": "eugeneloza",
+  "source": "https://opengameart.org/content/dwarf-beer-barrel-opendungeons",
+  "download": "https://opengameart.org/sites/default/files/DwarfBeerBarrel.zip",
+  "license": "CC0 1.0 Universal",
+  "license_url": "https://creativecommons.org/publicdomain/zero/1.0/",
+  "retrieved": "2026-11-23",
+  "changes": "Extracted the 84-vertex mug from the combined mesh; centered at its base; exported to FBX with original UVs; resized the original texture to 512 px. No embedded scripts executed. Added original amber ale and foam geometry fitted inside the source rim.",
+  "sha256": {
+    "DwarfBeerBarrel.zip": "58ce1ae2546780f07e852006451506ee424eb4de84612f6cad3dce08ccc45a2c",
+    "Original/DwarfBeerBarrel.blend": "09e1b6ba81c9ab1877c127f5b647b512ee4f4bcf9efc30263e93220bbb7ca251",
+    "Original/DwarfBeerBarrel_texture4.png": "ac4831511748aacc862424e71e2b3ea2275561a86385c921a1b0fd5e1e0548ee"
+  }
+}

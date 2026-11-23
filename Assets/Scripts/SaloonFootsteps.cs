@@ -21,13 +21,14 @@ namespace Saloon
         }
         public void Tick(Vector3 position,bool alive,bool seated,bool fresh,bool local,bool outside)
         {
+            source.spatialBlend=local?0:1;source.volume=local?.17f:.23f;
             float moved=tracking?Vector3.ProjectOnPlane(position-previous,Vector3.up).magnitude:0;
             previous=position;tracking=true;
             if(outside){distance=0;source.Stop();return;}
             if(!CanStep(alive,seated,fresh,moved)){distance=0;if(!alive||seated||!fresh||moved>=.65f)source.Stop();return;}
             distance+=moved;
             if(distance<.78f)return;distance%=.78f;
-            source.spatialBlend=local?0:1;source.volume=local?.17f:.23f;source.pitch=.97f+(step%3)*.025f;
+            source.pitch=.97f+(step%3)*.025f;
             source.PlayOneShot(wood[step++%wood.Length]);StepsPlayed++;
         }
         public static AudioClip Create(bool outdoors,int seed)

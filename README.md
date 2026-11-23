@@ -1,17 +1,20 @@
-# Last Call — local development build
+# Last Call 0.3.0 — Bluff, Break & Escape
+
+Replayability roadmap and the implemented cash drawer theft: [Replayability reference](Documentation/REPLAYABILITY-README.md).
+
+0.3.0 brings hidden Deputies, a secret Renegade-or-Swindler slot, spoken Bluff Dice, cash-drawer theft, improved escapes, medical opportunities and breakable glass.
 
 For role instructions, refer to [Your role, in simple words](#your-role-in-simple-words).
 
-Test release **0.2.17**, dated 2026-11-14, is available for Windows x64, macOS (Intel and Apple Silicon), and Linux x64.
-All players must use **0.2.17**.
+Test release **0.3.0** is available for Windows x64 and macOS (Intel and Apple Silicon).
+Use **0.3.0** on every computer in the match.
 
-1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.17/LastCall-Windows-0.2.17.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.17/LastCall-macOS-0.2.17.zip), or [Linux x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.2.17/LastCall-Linux-0.2.17.tar.gz).
+1. Download [Windows x64](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.3.0/LastCall-Windows-0.3.0.zip) or [Mac (Intel and Apple Silicon)](https://github.com/kiskalloakos/last-call-saloon/releases/download/v0.3.0/LastCall-macOS-0.3.0.zip).
 2. Extract the complete archive.
 3. On Windows, open `Last Call.exe`. Keep its data folder beside it.
 4. On macOS, open `Last Call.app`.
-5. On Linux, open `Last Call.x86_64` from the extracted `LastCall-Linux` folder.
 
-This release shares safe-work, money, and escape progress between both Outlaws on their character maps, adds a cinematic private role reveal, and includes the current saloon presentation and gameplay fixes. See [release notes and validation](Documentation/RELEASE-0.2.17.md) for checks performed on this version.
+The major update adds player-controlled Bluff Dice throws, three-round drawer theft, an action for the escapee, immediate escape victories, shattering windows and bottles, optional solo healing missions, a playable walkthrough and configurable practice. See the [full 0.3.0 changelog](Documentation/RELEASE-0.3.0.md).
 
 The Mac app is not notarized.
 If macOS requests approval, use the system's Open option.
@@ -21,7 +24,7 @@ This release adds independent head movement, synchronized speech animation, visi
 This release includes these features:
 
 - Discussion and planning with a Ready control.
-- Matches with four or five players, with optional bots.
+- Matches with four to eight players, with optional bots.
 - One Western character model for all players.
 - Combat with damage from headshots only.
 - Movement inside rooms, including bots that stand and dodge.
@@ -42,9 +45,9 @@ This test release includes planner corrections and more disconnect information.
 ## Four devices on LAN
 
 1. Connect all four computers to the same local network. Do not use guest Wi-Fi that isolates devices.
-2. Start **0.2.17 on every computer**.
-3. Select **LOCAL / LAN** on each computer.
-4. On the host computer, select **NO BOTS**.
+2. Start **0.3.0 on every computer**.
+3. Select **Local network** on each computer.
+4. On the host computer, turn **Fill empty seats with bots** off.
 5. Keep port **7777**.
 6. Click **HOST LAN**.
 7. On each other computer, enter the host computer's local IPv4 address, usually `192.168.x.x`.
@@ -58,7 +61,7 @@ This test release includes planner corrections and more disconnect information.
 
 Four people can start without a fifth player or a bot.
 Room actions start when all four players are ready.
-The roles are Sheriff, Deputy, one Outlaw and one Renegade.
+The development-source roles are Sheriff, Deputy, one Outlaw and one independent (Renegade or Swindler).
 
 Game traffic uses UDP.
 Vivox voice also requires an internet connection.
@@ -87,29 +90,28 @@ The content uses Unity's Standard Asset Store EULA. The previous character used 
 
 Discussion, room planning and companion invitations use one panel.
 Select your plan.
-Click **Lock choice** or press **Space**.
+Click **Lock choice** or press **F**. For a solo smoke, select **Have a Smoke** and click **Go alone**.
 Discussion has a 30-second countdown. Everyone locking in starts room actions early.
 Unconfirmed plans return to the Bar when time runs out.
 A plan change clears that player's Ready status.
 
-Mouse look stays active during discussion. Right-click to open or close the room planner; Space readies your plan.
+Mouse look stays active during discussion. Right-click to open or close the room planner; F readies your plan.
 Practice players set their own Ready status.
 They use the bar and side rooms, change plans each round and accept invitations unless they carry the money.
-A headshot against an ally removes 20% health from the shooter and 20% health from the target.
-The Sheriff and Deputy are allies. The Outlaws are allies.
+Headshots damage allies and enemies equally. The shooter takes no reflected damage, and hit feedback does not reveal allegiance.
+The Sheriff and all Deputies are Law allies. All Outlaws are teammates.
 
 The upper-left display always identifies the Sheriff.
 It shows “YOU” for the local Sheriff and an eliminated status after the Sheriff's death.
 Hold **Tab** to read your private role, including when the planning panel is open.
-The Sheriff's Tab card identifies their Deputy, who also has a Deputy label visible to the Sheriff.
+Deputies are hidden from the Sheriff. Neither Law players nor independents receive other players' hidden roles.
 In five-player matches, Outlaws see their teammate's name on the Tab card and an Outlaw label above them. Four-player matches have only one Outlaw.
 
 Hold Tab for a private illustrated story map for your role. Curved trails connect
-circular milestones in a branching layout. Completed milestones turn grey with
-a checkmark; gold highlights and a NEXT panel show your next move. Optional
-support actions have their own side trails. Every milestone explains what to do,
-where to do it and which keys to press directly below the circle. Your private clues and known allies
-remain alongside the map. Progress survives reconnects and resets for a rematch.
+circular milestones. A checkmark shows completed steps. Gold marks the next
+steps. The panel below the map explains what to do next. Use **Back** and **Next**
+in the private information panel to read more clues. Progress survives reconnects and resets
+for a rematch.
 
 Each role has its own map:
 
@@ -133,36 +135,58 @@ A lethal shot starts the ragdoll movement.
 When a room has two players, they initially face each other, including at the bar.
 
 Select **No bots** or **Bots** when you host a LAN match.
-In the lobby, the host can change this setting and select a **4-player** or **5-player** fill target.
+In the lobby, the host can change this setting and select any fill target from **4 to 8 players**.
 Bots fill empty places only when the host starts the match.
-With **No bots**, four humans can start immediately. A fifth human is optional.
+With **No bots**, any group of four to eight humans can start immediately.
 Every human in the lobby joins the match.
 
 | Match size | Roles |
 |---|---|
-| 4 | 1 Sheriff, 1 Deputy, 1 Outlaw, 1 Renegade |
-| 5 | 1 Sheriff, 1 Deputy, 2 Outlaws, 1 Renegade |
+| 4 | 1 Sheriff, 1 Deputy, 1 Outlaw, 1 independent |
+| 5 | 1 Sheriff, 1 Deputy, 2 Outlaws, 1 independent |
+| 6 | 1 Sheriff, 2 Deputies, 2 Outlaws, 1 independent |
+| 7 | 1 Sheriff, 2 Deputies, 3 Outlaws, 1 independent |
+| 8 | 1 Sheriff, 3 Deputies, 3 Outlaws, 1 independent |
 
 The lobby holds **up to 8 human players**, including the host.
-A match currently requires **4 or 5 players**.
-Rules for 6–8 players are planned.
+Both **online rooms and LAN matches support 4–8 players**, including the host.
+The Bar has eight seats and a shared tray of ready-filled beers; the discussion table has eight separate places.
+Coin Flip, Blackjack and Have a Smoke each hold two players.
 The lobby rejects a ninth connection and keeps the existing players connected.
 Friends can replace bots after a match ends.
 Bot settings cannot change during a match.
+Players must use the same build and protocol; earlier five-player builds cannot join these matches.
+
+Development builds can verify three complete rounds with independent processes:
+
+```sh
+python3 Tools/lan_match_test.py --app /absolute/path/to/game --players 8 --logs /tmp/lastcall-lan-8
+python3 Tools/lan_match_test.py --app /absolute/path/to/game --players 8 --online --logs /tmp/lastcall-online-8
+```
+
+Use `--players 4`, `5`, `6`, `7` or `8`. Online verification creates a private Relay room and requires internet.
+The new role distributions still need human balance playtests.
 
 ## Your role, in simple words
+
+In the development source, each match starts with the existing personal role reveal,
+followed by a nine-second **Your matchup** screen using the results-screen portraits.
+It shows the actual match's role counts, your allies and enemies, and which identities
+you need to discover. These are anonymous role slots with role names above the
+portraits: there are no player names, and the order does not match the player roster.
+The first discussion gets its full time after both opening screens.
 
 Hold **Tab** to see your role and objective.
 Tab also works when Discuss & Plan is open.
 The upper-left corner always identifies the Sheriff.
-The Renegade knows everyone’s role. The Sheriff also knows who the Deputy is, and Outlaws know each other. Other hidden roles remain secret.
+Everyone knows the Sheriff. Deputies are hidden, even from the Sheriff. Outlaws know each other; independents receive no hidden role identities. Each match rolls one independent: 50% Renegade, 50% Swindler, kept secret from other players.
 
 At the start of each round, select a room.
 If necessary, select a companion for that room.
-Click **Lock choice** or press **Space**.
+Click **Lock choice** (**Go alone** for Have a Smoke) or press **F**.
 Room actions start when the countdown ends, or early when every living player has locked a plan.
 Wait for your turn.
-You have **one action per round**, such as a shot, safe work, an inspection or a drink.
+You have **one action per round**, such as a shot, a drawer check, an inspection or a drink.
 
 ### Sheriff — protect the money
 
@@ -171,26 +195,24 @@ Everyone knows that you are the Sheriff.
 The game does not automatically identify the Deputy to you.
 HP means health.
 
-1. Select **Bar** to watch the safe.
-2. Press **F** to stand and use **WASD** to walk up to the safe at the counter’s right end. Press **C** beside it on your turn to inspect.
+1. Select **Bar** to watch the cash drawer beside the shared beer tray.
+2. Press **Space** to stand and use **WASD** to walk to the customer-facing side of the counter. Press **C** beside the drawer on your turn to inspect.
 3. Read your private report.
 
-The report shows money inside, signs of robbery or money missing.
-It does not identify the thief.
-A later inspection requires C on a later turn.
+The private report says whether the money is present and whether the drawer changed since your last check.
+It can also report tampering while the money is still present. It does not identify a thief. Any role can inspect, even at full health.
 
 To shoot a suspected enemy:
 
 1. Press **Q** to draw your gun.
 2. Wait for the gun to rise.
 3. Aim at the enemy's head with the mouse.
-4. Click the left mouse button to shoot.
+4. Hold the left mouse button for 0.5 seconds for an accurate shot, or right-click for an instant shot with more spread.
 
 You and the Deputy win if you eliminate every Outlaw and the Renegade.
-You also win if you prevent escape until the last round and at least one of you stays alive.
 **H and X do not work for you**.
 Only Outlaws can rob, collect money or escape with it.
-A headshot against the Deputy also removes **20% health from you**.
+Headshots damage allies and enemies equally. The shooter takes no reflected damage, and hit feedback does not reveal allegiance.
 
 ### Deputy — help the Sheriff
 
@@ -199,96 +221,102 @@ Your role is secret.
 The game does not automatically identify you to the Sheriff.
 
 - Protect the money.
-- Select **Bar** to stay near the safe.
+- Select **Bar** to stay near the cash drawer.
 - For a private conversation, invite someone to a side room.
 - On your turn, press **Q** to draw your gun.
 - Aim at an enemy's head.
-- Click the left mouse button to shoot.
+- Hold the left mouse button for 0.5 seconds for an accurate shot, or right-click for an instant shot with more spread.
 
 **H and X do not work for you**.
 You cannot rob or escape with the money.
-**C does not work for you**. Only the Sheriff can inspect the safe.
-You share the Sheriff's victory conditions, including if the Sheriff dies.
-A headshot against the Sheriff also removes **20% health from you**.
+**C beside the cash drawer inspects it**, just like the Sheriff. Walk up to it during room actions; inspection uses your action and records a private report under **Tab**.
+You share the Sheriff's victory conditions. Keep the Sheriff alive; Sheriff death awards Outlaws unless the Renegade is the sole survivor.
+Headshots damage allies and enemies equally. The shooter takes no reflected damage, and hit feedback does not reveal allegiance.
 
 ### Outlaw — steal the money and escape
 
 In a **4-player match**, you are the **only Outlaw**.
-You must escape with the money to win.
+Kill the Sheriff or escape with the money to win for your team.
 In a **5-player match**, there are **two Outlaws**.
-If either Outlaw escapes with the money, **both Outlaws win**.
-The game does not identify your ally to you.
+Six-player matches also have two Outlaws; seven- and eight-player matches have three.
+If any Outlaw escapes with the money, **all Outlaws win**.
+Hold Tab to identify your Outlaw teammates.
 
 1. Select **Bar**.
-2. Press **F** to stand and use **WASD** to walk up to the safe. Press **H** beside it on your turn to work on it or collect its money.
-3. Complete the robbery and escape procedure below.
-
-Once you carry the money, X starts your escape on a later turn.
-You must stay at the bar and survive the next round's room actions to complete the escape.
+2. Press **Space** to stand and use **WASD** to walk to the cash drawer beside the beer tray.
+3. Press **H** on your turn and stay nearby for two seconds. Each successful check completes one shared step. Three steps across three rounds collect the money.
+4. During the next discussion, press **X** or select **Attempt escape**, then lock your Bar plan.
+5. Your escape plan is public during discussion: everyone gets at least ten seconds to reconsider rooms. Survive the next room-action phase; one headshot interrupts it.
 
 To defend yourself:
 
 1. Press **Q** to draw your gun.
 2. Aim at an enemy's head.
-3. Click the left mouse button to shoot.
+3. Hold the left mouse button for 0.5 seconds for an accurate shot, or right-click for an instant shot with more spread.
 
-A headshot against another Outlaw also removes **20% health from you**.
-The Sheriff's death alone does not give you victory.
-Your team must escape with the money.
+Headshots damage allies and enemies equally. The shooter takes no reflected damage, and hit feedback does not reveal allegiance.
+Sheriff death gives your team victory, regardless of who killed them, unless the Renegade is the sole survivor. Escaping with the money is your other victory route.
 
 ### Renegade — eliminate the Outlaws, then the Law
 
-You know everyone’s role from the start. Hold **Tab** to see the complete role roster, including players in other rooms. Roles also appear above visible players for you.
+Other hidden roles are not revealed to you. Listen to claims, observe actions, and hold **Tab** to review your own objective.
 
 You have **no ally**.
 Your objective is to be the **last player alive**.
 The Sheriff and Deputy together are the Law.
 
 1. Fight the **Outlaws first**.
-2. Keep the Sheriff and Deputy alive while they help fight the Outlaws.
-3. After the Outlaws die, fight the Sheriff and Deputy.
+2. Keep the Law alive while they help fight the Outlaws.
+3. After the Outlaws die, eliminate the Deputies and any other survivors.
+4. Kill the Sheriff last. An earlier Sheriff death gives Outlaws the win.
 
 To shoot:
 
 1. Select a room with a suspected Outlaw.
 2. On your turn, press **Q** to draw your gun.
 3. Aim at the enemy's head.
-4. Click the left mouse button to shoot.
-5. If necessary, press **R** to reload on a later turn.
+4. Hold the left mouse button for 0.5 seconds for an accurate shot, or right-click for an instant shot with more spread.
+5. You have unlimited bullets. You can shoot once per round without reloading.
 
-At the bar, hold **E** to pour as your action; release it to stop.
-**B** drinks the poured beer, restoring its shown healing (5–20%).
+At the Bar, walk to the shared beer tray and press **E** to take and drink a ready beer. It heals 20%, or 40% with your cigarette buff, and uses one action.
 **H and X do not work for you**.
 You cannot rob, collect money or escape with it.
 You win when everyone else is dead.
 
+### Swindler — make the Law kill you
+
+One independent slot is randomly Renegade or Swindler, with equal chance on each
+new match and rematch. Only the recipient learns which independent was dealt;
+the anonymous opening shows everyone else an **Independent: Renegade or Swindler** slot.
+
+The Swindler has no allies and earns a personal victory if a Sheriff or Deputy
+lands the lethal shot. Nonlethal hits, self-inflicted damage, reflected damage,
+Outlaw kills, and simply surviving do not count. The win is saved privately;
+the match continues for the other players. The Swindler's results card still
+shows Winner alongside any faction winners. Law can win by eliminating the
+Outlaws without killing a surviving Swindler. The Swindler has normal ammunition,
+cannot rob or escape. Practice bots do
+not simulate this role's social bluffing.
+
 ### H and X: how to take the money and escape
 
 These controls work for **Outlaws only**, at the **Bar** during room actions.
-The Sheriff, Deputy and Renegade cannot rob, collect money or escape with it.
+The Sheriff, Deputy, Renegade and Swindler cannot rob, collect money or escape with it.
 
-1. On your turn, press **H**.
-2. Wait **3 seconds** for the safe work to finish.
-3. Repeat the safe work on later turns until three work actions are complete.
-4. Once you carry the money, wait for a **later turn**.
-5. Press **X** to start the escape.
-6. In the next Discuss & Plan, select **Bar again**.
-7. Click **Ready**.
-8. Stay alive with the money until that round's room actions finish.
+Only Outlaws can take the money or escape with it. Other roles can press **C** to inspect the same drawer, including when at full health.
 
-A shot interrupts safe work.
-The work uses your action for the round.
-The safe requires **three completed work actions in total**, across players and rounds.
-The player who completes the third action gets the money.
-One turn cannot complete all three actions.
+1. Walk to the drawer beside the beer tray and press **H** during room actions.
+2. Stay nearby for the two-second check. It uses your action; walking away or taking a headshot interrupts it.
+3. Three successful checks in three different rounds give the third worker the money. Progress is shared by all Outlaws, with at most one step per round. An empty-drawer attempt still uses your action.
+4. During the next discussion, choose **Attempt escape** or press **X**, then lock a **Bar** plan. This publicly identifies your escape attempt before room assignments, with a red Bar highlight and at least ten seconds for everyone to reconsider their plans.
+5. The escape starts with the next action phase. You and every defender keep one normal action to shoot, heal, reload or pass. Once all Bar actions finish without a headshot stopping you, the game goes straight to the Outlaw victory screen.
+6. Survive at the Bar until actions end. A headshot interrupts the attempt; you keep the money and can try again in a later discussion.
 
-A side-room assignment cancels your escape.
-A completed escape gives the **Outlaw team victory**.
-This means one Outlaw in a four-player match or both Outlaws in a five-player match.
+Both C inspection and H theft have the same visible two-second check. A witness can record who checked the drawer, but cannot see what they did inside. Inspection reports privately show whether the money is present and whether the drawer changed since that player's last check.
 
-If the carrier dies, the money returns to the open safe.
-In a five-player match, the other Outlaw can collect it with **H** as their action at the Bar, without waiting in a queue.
-The safe does not require another three work actions.
+In bot matches, an available Law or Renegade bot responds to the public escape warning by guarding Bar. A bot explicitly invited by a human keeps that invitation, so diversion remains possible. Cancelling and redeclaring an escape cannot repeatedly extend discussion.
+
+A side-room plan cancels an escape. If the carrier dies, the money returns to the drawer and your team must complete all three drawer steps again. A completed escape gives the **Outlaw team victory**, including eliminated teammates.
 
 ### Useful buttons for every role
 
@@ -296,14 +324,12 @@ The safe does not require another three work actions.
 |---|---|
 | Hold **Tab** | Shows your private role and objective. |
 | **Hold Control** | Crouch while standing; either Control key works. Release to stand when there is room overhead. Crouching slows movement and lowers your camera and hitboxes. |
-| **F**, then **WASD** | F makes you stand. WASD moves you during room actions. F near an empty seat makes you sit. |
-| **Q**, then **left-click** | Q draws your gun. A left-click shoots at your aim point. A miss also uses your action. |
+| **Space**, then **WASD** | Space makes you stand. WASD moves you during room actions. Space near an empty seat makes you sit. |
+| **Q**, then **hold left-click** or **right-click** | Q draws your gun. Hold left-click for 0.5 seconds for an accurate shot; right-click fires instantly with more spread. A miss also uses your action. |
 | **R** | Reloads your drawn gun. Uses your action. |
-| **E** at the bar | Hold to pour as your action; release to stop. |
-| **B** | Drinks your poured beer for its shown **5–20% healing**, included in the pour action. |
-| Aim at a nearby player, then **G** | Gives them your poured beer, preserving its healing. Included in the pour action. |
-| **Space** during Discuss & Plan | Sets or clears Ready. |
-| **Space** during your action turn | Passes and gives up your action for this round. |
+| **E** near the shared beer tray | Takes and drinks a ready beer. Uses one beer and one action; heals 20%, or 40% with your cigarette buff. |
+| **F** during Discuss & Plan | Sets or clears Ready. |
+| **F** during your action turn | Passes and gives up your action for this round. |
 | Hold **V** | Sends microphone audio in push-to-talk mode. |
 | **T** | Toggles open mic: talk hands-free until switched off. |
 | **M** | Mutes or unmutes the microphone in either mode. |
@@ -311,13 +337,65 @@ The safe does not require another three work actions.
 
 Everyone starts with **100% health**.
 An unbuffed **headshot** removes **20 percentage points** from the target. Five unbuffed headshots eliminate a player at 100%; a cigarette-buffed headshot removes 40 points.
-A headshot against an ally also removes **20% health from the shooter**.
-The Sheriff and Deputy are allies. The two Outlaws are allies.
+Headshots damage allies and enemies equally. The shooter takes no reflected damage, and hit feedback does not reveal allegiance.
+The Sheriff and all Deputies are Law allies. All Outlaws are teammates.
+
+Multiplayer shots use your aim when the shot fires, including camera kick. Left-click charges for 0.5 seconds with no added spread; release early to cancel. Right-click fires immediately with a 1.25-degree spread cone at rest, increasing to 3 degrees while moving. Both modes use one bullet and one action, deal the same headshot damage, and use the same cigarette buff. Q must finish drawing before either shot fires. Holstering, opening a menu, losing focus, or changing rounds cancels an unfinished charge. A held left button fires only once; press it again to start another charge.
+Head hitboxes follow the visible head while standing, crouching, looking around and flinching.
+The host checks recent rendered poses to compensate for network delay; it still decides hits and damage.
+Two valid shots into a living target count separately, even when they arrive together.
+
+Exterior window panes and individual backbar bottles shatter when shot, with falling glass and a breaking sound. A shot uses the normal bullet and action. Broken glass lets later bullets pass through. Damage stays visible to every player through later rounds and reconnects, then resets for a new match.
+
+A nonlethal hit does not discard a trigger already queued during the revolver draw.
+Use matching updated builds on every device (network protocol `state-36`).
 
 At **0% health**, your body moves back, falls and rests on the floor.
 Your camera briefly follows the body.
 Then you watch other players.
 Your body stays on the floor while you spectate the surviving players.
+
+## Tutorial and help topics — development source
+
+The first launch of a new player build offers a short playable walkthrough.
+Select **Start walkthrough**, or **Skip tutorial** to go to the main menu.
+The main menu's **Tutorial** button opens this choice again at any time.
+
+The walkthrough takes place on a separate training map: a compact saloon with a
+shooting lane, shared bar with a cash drawer, two connected minigame booths, and a smoking
+veranda with the normal game's sunset sky, desert mesas, cacti, and weathered
+cedar deck. Indoors, follow the single warm spotlight. It lights a reachable path,
+then the object you must use. Inactive indoor stations stay dim. Complete the
+action in the prompt. Health and bullets use the same HUD as normal matches.
+During the planning exercise, choose Bar. Other choices stay unlocked and show
+a correction, so the walkthrough can continue safely.
+The next prompt appears automatically. There are no chapter screens or Next
+buttons during the route. The target is under five minutes; players can take
+longer without a failure timer.
+
+The route teaches movement, crouching, quick and accurate shots, reload, the
+one-action-per-round rule, beer, planning, Coin Flip, Blackjack, smoking and its
+boost, all five roles, drawer inspection and theft, escape response, and spectating.
+It shows **1 ACTION = 1 ROUND** and a clear action list with controls in
+parentheses during actual play. The spectator exercise shows a death-camera
+countdown, then Previous/Next buttons and explicit Left/Right arrow-key guidance.
+The Outlaw exercise uses three two-second drawer checks in separate rounds. Training
+rounds advance quickly.
+
+Press **Esc** to pause or **F1** to open **Help topics**. The searchable topic
+library contains the detailed rules and individual practice examples. Reading a
+help topic preserves the walkthrough's position. **Try this topic** opens a
+separate practice example on the normal map. The tutorial runs offline and
+restores the normal map and practice settings on exit.
+
+In Unity, select **Saloon → Preview interactive tutorial** to try it.
+**Preview tutorial spectator checkpoint** opens the elimination/spectator exercise
+directly for a quick retry in the Editor. **Preview tutorial sunset deck** opens
+the smoking exercise directly, facing the sun.
+**Verify short tutorial in Play mode** checks the continuous physical route;
+**Verify interactive tutorial in Play mode** checks the individual topic examples.
+Automatic first-launch display applies to player builds; the Editor uses manual
+preview. The normal 0.3.0 downloads include the playable walkthrough and help library.
 
 ## Start testing in Unity
 
@@ -327,11 +405,14 @@ For a new source checkout:
 2. Run **Saloon → Prepare Western Gunman character**.
 3. Open the **SaloonPrototype** project.
 4. Open `Assets/Scenes/Saloon.unity`.
-5. Select **Play → Solo Practice**.
+5. Enter Play mode and select **Solo practice** on the title screen.
+6. Choose **3–7 bots**, discussion time (**5–120 seconds**), action time
+   (**5–60 seconds**) and shared beer supply (**0–16**), then select **Start practice**.
 
 The public repository excludes the imported pack and derived meshes.
 Compiled downloads include them.
-Four active practice players fill the other places.
+Four practice bots are selected by default. Your selection creates a match with
+one human and three to seven bots, using the role deck for that match size.
 They know the roles and aim accurately.
 They act as opponents, with no conversation function.
 
@@ -340,19 +421,26 @@ It does not open a LAN port or automatically connect voice.
 The LAN address, port and No Bots setting do not prevent solo practice.
 Practice players obey the host's action limit, ammunition, health, room and raycast rules.
 
-A match with **No bots** requires four or five humans.
+A match with **No bots** requires four to eight humans.
 A match with **Bots** requires at least one human.
 For LAN, host a match and connect with the host's local IP address and matching UDP port.
 The default port is **7777**.
 For online play, create or join with a room code.
 
 All devices must use the same source or build version.
-Use **0.2.17** clients for this playtest.
+Use **0.3.0** clients for this playtest.
 The game rejects mixed versions with a message.
 The disconnect reason stays on the menu.
 It is not replaced silently.
 
 ## Room minigames
+
+The West room alternates **Coin Flip on odd rounds** and **Bluff Dice on even
+rounds**, starting with Coin Flip. Its name, invitations and room card show the
+announced game during discussion, before anyone locks a vote. The wall graphic
+changes with it. Both games use the same two seats and give their winner the
+normal combat opening; Blackjack stays in the East room. Tutorial Coin Flip
+lessons continue to use Coin Flip.
 
 ### Coin Flip
 
@@ -367,9 +455,54 @@ Both players see the same toss.
 If nobody makes a selection, the assigned sides start a toss after eight seconds.
 
 The cursor stays free for the coin controls; mouse look resumes automatically after the toss.
-After a four-second result pause, the winner can press **Q**, then click to shoot.
-The winner can also press **Space** to pass.
-Indoor spectators can see the coin through the glass but cannot use its controls.
+After a four-second result pause, the winner can press **Q**, then hold left-click for an accurate shot or right-click for a quick shot.
+The winner can also press **F** to pass.
+Only the room participants can see the coin; the opaque room windows hide it from the Bar.
+
+### Bluff Dice
+
+One player is the **speaker**. Click **Throw Dice** or press **Space** to shake
+the cup and throw **three secret dice**. The cup waits for this input. They receive a
+private sentence to say aloud, such as “At least two of my dice match.” Only
+those three dice count. The game assigns a true or false claim with equal
+probability; the speaker sees which it is and tries to make the listener guess
+wrong. Read the exact sentence aloud, then argue or bluff around it.
+
+The **listener** hears the claim and chooses just **Believe** or **Don't Believe**.
+A correct judgment wins the listener the combat opening. A wrong judgment wins
+it for the speaker. Reveal the speaker's three dice and explain the truth and
+judgment. There are no bids, raises, face selectors or extra hands to eliminate.
+
+Classic allows 15 seconds to throw; missing this deadline forfeits to the
+listener without rolling automatically. A throw takes 2.4 seconds, followed by
+eight seconds to speak, then six seconds to
+judge. The choices unlock after the speaking interval. A listener who does not
+answer in time forfeits to the speaker. After the usual three-second result
+pause, the winner gets the existing ten-second exclusive opening. Both retain
+one normal combat action; passing, opening expiry, damage and the opponent's
+response are unchanged. Medical events work with either West room game.
+
+Human listeners do not receive the private sentence, dice values or truth flag
+before reveal. Hold **V** to talk, or use **T** for open mic. Speech is social:
+the game checks the assigned sentence and does not transcribe or verify what
+someone actually says. Bots communicate their assigned sentence through a
+caption and make blind judgments; they do not understand microphone speech.
+Public table/spectator snapshots contain no secret prompt, truth or roll.
+
+Use **Saloon → Play Bluff Dice at table** to open
+`Assets/Scenes/BluffDiceTest.unity`. It starts offline with one bot and a paused
+instruction screen. The first hand lets you throw as the speaker; the next
+hand lets you judge a captioned bot claim. Practice waits indefinitely for
+your throw or judgment and holds its reveal until you choose
+**Continue to combat** or **Throw again**.
+**N** starts a fresh hand with restored health, ammo and actions. After combat,
+practice waits for you to request another hand. Classic keeps its short timing.
+The test scene is excluded from the normal release scene list.
+
+The painted cup-and-dice mural remains outside the room, replacing Coin Flip's
+mural only on Bluff Dice rounds. The wall remains solid and private.
+Use **Saloon → Verify Bluff Dice rotation and combat opening** for the live
+suite, or `python3 Tools/verify_bluff_dice.py` for standalone production rules.
 
 ### Blackjack
 
@@ -391,22 +524,22 @@ The cursor stays free for card decisions; mouse look resumes automatically when 
 Aces count as 1 or 11.
 Face cards count as 10.
 A blackjack with two cards beats an ordinary 21.
-A tie starts another hand with the same roles.
+A tie automatically draws a high card for each seat from the remaining deck. Aces rank highest; equal ranks redraw only those cards, with no suit advantage or new Blackjack hand.
 No hand totals or calculated scores appear on the table or screen; read the cards yourself.
-The opening deal takes 3.2 seconds. Each card takes time to arrive before the next decision.
+The opening deal takes 2.2 seconds. Hits and reveals settle for one second before the next decision.
 You have 45 seconds for each player decision, renewed after each hit.
-An idle dealer automatically takes a card after eight seconds. A push stays visible for five seconds before a new hand.
+An idle dealer automatically takes a card after five seconds. A tiebreak shows its high cards in separate rows for two seconds before the winner's result.
 
-The result remains visible for four seconds before combat unlocks. Both players can stand and dodge during this pause.
-The winner then has ten seconds to draw with **Q**, click to shoot, or press **Space** to pass.
-A quick Q and click stores the shot until the draw animation finishes.
+The Blackjack result remains visible for three seconds before combat unlocks. Both players can stand and dodge during this pause.
+The winner then has ten seconds to draw with **Q**, hold left-click for accuracy or right-click for a quick shot, or press **F** to pass.
+Q followed by a quick right-click stores one shot until the draw animation finishes. A deliberate left-click charge starts after the revolver is ready.
 The opponent can act after the winner's action or the opening timeout.
 Blackjack does not use either player's combat action.
 
 Practice bots play automatically.
 The Bar and smoking deck can be visited alone. Unmatched Blackjack and Coin Flip choices return to the Bar.
 At the Bar, everyone can use their action immediately; there is no turn queue.
-The Bar now has a beer-pouring minigame; pouring uses the round action.
+The Bar has a shared tray of ready beers. Walk up and press E to drink one as your round action.
 
 ### Private plans and room capacity
 
@@ -419,7 +552,7 @@ Seats use **first ready, first served** reservations.
 Coin Flip, Blackjack and **Have a Smoke** each have two places.
 
 1. Select a destination.
-2. Choose someone to go with, or **Go Alone**. This reserves your own place and marks you Ready.
+2. Click **Lock choice** (**Go alone** for Have a Smoke) to reserve your own place, or invite someone to go with you.
 
 Clearing Ready or changing your plan releases the place.
 Inviting another human reserves your own place. The other person must accept or set Ready too.
@@ -428,29 +561,33 @@ A full destination rejects more Ready requests until a place becomes available.
 The Bar stays available. Reservations reset each round.
 
 Coin Flip and Blackjack are enclosed rooms with no door or doorway.
-Their front glass covers the full width and permits sight in one direction only.
-Players in the main saloon can see inside, including the coin and visible cards.
-Players inside see an opaque pane when they look out.
+Solid plaster walls close the full front of each room, with large painted cards
+and coin-flip artwork on the Bar side. Each room has a centered ceiling lantern.
+Bar players cannot see room occupants, the coin, or cards; room occupants cannot see the Bar.
+Table state is sent only to room participants and eligible spectators.
 Both sides block bullets and movement.
-The glass cannot break from gunfire.
+The walls remain intact under gunfire.
 
 Room assignment puts players inside when room actions start.
-Occupants can hear indoor voices and gunshots through the glass.
+Nearby indoor voices through room walls are quieter and low-pass filtered in both directions.
+Voices within the same room stay clear. Indoor player sounds such as gunshots
+and footsteps also pass through a low-pass filter when heard from another room.
 The smoking area stays isolated.
 The Bar keeps its existing layout and rules.
 
 ### Smoking area
 
-**Have a Smoke** is a separate sunset deck with two places.
-Smoking visits need another player who also chose Have a Smoke or accepted an invitation.
-Nobody is sent there automatically to fill a room.
-Players arrive side by side facing a low desert sun, layered sandstone mesas,
-cacti and an apricot-to-violet evening sky. Walking outside is silent for both
-players; wooden footsteps resume inside the saloon.
+**Have a Smoke** takes you out the back to a private sunset deck with two places.
+Choose it during room voting; there is no walking route from the Bar or front entrance.
+Select **Have a Smoke** and click **Go alone** to reserve your own place, or invite another player.
+Practice bots reserve deck spots when a player selects **Go with** or accepts their invitation.
+Players arrive facing a low desert sun, layered sandstone mesas, cacti and an apricot-to-violet evening sky.
+Walking outside is silent. Wooden footsteps resume inside the saloon.
 
 - Click the left mouse button to smoke.
 - Hold **V** to talk, or press **T** to switch open mic on. **M** mutes either mode.
 - Use **WASD** to walk.
+- Press **Space** near an empty bench spot to sit facing the sunset; press **Space** again to stand. Both smokers can sit and smoke together.
 
 The cigarette has an animated first-person hand and a third-person arm pose.
 It also has a glowing end, ash and exhaled smoke.
@@ -458,15 +595,58 @@ Repeated clicks wait for the four-second smoking animation to finish.
 The host rejects weapons and saloon actions outside.
 Smoking does not use a combat action.
 
-Entering the smoking area grants one **cigarette buff**. Your next fired revolver shot or beer you drink consumes it. A shot, including a miss or body hit, uses the buff; a damaging headshot removes **40 percentage points** instead of 20. A beer heals **twice its poured amount**: 5 → 10, 10 → 20, 15 → 30, or 20 → 40 percentage points. Health never exceeds **100%**. Pouring, offering or leaving beer does not consume your buff. Gifted beer uses the drinker’s buff, if they have one. Repeated visits do not stack buffs. The buff survives regroup and later rounds until used; death, a new match or returning to the lobby clears it.
+Entering the smoking area grants one **cigarette buff**. Your next fired revolver shot or beer you drink consumes it. A shot, including a miss or body hit, uses the buff; a damaging headshot removes **40 percentage points** instead of 20. A ready beer heals **40 percentage points instead of 20**. Health never exceeds **100%**. Repeated visits do not stack buffs. The buff survives regroup and later rounds until used; death, a new match or returning to the lobby clears it.
 
-Your HUD shows **CIGARETTE BUFF · NEXT SHOT OR BEER x2** while it is ready. Other players and spectators do not receive your buff status. Friendly-fire hits deal 40 points to the target when buffed; the shooter’s normal 20-point penalty stays the same.
+Your HUD shows **CIGARETTE BUFF · NEXT SHOT OR BEER x2** while it is ready. Other players and spectators do not receive your buff status. Boosted hits deal 40 points to the target, including allies. Damage never reflects onto the shooter.
 The yard stays available for the normal action window.
 
 Indoor and outdoor players receive separate action snapshots and voice channels.
 Outdoor players cannot see indoor characters or hear indoor conversation and gunshots.
 Indoor players cannot see or hear outdoor players.
+The Bar starts in warm sunset light through the side windows. All four Bar
+pendants and both wall lamps remain visible and lit, at reduced brightness.
+Lamp and ambient light have been raised from the initial dark revision to
+preserve visibility, including at night. It gradually darkens over roughly
+twenty rounds, then holds that night setting. New matches reset to sunset.
+Blackjack, Coin Flip, and the smoking deck keep their existing lighting.
+
+Two exterior windows on each long side of the Bar, plus one in each minigame
+room, look out onto the desert. Glass blocks movement and shots. The walls
+between the Bar and both minigame rooms remain opaque.
+The front entrance overlooks the same desert sunset through low saloon doors,
+but its scenery never includes the private back deck or its smokers. The
+entrance still blocks walking out; voting is the only way to go out the back.
 Regroup restores the shared player list and indoor voice.
+
+### Toilet Trouble — optional safe solo mission
+
+During discussion, one living player **below full health** is chosen uniformly
+at random and privately offered the mission. Every role is eligible, including
+bots; repeats are possible. If everyone is healthy, no offer appears. **Reject**
+keeps normal room planning. **Accept** locks the mission and a return to Bar.
+Bathroom is never a selectable room or an invitation destination.
+
+At the start of room actions, the worker appears alone in a physically separate
+bathroom outside the Bar map. They cannot be attacked, use weapons, hear other
+rooms or be seen by their living occupants. **Left click eight times** to pump
+(0.4 seconds per accepted stroke). There is a **12-second timeout**, including
+idle time before the first click. E can equip the plunger without pumping.
+
+Success heals **20 percentage points**, capped at 100%, once, and immediately
+returns the player to the Bar **with their combat action still available**.
+Timeout or abandoning the work returns them without healing, also keeping that
+action. The shared action clock continues; short rounds reserve a small window
+for returning to combat. Protection ends on return. Beer stock, beer healing,
+beer action cost, ammo and cigarette buffs are unchanged by the mission.
+
+Suction and gurgling are private to the bathroom. The worker's completion flush
+can finish playing locally after return; other rooms and smokers cannot hear it.
+The scene creates a separate **Isolated solo bathroom** root at world (0, 0, 40),
+with its own render layer and voice channel. The Bar has no bathroom extension
+or walkable entrance to the mission.
+
+Use **Saloon → Verify isolated solo toilet mission** to run the
+mission, privacy, damage protection, return/action, timeout and audio checks.
 
 ### Room tests
 
@@ -479,7 +659,9 @@ Use **Saloon → Play Have a Smoke outside** to try the yard.
 - Visibility between areas.
 - Actual Vivox channel changes, with the verification microphone muted.
 
-The current network protocol is `state-14`; all players must use the same build.
+The current network protocol is `state-36`; all players must use the same build.
+
+Generated builds, Unity caches, logs and verification captures are removed during local project cleanup. Unity recreates its cache on opening; the Editor verification commands regenerate captures when needed.
 Both devices must use the updated build.
 
 Use **Saloon → Play coin flip at table** to play against a bot.
@@ -497,7 +679,7 @@ Use **Saloon → Play blackjack at table** in Unity to play against a bot.
 
 ## Interface (Unity development version)
 
-The development source uses 0–100% health. Each unbuffed revolver headshot removes 20 percentage points; five unbuffed hits eliminate a player at full health. A cigarette buff doubles your next shot’s damage or your next beer’s healing, then is consumed. Beer normally restores the poured amount, rounded up to 5, 10, 15 or 20 points; with the buff it restores 10, 20, 30 or 40 points. Health is capped at 100%.
+The development source uses 0–100% health. Each unbuffed revolver headshot removes 20 percentage points; five unbuffed hits eliminate a player at full health. A cigarette buff doubles your next shot’s damage or your next beer’s healing, then is consumed. A ready beer restores 20 points, or 40 with the buff. Health is capped at 100%.
 
 The lower-left display shows five 20% health segments, the exact percentage.
 The lower-right display shows ammunition.
@@ -508,7 +690,7 @@ Room, companion, Ready and turn messages appear at the right edge.
 For the Sheriff, hold **Tab** to see private clues beside your role during discussion or room actions.
 Scroll while holding Tab to read older clues.
 There is no separate Clues button or drawer for any role.
-The Renegade can hold **Tab** to see everyone’s role.
+The Renegade can hold **Tab** to review its objective, without revealing other hidden roles.
 Hold **Tab** for role instructions.
 Press **Esc** to open the lobby or settings.
 The interface uses small, flat slate controls without large permanent HUD panels.
@@ -517,25 +699,23 @@ The interface uses small, flat slate controls without large permanent HUD panels
 
 To record a witness clue:
 
-1. At the Bar during room actions, watch someone who works on the safe.
+1. At the Bar during room actions, watch someone check the cash drawer.
 2. Keep them clearly visible for approximately **one second**.
 
-Your notebook records their name and the round.
+Your notebook records their name and the round, but not whether they inspected or stole.
 Looking away, walls, other rooms or death prevent this record.
 The clue does not confirm completed work or money collection.
 
-For a Sheriff inspection:
+For a private drawer inspection, available to every role:
 
 1. At the Bar on your turn, press **C**.
 2. Read the private inspection report.
 
-The report records the safe's condition and new tool marks since your previous inspection.
-It also records the latest completed safe-work round.
-It never identifies the thief.
-An interrupted attempt leaves no completed-work marks.
+The report says whether money is present and whether the drawer changed since your previous inspection.
+It never identifies a thief. The report does not update automatically.
 
-The Sheriff can hold **Tab** while alive to read **YOUR CLUES · PRIVATE** on the role card.
-Other roles use the discussion Clues drawer.
+Any living player can hold **Tab** to read their own private drawer clues on the role card.
+Inspection reports are not automatically shared with teammates.
 The notebook holds your six latest clues, with the newest first.
 Older retained clues are available by scrolling.
 Clues stay between rounds and reset for a new match.
@@ -555,25 +735,24 @@ Reports show information from the time of the observation. They do not update au
 | Aftermath | 3 seconds | Actions are unavailable. Players stay in their rooms while shots, hit effects and gun spins finish. |
 | Regroup | 3 seconds between rounds | Everyone returns to the common table. The next discussion starts. |
 
-During room actions, press **F** to stand or sit near an empty seat.
+During room actions, press **Space** to stand or sit near an empty seat.
 Use **WASD** to walk.
 Movement stays available while you wait and after you use your action.
 You must stay inside your assigned room.
 Players stay seated during discussion and regroup.
 
-A new round keeps roles, HP, ammunition, items, safe progress and pending escape attempts.
+A new round keeps roles, HP, ammunition, items, drawer state and pending escape plans.
 Actions can end early when all living players finish or pass.
 Timed actions that have started finish before aftermath.
-The maximum is six rounds, configurable before the match starts.
-The final round ends after aftermath, without regroup.
-Elimination and escape results also wait until aftermath finishes before the game shows roles and results.
+There is no round limit or automatic timeout victory. Matches continue until a normal victory condition is met.
+Elimination results wait until aftermath finishes before the game shows roles and results. A successful escape goes straight to results once all Bar actions finish, or when the action window expires.
 
 A lethal hit makes the body fall as a ragdoll.
 The dying player briefly sees the fall, then sees a living player's view.
 
 Each side room has two places. The planner shows both locked seats and players still choosing it.
 Selecting a room immediately publishes your intention; it does not reserve a seat.
-Click **Lock choice** to reserve your own place, or invite an available player.
+Click **Lock choice** (**Go alone** for Have a Smoke) to reserve your own place, or invite an available player.
 Accepting an invitation reserves **both** players together in one step.
 Locked players disappear from invitation choices, and full rooms cannot be selected.
 Use **Unlock / change** to release a plan. Changing a shared plan unlocks both partners.
@@ -590,17 +769,17 @@ A compact plan list stays visible when it is closed. Only the invited player can
 Practice bots offer invitations and obey the same locked-seat rules as humans.
 The 30-second timer prevents an idle player from holding up the round; locking in everyone starts early.
 
-The Bar has no turn queue. Everyone may use their one action at any time during room actions.
-The safe sits on the public floor at the right-hand end of the counter, with a clear approach in front.
-H safe work / money collection and C Sheriff inspections require being physically beside it, within 1.35 metres with no wall or counter blocking access. Rejected distant attempts do not spend an action. Walking away interrupts safe work and keeps the action spent.
-When an Outlaw or Sheriff is within reach, the safe gains a pulsing gold highlight and an attached **H** or **C** key prompt. The prompt explains when the action is unavailable; leaving reach or blocking access hides the highlight.
+The cash drawer is built into the customer-facing side of the main Bar counter. The shared beer tray is farther left along the counter so drinkers and drawer users have separate places to stand.
+H advances shared Outlaw drawer work; the third step takes the money. C privately checks it for any role. Both require physical reach within 1.35 metres and a clear path. Rejected distant attempts do not spend an action. Walking away or taking a headshot interrupts the two-second check and keeps the action spent.
+When any player is within reach, the drawer gains a pulsing gold highlight and a **C** prompt; Outlaws also see **H**. The prompt explains when an action is unavailable. Leaving reach or blocking access hides the highlight.
 The space behind the counter is staff-only; railings close both ends.
 It has no coin toss or minigame.
-Beer, combat and safe actions stay available.
+Beer, combat and drawer actions stay available.
 
-### Coin Flip room: coin for the opening
+### West room: the rotating game awards the opening
 
-Only the Coin Flip room starts with random opposite Heads/Tails assignments.
+On Coin Flip rounds, the West room starts with random opposite Heads/Tails assignments.
+On Bluff Dice rounds, one spoken claim and a Believe / Don't Believe judgment award that same opening.
 Both players can select a side.
 The **first selection fixes both sides** and gives the opponent the opposite side.
 The centered screen controls allow eight seconds for a selection; the table stays clear around the coin.
@@ -613,7 +792,7 @@ Major actions and gun drawing are unavailable before the result.
 Blackjack uses its card game instead.
 
 The winner gets the first action.
-Press **Q** to draw, then click to shoot.
+Press **Q** to draw, then hold left-click for an accurate shot or right-click for a quick shot.
 Alternatively, start another permitted action or pass.
 The opponent can act after the winner uses their action.
 Both players keep the limit of one action each.
@@ -625,58 +804,58 @@ The shared action deadline includes the longest coin setup window and waits for 
 
 ### Bar: concurrent actions
 
-Nobody waits for another player before shooting, inspecting, pouring, working the safe or declaring escape.
+Nobody waits for another player before shooting, inspecting, drinking, checking the drawer or planning escape.
 Each player can start one major action or pass at any time during room actions.
 An action uses only that player's allowance; the other players can act immediately.
 Players can draw, look, talk, stand and walk independently of who has acted.
 The shared action deadline still applies. Timed actions finish before aftermath.
 
-Escape timing is unchanged: collecting money uses an action, declaring escape with **X** uses a later round's action,
-and the carrier must stay at the Bar and survive the following round's action phase.
+Theft takes three shared actions in three separate rounds. Plan escape with **X** during the following discussion, then stay at Bar through that action phase. The earliest money escape is round four.
 The Bar has no queue that delays any of those actions.
+
+## Featured room: medical supplies
+
+Round one has no event. From round two, each discussion has a 50% chance of
+no event, a 25% chance of supplies in the West room (Coin Flip or Bluff Dice),
+and a 25% chance in Blackjack.
+An event room glows teal with a small medical icon; it stays fixed for the round
+and still needs two players. Win its
+minigame, then choose **Heal 20%** or **Keep opening** within the normal opening
+timer. Healing takes your one round action and lets your opponent respond;
+keeping the opening costs nothing and declines the supplies. An ignored choice
+times out as a normal passed opening.
+
+Supplies restore 20 health points, capped at 100. Full-health winners automatically
+keep their opening without a prompt. Supplies use no shared beer and neither consume nor multiply a smoking boost.
+Other roles and rooms have no special access, and there is no public reward-use
+announcement. This development feature is disabled in the guided tutorial.
 
 ## What can I do with my one action?
 
 | Action | Function and cost |
 |---|---|
 | **Shoot** | Fires one aimed bullet. A miss also uses your action and ammunition. |
-| **Reload** | Refills the six-shot cylinder in 3.5 seconds. Reserve ammunition is unlimited. |
-| **Pour beer** | Hold your tap handle or E to pour; release to stop. Uses your action and one beer from the shared stock of eight. One pour per round; full-health players cannot pour. |
-| **Drink poured beer** | B drinks in 2.5 seconds, restoring the shown 5–20 percentage points, capped at 100%. Included in the pour action. |
-| **Give poured beer** | Aim + G sends the same healing amount to a nearby living player with free hands. Included in the pour action. |
-| **Work the safe / collect the money** | H while physically beside the safe. Outlaws only. Refer to the robbery section. |
-| **Declare escape** | X at a bar station while carrying the money. Outlaws only. Refer to the victory section. |
-| **Inspect safe** | C while physically beside the safe. Sheriff only. Uses your action and gives a private report. |
-| **Pass** | Space gives up your action for this round. |
+| **Reload** | Refills the six-shot cylinder in 3.5 seconds. Reserve ammunition is unlimited. The Renegade can shoot without reloading. |
+| **Drink beer** | Walk to the shared tray at the Bar and press E. Takes one ready beer and drinks it for 2.5 seconds, restoring 20 points (40 with your cigarette buff), capped at 100%. Uses one action and one shared beer. |
+| **Work the drawer** | H beside the Bar cash drawer. Outlaws only; three shared two-second steps across three rounds collect the money. |
+| **Declare escape** | X during discussion while carrying the money. Outlaws only. Lock a Bar plan; the escape begins in the next action phase. |
+| **Inspect drawer** | C beside the Bar cash drawer. Any role; uses your action and gives a private report. |
+| **Medical supplies** | Win the featured room and choose Heal 20% instead of using your opening action. |
+| **Pass** | F gives up your action for this round. |
 
-After pouring, choose B to drink, aim + G to give it away, or Space to leave it.
-You have six seconds to choose; unclaimed beer stays at the bar without healing.
-Fill near the line for 20% healing. Partial pours round up in 5% steps: 1 → 5, 11 or 12 → 15, and 17 → 20.
-Overflow wastes beer. The tap closes automatically after 4.5 seconds.
-Full-health players can watch, move and use another action. Injured players may skip pouring and shoot instead.
-Hold the actual tap handle to pour and release to stop. Scroll while holding it to open or close the valve and change the real flow rate. Click the filled mug to drink.
-Mouse look stays active normally at the Bar.
-To give beer, aim at the intended recipient before pressing G.
-
-The beer travels for 0.65 seconds.
-The recipient then drinks automatically for 2.5 seconds.
-The pour already used **your** action; the handoff costs no additional action. The recipient keeps their action, but their hands stay occupied until the drink finishes.
-
-A recipient at full health still drinks.
-Maximum health does not increase.
+The shared tray visibly holds the remaining beers. Walk up and press **E** once to take and drink one.
+There is no pouring, carrying, offering, fill-quality minigame or follow-up choice.
+Full health, an empty tray or being too far away preserves your beer supply and action.
+Drinking keeps the existing first-person mug animation and sound. A nonlethal hit does not stop it; elimination cancels healing.
 
 Drawing or holstering with **Q** has no action cost.
 It occupies your hands for 0.25 seconds.
-A click during a permitted draw stores one shot until drawing finishes.
+A right-click during a permitted draw stores one quick shot until drawing finishes.
 This also applies at the bar and after a minigame.
 The game checks turn permission again before firing the stored shot.
 
-Looking, speaking and walking have no action cost. Pouring uses your action.
+Looking, speaking and walking have no action cost. Drinking uses your action.
 A busy player cannot start another action.
-A beer transfer fails without resource use if the recipient is busy, carries beer or is out of range.
-An obstruction also prevents transfer.
-It also fails if the recipient is in another room.
-
 Everyone starts with 100% health.
 **Only headshots cause damage: 20 percentage points normally, 40 with a cigarette buff**.
 Body hits and misses use one bullet and your action.
@@ -694,89 +873,45 @@ The dying player's camera follows the body until that change.
 Later room assignments can use the empty seat.
 Surviving players keep their usual common-table places.
 
-## Robbery: why stay at the bar?
+## Robbery: blend into the Bar
 
-Stand with **F** and walk to the safe with **WASD**. Press **H** beside it during room actions and stay there for **three seconds**.
-The work uses your action.
-Three completed work actions open the safe.
-Progress is shared and stays between rounds.
-Work starts in turn order, but attempts that have already started can overlap.
-The player who completes the third step collects the money.
+Stand with **Space** and walk to the cash drawer beside the beer tray. During room actions, press **H** as an Outlaw or **C** as any role. Both checks use one action, take two seconds, and look the same to witnesses.
 
-Only Outlaws can work on the safe or collect the money.
-H and X are unavailable to the Sheriff, Deputy and Renegade.
-Rejected H and X commands do not use their action.
+Each successful H check advances shared work by one step, capped at one step per round for the whole Outlaw team. The third step takes the money immediately; there is no separate pickup. If the drawer is empty, the check still spends your action. Leaving reach or taking a headshot interrupts the check and gives no money.
 
-A shot interrupts safe work and gives no progress for that attempt.
-The action stays used.
-Work on an empty safe still uses your action and the work time.
-The result reports only that no money was recovered.
-H cannot show the money state without an action cost or identify the carrier.
+An ordinary C inspection gives you a private report: money present or missing, plus whether the drawer changed since your previous check. The report never names the thief, and no live theft result is shared with the room. A witness who watches long enough learns who checked the drawer, but not whether they inspected or took money.
 
-If the carrier dies, the money becomes available at the bar through H.
-The safe stays open.
-The money does not become a loose object on the floor.
-
-Robbery has no reaching or leaning animation, visible money bag, forced holster movement or sound cue.
-It also has no global notification, role reveal or public action log.
-Roommates receive no raw robbery, bag, escape or safe-work activity flags.
-They can collect the private witness clue described above.
-There is no automatic visual indication that identifies a thief.
-The worker or carrier sees their own private status.
-
-Safe progress is not public live HUD information.
-The **Sheriff must walk up to the safe and press C beside it** to inspect it as an action.
-The private report shows a sealed, tampered or open safe with money inside, or money missing.
-It never identifies the thief.
-
-The display identifies the report as the **last inspection**.
-Later theft does not update it automatically.
-Other players do not receive the report or progress value.
-There is no automatic global theft announcement.
+If the carrier dies, the money returns to the drawer. All three theft steps must be completed again.
 
 ## How do we win now?
 
-**The Sheriff's death alone does not give the Outlaws victory**.
-Outlaws must escape with the money.
-The Renegade must eliminate the Outlaws, then the Law, and be the last survivor.
+**Sheriff death ends the match: Outlaws win, unless the Renegade is the sole survivor.** The killer's role does not change that result.
+Outlaws can also win by escaping with the money after three shared drawer steps.
+The Renegade must eliminate everyone else before killing the Sheriff.
 
 | Faction | Victory condition |
 |---|---|
-| Sheriff + Deputy (Law) | Eliminate all Outlaws and the Renegade. Alternatively, survive and prevent escape until the posse arrives after round 20. The Law cannot rob or escape. |
-| Outlaws | Either Outlaw completes an escape with the money. Both Outlaws share the team victory. |
-| Renegade | Eliminate the Outlaws first, then the Sheriff and Deputy. Be the only survivor. The Renegade cannot rob or escape with money. |
+| Sheriff + Deputy (Law) | Keep the Sheriff alive and eliminate all Outlaws and the Renegade. The Law cannot rob or escape. |
+| Outlaws | Sheriff dies, unless only the Renegade survives; or any Outlaw escapes with the money. All Outlaws share either team victory, including eliminated teammates. |
+| Renegade | Eliminate everyone else and leave the Sheriff until last. Be the only survivor. The Renegade cannot rob or escape with money. |
 
-Escape requires two rounds:
+Escape is planned during the discussion after theft:
 
-1. Carry the money at the bar.
-2. On your turn, press **X** to declare escape. This uses your action.
-3. Declare by **round 19** to leave time for completion.
-4. After regroup, select the **bar again** during discussion.
-5. Stay alive at the bar with the money until the **next room-action phase ends**.
+1. Select **Attempt escape** or press **X** while carrying the money.
+2. Lock your **Bar** plan. Planning is free; a side-room plan cancels the attempt.
+3. The escape warning is public during discussion, with at least ten seconds to reconsider rooms. Every defender still has an unused action when the next action phase starts.
+4. The carrier keeps one normal action to shoot, heal, reload or pass while escaping. Stay at Bar; once all Bar actions finish without an interrupting headshot, the Outlaw victory screen appears immediately. Players in side rooms do not delay a guaranteed escape.
+5. Any headshot interrupts the attempt. The carrier keeps the money and can plan another try during a later discussion.
 
-A successful side-room assignment cancels the escape attempt.
-Discussion does not cancel it.
-During the response phase, you can use your action to defend yourself.
-Completion gives both Outlaws victory.
+There is no match round limit or automatic timeout victory. Escape may be attempted in any discussion after collecting the money. The normal response window and headshot interruption still apply. If the carrier dies, all three theft steps reset.
 
-A non-lethal hit does not cancel escape.
-Elimination cancels escape and makes the money available at the bar again.
-After round 17, distant shots, approaching hoofbeats and a public countdown announce the posse.
-The posse is the group that arrives to stop the criminals.
-Rounds 18, 19 and 20 are full response rounds.
-The posse surrounds the saloon after round 20's actions.
-
-An escape completed in round 20 wins before the posse arrives.
-Otherwise, surviving Law wins.
-If no Law survives and no faction meets its objective, the posse captures the remaining criminals.
-That result is a draw.
 Results appear after the final aftermath animations.
 
 A Renegade who is the sole survivor wins after the final-shot effects.
 All roles are shown when the match ends.
 Disconnected players keep their place for 20 seconds. The client automatically tries to reconnect to the same LAN or online room, retaining its role, health, inventory, position and round participation. The match continues during this grace period. If a player does not return in time, the match is aborted and the reserved place is released.
 
-Results show the outcome and every player’s role and survival status. Each human player can vote for a rematch or withdraw their vote. Unanimous votes start another match in the same room; bots do not vote and reserved disconnected players block the next match. **Return everyone to lobby** lets any player bring the whole group back to the existing lobby to change settings or wait for players. Reconnecting requires the original running client; restarting the app or losing the host is not supported.
+Results show a portrait and role for every player. Dead players appear in gray. Each player on the winning team gets a **Winner** label. Each human player can vote for a rematch or withdraw their vote. Unanimous votes start another match in the same room; bots do not vote and reserved disconnected players block the next match. **Return everyone to lobby** lets any player bring the whole group back to the existing lobby to change settings or wait for players. Reconnecting requires the original running client; restarting the app or losing the host is not supported.
 
 Use **Saloon → Verify rematch and reconnect in Play mode** to exercise the four-player UDP flow, including reconnect preservation and reservation expiry.
 
@@ -807,10 +942,10 @@ Camera effects do not change the host's aiming ray or move your seated position.
 A **non-lethal headshot does not cancel** a normal or given drink.
 Health restores when the drink timer finishes.
 For example, a shot reduces a player from 40% to 20%.
-A perfectly poured drink restores health to 40%; a 5% pour restores it to 25%.
+A ready beer restores health from 20% to 40%, or to 60% with a cigarette buff.
 
 A lethal headshot cancels drinking. Beer cannot revive a player.
-Damage still interrupts safe work.
+Damage interrupts a drawer check.
 
 Mug movements and third-person gun grips use procedural poses.
 Local playtest results can guide later improvements.
@@ -824,12 +959,12 @@ This aggressive test AI does not simulate human deduction.
 - They accept a human's room invitation unless they carry money.
 - A carrier stays at the bar.
 - Law players shoot criminals and protect the money.
-- Only Outlaws work on the safe, collect money and declare escape.
+- Only Outlaws can take money and plan an escape; every role can inspect the drawer.
 - Outlaws can shoot to defend themselves and treat each other as allies.
 - The Renegade targets living Outlaws first, then the Law.
 - The Renegade never robs or declares a money escape. Its objective is to be the last survivor.
 
-Practice players aim actual shots, draw, reload and take or drink beer when useful.
+Practice players aim their shots, draw their guns, and use beer when needed. They reload when empty. The Renegade has unlimited bullets.
 They pass when no useful action is available.
 They briefly keep a fixed aim point before firing, so movement can avoid a shot.
 They receive no extra actions or HP.
@@ -838,7 +973,7 @@ Their bullets cannot pass through walls.
 Practice players stand and move sideways around opponents during room actions.
 They can move while waiting or after using their action.
 They avoid furniture and room boundaries, change direction and sometimes stop.
-Drinking, beer transfers and safe work stop their movement.
+Drinking and drawer checks slow their movement.
 They return to their seats for discussion.
 
 Practice players are silent.
@@ -851,29 +986,33 @@ Their difficulty is not balanced for normal play.
 | Input | Function |
 |---|---|
 | Hold Control | Crouch; release to stand when there is room overhead. |
-| F / WASD | Stand or sit near an empty seat / walk and dodge inside your room during actions. |
+| Space / WASD | Stand or sit near an empty seat / walk and dodge inside your room during actions. |
 | Mouse | Look / aim. |
 | Right-click during discussion | Open or close the room planner. |
-| Q / left click / R | Draw or holster / shoot / reload. |
-| E / B / G | Pour or stop at the bar / drink poured beer / offer it to the player at your aim point. |
-| H / X (Outlaw only) | Work on the safe or collect money / declare escape. |
-| Space / C | Set or clear Ready during discussion / inspect as Sheriff while beside the safe. |
-| Space during actions / hold Tab | Pass / read your private role and objective. |
+| Q / hold left-click / right-click / R | Draw or holster / accurate shot after 0.5 seconds / instant shot with more spread / reload. |
+| E near the shared tray | Take and drink a ready beer at the Bar. |
+| H / X (Outlaw only) | Take money beside the drawer / plan escape during discussion. |
+| F / C | Set or clear Ready during discussion / inspect the drawer as any role. |
+| F during actions / hold Tab | Pass / read your private role and objective. |
 | Left / Right arrows | Change the living player's view in spectator mode. |
 | Hold V / T / M | Push-to-talk / toggle open mic / toggle microphone mute. |
 | Esc | Open the menu, host settings, voice devices and player list, or leave. |
 
 Proximity voice connects when you join.
+Speech detection automatically adapts to your microphone and background noise. If voice disconnects or a channel join fails, it retries automatically; the mic indicator shows when voice is reconnecting.
 Hold **V** for push-to-talk, or press **T** once to enable open mic and speak without holding a key.
 Press **T** again to return to push-to-talk. The Escape menu also has an open-mic switch.
 **M** mutes either mode. The top-right indicator shows mic mode and mute state.
 Menus pause microphone transmission; closing them restores your selected mode.
 Open mic stays selected across indoor, smoking and spectator channel changes, and resets when you leave the session.
+After elimination, you hear the game audio and proximity chat from the viewpoint you're spectating, including the watched player's own voice when they speak. Use the arrow keys to change viewpoints. Your microphone stays in eliminated-player chat during the match.
 The cigarette area uses a separate private channel: smokers cannot hear inside, and indoor players cannot hear smokers.
 Regroup returns everyone to indoor proximity voice. These rules apply in both microphone modes.
 It has full volume within two metres and fades by 10 metres.
-Walls do not yet reduce voice volume.
-Nearby indoor rooms can hear each other.
+During room actions, nearby voices across Bar/Coin Flip/Blackjack boundaries are muffled both ways.
+Voices within the same room remain clear.
+Waiting-room voice stays on; Deal Roles pauses microphone transmission and voice playback
+through both opening role screens, then voice resumes for table discussion.
 Vivox voice requires internet on both LAN computers.
 Game networking can run on LAN without internet.
 
@@ -908,9 +1047,9 @@ This prototype does not change it.
 
 ## Graphics settings — development source
 
-The development source adds **Graphics Settings** to the main menu and Escape menu:
-Low / Medium / High presets, resolution, windowed / borderless mode, VSync and
-frame-rate limits. Defaults are Medium, VSync off and a 60 FPS limit. Settings save
+Open **Graphics settings** on the title screen or **Graphics** in the Escape menu.
+You can change the quality preset, resolution, window mode, VSync, and frame rate
+limit. Defaults are Medium, VSync off and a 60 FPS limit. Settings save
 locally; unconfirmed display changes revert after 15 seconds.
 See [graphics settings](Documentation/GRAPHICS-SETTINGS.md).
 
@@ -922,9 +1061,9 @@ The minimum performance target is **60 FPS**; minimum hardware is not establishe
 ## Next playtest priorities and beta readiness
 
 These are proposed acceptance gates, not completed test claims. Current scope is
-private matches for **4–5 players**.
+private matches for **4–8 players**.
 
-- [ ] Run at least three complete human playtest sessions covering four and five
+- [ ] Run at least three complete human playtest sessions covering four through eight
   players, including new players. Record waiting time, confusion, winners, victory
   reasons and desire to replay.
 - [ ] Complete real-device LAN/Wi-Fi/firewall tests and online room-code tests
@@ -940,7 +1079,7 @@ private matches for **4–5 players**.
 - [ ] Test graphics display changes and automatic rollback in a future player
   candidate. No new build is required for source or Editor iteration.
 - [ ] Verify that new players can plan, ready, understand their role, use minigames
-  and finish a match without developer instructions. Tune timing, safe work,
+  and finish a match without developer instructions. Tune timing, drawer checks,
   escape and sound levels using those observations.
 - [ ] Define supported OS/hardware, known issues and a support/bug-reporting path.
   Decide whether practice bots remain explicitly omniscient test opponents or need
@@ -952,7 +1091,7 @@ identity, role instructions, spectator cycling/persistent bodies, and multiple
 animation/grip/hit-reaction improvements. These still need human usability and
 balance feedback; they are not wholly unimplemented TODOs.
 
-Deferred scope: 6–8-player match rules, host migration, reconnect after app restart,
+Deferred scope: host migration, reconnect after app restart,
 matchmaking, wall-based voice attenuation and production anti-cheat. These are not
 all prerequisites for a private-group beta. A public release must state its
 limitations clearly and assess abuse protection for its intended audience.
@@ -964,7 +1103,7 @@ Assess whether the current game offers enough replay value at its intended price
 [Steam's Early Access guidance](https://partner.steamgames.com/doc/store/earlyaccess)
 requires a playable current product and clear communication about its unfinished state.
 
-Run **Saloon → Verify posse arrival in Play mode** to check posse timing and victory priority.
+Run **Saloon → Verify matches without a round limit in Play mode** to check play beyond round 20 and late escape attempts.
 
 ## HUD and combat feedback
 
@@ -994,7 +1133,7 @@ Menus and planning controls use light parchment, dark text and rust-red selectio
 Indoor walking uses five prepared wooden footstep sounds from Kenney Impact Sounds (CC0).
 Outdoor walking uses softer, synthesized dirt sounds.
 The previous synthesized wood sounds are removed.
-Standing uses a separate input debounce, so F works immediately after a shot.
+Standing uses a separate input debounce, so Space works immediately after a shot.
 Coin Flip and Blackjack seats stay locked only until their minigame finishes.
 Either player can then stand and dodge, including after using their action.
 
@@ -1004,52 +1143,24 @@ Seated, stationary, eliminated, stale and teleporting characters do not trigger 
 The bundled font licenses are in `Assets/Resources/Fonts`.
 
 
-Revolver shots, reload, drinking and approaching-posse audio in the development source now use CC0
+Revolver shots, reload and drinking audio in the development source now use CC0
 recordings from Freesound. Source links, authors and processing notes are in
 [asset sources](Documentation/ASSET-SOURCES.md#recorded-sound-replacement--2026-11-11).
-
-
-## Bartender: one private question
-
-The bartender is **absent for all of rounds 1–5**. At the start of **round 6**,
-he appears behind the left end of the Bar counter and everyone receives a
-**Bartender arrived** notification. His character, sign, mood meter and question
-interaction stay hidden until then. Pre-arrival requests spend neither your
-question nor your action. Shots fired before he arrives do not affect his mood.
-
-From round 6 onward, during room actions,
-any living Sheriff, Deputy or Outlaw can approach and press **I** to open a private list of living
-players. Choose **Is [name] an Outlaw?** to use the round action and that player’s
-**one question for the entire match**. Opening or closing the list is free.
-
-Each eligible player has their own allowance; other players asking do not use yours.
-The Renegade cannot ask because they already know every role.
-
-The bartender uses CDmir’s textured, rigged Bartender model from OpenGameArt
-(CC0), with a cream blouse, brown skirt and dark hair. Source and conversion
-provenance are retained in ArtSource/Bartender/SOURCE.txt. His **MOOD METER** is visible at the Bar
-and in the question panel. It starts at **100** and loses **10** for every actual
-shot fired in the Bar, including misses and bot shots. Empty triggers, rejected
-shots and side-room gunfire do not lower it. Mood stays down across rounds and
-reconnects; a new match restores it. Shooting is still allowed, but he wants his
-Bar kept peaceful.
-
-Mood is the percentage chance of getting a useful answer: **100 mood = always
-helpful**, **50 mood = 50% helpful**, **0 mood = always Maybe**. A useful answer is
-truthful **Yes** or **No**; **Maybe** gives no role information. **Every reply,
-including Maybe, spends your one question and round action.** It cannot be
-rerolled. A No does not name the player’s actual role. Other players receive
-neither the question nor the answer. Hold **Tab** to reread your reply under
-**BARTENDER · PRIVATE**, even after leaving the Bar. Live mood changes are hidden
-from the separated smoking area.
-
-The host checks role, phase, life, physical counter access, target and action
-availability. Invalid requests spend neither the question nor the action.
-Reconnecting and advancing rounds preserve the spent question; a new match resets
-it. **I**, **Escape** or **Close** dismiss the list.
 
 
 The public Bar floor includes the walking route around the center discussion table
 and the aisle toward the entrance. Center-table and chair colliders match their
 visible footprint. The outside entrance is physically closed; E does not enter
 or leave the building. The smoking deck remains a separate room selected in planning.
+
+## Beer artwork and round transitions — development source
+
+Beer now uses eugeneloza’s CC0 OpenDungeons tankard, with a fitted ale and foam
+surface, on the shared tray, on tables and in both drinking views.
+The source and conversion are recorded in [asset sources](Documentation/ASSET-SOURCES.md).
+
+After the last action, the waiting period retains the same beer tray, coin and
+physical blackjack hand. Table controls still close. Returning to the discussion
+table updates camera position and facing together, avoiding a slide through the
+bar furniture. Use **Saloon → Verify beer artwork and scene continuity** for the
+focused Play mode checks and previews in `Documentation/BeerScenePreviews/`.

@@ -41,19 +41,26 @@ with tempfile.TemporaryDirectory(prefix='lastcall-planning-') as temporary:
                ('SaloonSocial.cs', 'RoomTurnView PrivateRoomTurn('),
                ('SaloonGame.cs', 'string ActionBlockReason('),
                ('SaloonGame.cs', 'bool SpendAction('),
+               ('SaloonGame.cs', 'void RecordSwindlerVictory('),
+               ('SaloonHeist.cs', 'bool Enemies('),
+               ('SaloonHeist.cs', 'void BeginDrawerCheck('),
+               ('SaloonHeist.cs', 'void CompleteInspection('),
+               ('SaloonHeist.cs', 'void CompleteRobbery('),
                ('SaloonHeist.cs', 'void DeclareEscape('),
+               ('SaloonHeist.cs', 'void BeginPlannedEscapes('),
+               ('SaloonHeist.cs', 'void CancelEscapeOnHit('),
+               ('SaloonHeist.cs', 'void ReturnDrawerMoney('),
+               ('SaloonHeist.cs', 'void ResolveRoundEnding('),
                ('SaloonHeist.cs', 'void ResolveEscapes('),
                ('SaloonBeerPour.cs', 'int PrepareBeerHealing('),
-               ('SaloonBeerPour.cs', 'bool CommitBeerUse('),
-               ('SaloonBeerPour.cs', 'void DrinkBeer('),
-               ('SaloonBeerPour.cs', 'void LeaveBeer(')]
+               ('SaloonBeerPour.cs', 'void DrinkBeer(')]
     authorization = output / 'ProductionAuthorization.cs'
     authorization.write_text('using System.Linq; using UnityEngine; namespace Saloon { public partial class SaloonGame {\n'
                              + '\n'.join(production_method(*method) for method in methods) + '\n}}')
     args = ['-nologo', '-target:exe', '-langversion:9.0', f'-out:"{output}/PlanningChecks.dll"']
     args += [f'-r:"{path}"' for path in references.glob('*.dll')]
     args += [f'"{ROOT / source}"' for source in sources]
-    args += [f'"{authorization}"', f'"{ROOT / "Assets/Scripts/SaloonPosse.cs"}"']
+    args += [f'"{authorization}"']
     response = output / 'compile.rsp'
     response.write_text('\n'.join(args))
     subprocess.run([str(sdk / 'dotnet'), str(compiler), '@' + str(response)], check=True)

@@ -24,7 +24,7 @@ namespace Saloon
             Setup(1);Check(duels[1].blackjack==null&&PrivateDuel(host).stage=="choosing","West keeps coin flip");
             Setup(2);var d=duels[2];
             Check(d.blackjack!=null&&(d.dealer==host.id||d.dealer==peer.id),"East deals blackjack with one randomly assigned dealer");
-            Check(d.readyAt-Time.time>=3&&d.choiceUntil-d.readyAt>=44.99f&&!PrivateDuel(host).canHit,"initial deal is paced before a full forty-five-second decision window");
+            Check(d.readyAt-Time.time>=2.19f&&d.readyAt-Time.time<=2.21f&&d.choiceUntil-d.readyAt>=44.99f&&!PrivateDuel(host).canHit,"initial deal takes 2.2 seconds before a full forty-five-second decision window");
             var dealer=players[d.dealer];var player=players[d.dealer==d.a?d.b:d.a];
             SaloonBlackjack Find(Func<SaloonBlackjack,bool> predicate)
             {
@@ -46,17 +46,18 @@ namespace Saloon
             Check(!player.drawn&&!DuelAllows(player)&&!DuelAllows(dealer)&&rounds.CanAct(player.id,Time.time),"combat locked without consuming an action");
             OnCommand(player.id,new Command{kind="blackjack",name="hit"});
             Check(d.blackjack.Player.Count==cards+1,"player hit deals one card");
-            Check(d.readyAt-Time.time>1.4f&&d.choiceUntil-d.readyAt>=44.99f&&!PrivateDuel(player).canHit,"each hit waits for the card and renews the decision time");
+            Check(d.readyAt-Time.time>=.99f&&d.readyAt-Time.time<=1.01f&&d.choiceUntil-d.readyAt>=44.99f&&!PrivateDuel(player).canHit,"each hit settles in one second and renews the full decision time");
             OnCommand(player.id,new Command{kind="blackjack",name="hit"});
             Check(d.blackjack.Player.Count==cards+1,"duplicate rapid input is throttled");
             d.readyAt=d.nextInputAt=0;d.blackjack=Find(h=>!h.Complete);d.choiceUntil=Time.time-1;TickBlackjack(d);
             Check(!d.blackjack.PlayerTurn,"idle player automatically stands");
             Check(PrivateDuel(player).dealerTotal>=0,"hole card revealed after stand");
+            Check(d.nextCardAt-Time.time>=4.99f&&d.nextCardAt-Time.time<=5.01f,"idle dealer advances automatically after five seconds");
             for(int i=0;i<30&&!d.blackjack.Complete;i++){d.readyAt=d.nextCardAt=0;TickBlackjack(d);}
             Check(d.blackjack.Complete,"dealer draws to 17 and finishes");
             d.readyAt=0;d.blackjack=Find(h=>h.Complete&&h.Winner==1);d.revealed=false;TickBlackjack(d);
             Check(d.revealed&&d.first==player.id&&PrivateDuel(player).stage=="result"&&!DuelAllows(player)&&!DuelAllows(dealer),"winner is shown during the reaction pause with weapons locked for both players");
-            Check(d.combatAt-Time.time>=3.9f&&d.firstUntil-d.combatAt>=9.99f&&!TableLocksSeat(dealer),"result gives four seconds to prepare and a separate ten-second opening (delay="+(d.combatAt-Time.time)+", opening="+(d.firstUntil-d.combatAt)+", locked="+TableLocksSeat(dealer)+")");
+            Check(d.combatAt-Time.time>=2.99f&&d.combatAt-Time.time<=3.01f&&d.firstUntil-d.combatAt>=9.99f&&!TableLocksSeat(dealer),"result gives three seconds to prepare and a separate ten-second opening (delay="+(d.combatAt-Time.time)+", opening="+(d.firstUntil-d.combatAt)+", locked="+TableLocksSeat(dealer)+")");
             player.drawn=false;player.busyUntil=0;player.lastAction=-100;
             OnCommand(player.id,new Command{kind="draw"});OnCommand(player.id,new Command{kind="fire"});OnCommand(player.id,new Command{kind="pass"});
             Check(!player.drawn&&!player.fireAfterDraw&&rounds.CanAct(player.id,Time.time),"draw, fire and pass cannot bypass the result pause or spend the winner's action");
@@ -82,10 +83,21 @@ namespace Saloon
             Check(!rounds.CanAct(d.first,Time.time)&&DuelAllows(players[d.first==d.a?d.b:d.a]),"opening timeout lets opponent respond");
             Setup(2);d=duels[2];d.readyAt=0;
             d.blackjack=Find(h=>{if(h.Complete)return h.Winner==0;h.Stand();while(!h.Complete)h.DealerStep();return h.Winner==0;});
-            ulong sameDealer=d.dealer;TickBlackjack(d);
-            Check(!d.revealed&&PrivateDuel(host).stage=="redealing"&&d.revealAt-Time.time>=4.9f,"push keeps the cards visible for five seconds and awards no opening");
+            ulong sameDealer=d.dealer;int sameHand=d.handNumber;var tiedHand=d.blackjack;TickBlackjack(d);
+            Check(!d.revealed&&PrivateDuel(host).stage=="tiebreak"&&d.revealAt-Time.time>=1.99f,"push automatically draws high cards with a two-second presentation");
+            var tiedView=Snapshot.FromWireJson(PrivateSnapshot(host.id).ToWireJson()).duel;
+            Check(tiedView.playerHighCard==tiedHand.PlayerHighCard&&tiedView.dealerHighCard==tiedHand.DealerHighCard&&tiedView.playerHighCard>=0&&tiedView.dealerHighCard>=0,"both high cards survive real snapshot serialization");
+            Check(!PrivateDuel(host).canHit&&!PrivateDuel(host).canDeal&&!PrivateDuel(peer).canHit&&!PrivateDuel(peer).canDeal&&!DuelAllows(host)&&!DuelAllows(peer),"automatic tiebreak accepts no card or combat decisions");
+            int high=tiedHand.PlayerHighCard;TickBlackjack(d);
+            Check(!d.revealed&&tiedHand.PlayerHighCard==high,"repeated ticks keep the same high cards during presentation");
             d.revealAt=Time.time-1;TickBlackjack(d);
-            Check(d.dealer==sameDealer&&d.revealAt==0&&!d.revealed,"push redeals with same roles");
+            ulong tiedPlayer=d.dealer==d.a?d.b:d.a;
+            Check(d.revealed&&d.dealer==sameDealer&&d.handNumber==sameHand&&d.blackjack==tiedHand&&d.first==(tiedHand.Winner>0?tiedPlayer:d.dealer),"high card awards exactly one opening without restarting the blackjack hand");
+            Check(PrivateDuel(host).stage=="result"&&d.result.StartsWith("High card")&&d.firstUntil-d.combatAt>=9.99f,"tiebreak keeps the normal result and full combat opening");
+            Setup(2);d=duels[2];d.blackjack=Find(h=>h.Complete&&h.Winner==0);d.readyAt=Time.time+1;
+            TickBlackjack(d);Check(d.blackjack.PlayerHighCard==-1,"tied natural blackjacks wait for the initial deal");
+            d.readyAt=0;TickBlackjack(d);d.revealAt=Time.time-1;TickBlackjack(d);
+            Check(d.revealed&&d.blackjack.PlayerTotal==21&&d.blackjack.DealerTotal==21&&d.handNumber==1,"tied natural blackjacks also resolve by high card without a redeal");
             Check(rounds.Deadline>=Time.time+Mathf.Max(10,tuning.turnSeconds)-.1f,"minigame preserves combat action time");
             Debug.Log("SALOON_BLACKJACK PASS");
         }

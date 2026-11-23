@@ -8,13 +8,14 @@ namespace Saloon
 {
     public partial class SaloonGame
     {
-        public void StartCoinTablePractice()
+        public void StartCoinTablePractice(bool dice=false)
         {
             HostLan(true);if(!Hosting)return;
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);
             foreach(var p in players.Values){p.role=Role.Deputy;p.chosenRoom=0;p.companion=null;}
             host.role=Role.Sheriff;peer.role=Role.Renegade;
             host.chosenRoom=peer.chosenRoom=1;host.companion=peer.id;peer.companion=host.id;
+            if(dice){rounds.BeginAftermath(Time.time-10);rounds.Tick(Time.time,id=>true);rounds.Tick(Time.time+4,id=>true);}
             foreach(var id in players.Keys)rounds.SetReady(id,true);
             rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
             MenuOpen=false;AutomatedInput=false;Broadcast();
@@ -65,9 +66,9 @@ namespace Saloon
             yield return new WaitForSeconds(d.coinFlipSeconds*.48f);Broadcast();yield return null;
             Check(CoinTable.TossHeight>.30f,"gold coin physically flips above the felt");CaptureCoin("toss");
             var watching=Snapshot.FromWireJson(PrivateSnapshot(viewer.id).ToWireJson());
-            Check(watching.coinTable?.stage=="flipping"&&!watching.coinTable.canChooseCoin&&!watching.coinTable.yourTurn,"indoor spectator receives a read-only toss");
+            Check(watching.coinTable==null,"Bar player receives no enclosed-room toss state");
             CoinTable.Apply(watching,watching.players.First(p=>p.id==viewer.id.ToString()));
-            Check(CoinTable.Visible&&CoinTable.transform.Find("Coin toss").GetComponentsInChildren<Collider>().All(c=>!c.enabled),"spectators see the coin without clickable controls");
+            Check(!CoinTable.Visible,"Bar player cannot inspect the enclosed coin or its controls");
             var outside=Snapshot.FromWireJson(PrivateSnapshot(smoker.id).ToWireJson());
             Check(outside.coinTable==null,"smoking yard receives no coin table state");
             CoinTable.Apply(outside,outside.players.First(p=>p.id==smoker.id.ToString()));Check(!CoinTable.Visible,"outdoor snapshot clears the coin presentation");Broadcast();
@@ -107,7 +108,9 @@ namespace Saloon
                 Check(CoinTable.FaceUp==result,"physical face supports "+result);
             }
             rounds.BeginAftermath(Time.time);phase=rounds.Phase;Broadcast();yield return null;
-            Check(!CoinTable.Visible&&View.coinTable==null,"phase change removes the coin and table controls");
+            Check(CoinTable.Visible&&View.coinTable==null&&View.duel==null,"aftermath retains the physical coin without table controls");
+            rounds.BeginAftermath(Time.time-4);TickServer();Broadcast();yield return null;
+            Check(!CoinTable.Visible,"regroup clears the coin when players leave");
             VerificationFinished=VerificationPassed=true;Debug.Log("SALOON_COIN_TABLE PASS");
         }
         void CaptureCoin(string name)

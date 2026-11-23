@@ -1,28 +1,40 @@
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
+using System.IO;
 using System.Linq;
 using UnityEngine;
 
 namespace Saloon
 {
-    // Opt-in packaged-player test: one host plus three/four independent client processes.
+    // Opt-in packaged-player test: one host plus three to seven LAN or Relay clients.
     public sealed class SaloonLanMatchVerification : MonoBehaviour
     {
         public SaloonGame Game;
         int count,index,round,completedMask,initialHealth;
-        bool host,started,connected,planSent,stanceSent,stood,moved,actionSent,actionSeen,drawSent,beerSent,reported,privacy;
-        float began,roomAt,nextCommand,quitAt,drawAt,discussionAt,outageSeconds;Vector3 origin;
+        int expectedAmmoAfterShot;
+        bool host,online,codeWritten,started,connected,planSent,stanceSent,stood,moved,actionSent,actionSeen,drawSent,beerSent,reported,privacy;
+        float began,roomAt,nextCommand,quitAt,drawAt,discussionAt,outageSeconds,walkAt;Vector3 origin;
         string Arg(string key,string fallback){var args=Environment.GetCommandLineArgs();int n=Array.IndexOf(args,key);return n>=0&&n+1<args.Length?args[n+1]:fallback;}
         void Start()
         {
             Application.logMessageReceived+=OnLog;
             host=Arg("-saloonTest","").EndsWith("host");count=int.Parse(Arg("-saloonPlayers","4"));index=int.Parse(Arg("-saloonIndex","0"));
+            if(!SaloonRules.SupportedMatchSize(count)){Report(false,"match requires four to eight players");return;}
+            online=Arg("-saloonOnline","0")=="1";
             outageSeconds=float.Parse(Arg("-saloonOutageSeconds","0"),System.Globalization.CultureInfo.InvariantCulture);
             Game.AutomatedInput=true;Game.PlayerName="LAN-"+index;Game.Port=Arg("-saloonPort","18130");Game.Address=Arg("-saloonAddress","127.0.0.1");
             Game.tuning.roundLimit=3;Game.tuning.turnSeconds=20;Game.tuning.regroupSeconds=1;began=Time.unscaledTime;
-            if(host){Game.SetBotsEnabled(false);Game.HostLan(false);}else Game.JoinLan();
+            Game.SetBotsEnabled(false);
+            if(online){Game.JoinCode=Arg("-saloonCode","");Game.Cloud(host);}
+            else if(host)Game.HostLan(false);else Game.JoinLan();
         }
-        void OnLog(string message,string trace,LogType type){if(type==LogType.Exception)Report(false,"runtime exception: "+message);}
+        void OnLog(string message,string trace,LogType type)
+        {
+            // The services SDK logs handled 429 responses as exceptions before the
+            // connection's bounded retry runs. All other runtime exceptions fail.
+            if(type==LogType.Exception&&!(online&&Game.Connection.Busy&&message.Contains("request_rate_limited")))
+                Report(false,"runtime exception: "+message);
+        }
         void OnDestroy(){Application.logMessageReceived-=OnLog;}
         void Report(bool ok,string reason)
         {
@@ -33,7 +45,9 @@ namespace Saloon
         void Update()
         {
             if(reported){if(Time.unscaledTime>=quitAt)Application.Quit(0);return;}
-            if(Time.unscaledTime-began>105+outageSeconds){Report(false,"timeout phase="+Game.View?.phase);return;}
+            if(Time.unscaledTime-began>105+outageSeconds+(online?75:0)){Report(false,"timeout phase="+Game.View?.phase);return;}
+            if(online&&host&&!codeWritten&&Game.InRoom&&!string.IsNullOrEmpty(Game.Connection.RoomCode))
+            {File.WriteAllText(Arg("-saloonCodeFile",""),Game.Connection.RoomCode);codeWritten=true;}
             if(Game.InRoom)connected=true;
             if(connected&&!Game.InRoom){Report(false,"connection closed before match results");return;}
             Game.MenuOpen=false;
@@ -72,18 +86,27 @@ namespace Saloon
             }
             if(view.phase==Phase.Turns)
             {
-                if(roomAt==0){roomAt=Time.unscaledTime;initialHealth=self.health;Debug.Log("SALOON_LAN_MATCH_PHASE index="+index+" round="+round+" Turns room="+self.room);}
+                if(roomAt==0)
+                {
+                    roomAt=Time.unscaledTime;initialHealth=self.health;
+                    expectedAmmoAfterShot=view.ammo-(view.UnlimitedAmmo?0:1);
+                    Debug.Log("SALOON_LAN_MATCH_PHASE index="+index+" round="+round+" Turns room="+self.room);
+                }
                 int expected=round==2&&index<4?(index<2?1:2):0;
                 if(self.room!=expected){Report(false,"wrong room assignment");return;}
                 if(round==1)
                 {
                     if(self.seated&&!stanceSent&&Time.unscaledTime>=nextCommand){Game.Act("stance");stanceSent=true;nextCommand=Time.unscaledTime+.3f;return;}
                     if(self.seated&&stanceSent&&Time.unscaledTime>=nextCommand){stanceSent=false;return;}
-                    if(!self.seated&&!stood){stood=true;origin=new Vector3(self.x,self.y,self.z);}
+                    if(!self.seated&&!stood){stood=true;walkAt=Time.unscaledTime;origin=new Vector3(self.x,self.y,self.z);}
                     if(stood)
                     {
-                        if(Vector3.ProjectOnPlane(new Vector3(self.x,self.y,self.z)-origin,Vector3.up).magnitude>.25f)moved=true;
-                        Game.Connection.Send(new Command{kind="input",x=Time.unscaledTime-roomAt<1.4f?-.7f:0,z=Time.unscaledTime-roomAt<1.4f?-.7f:0,yaw=0,pitch=0,poseVersion=self.poseVersion});
+                        if(Vector3.ProjectOnPlane(new Vector3(self.x,self.y,self.z)-origin,Vector3.up).magnitude>.65f)moved=true;
+                        // Give each walker time after standing, and try another direction
+                        // when furniture or another player blocks the first path.
+                        float angle=(index+Mathf.Floor((Time.unscaledTime-walkAt)/.6f))*45;
+                        var direction=moved?Vector3.zero:Quaternion.Euler(0,angle,0)*Vector3.back*.7f;
+                        Game.Connection.Send(new Command{kind="input",x=direction.x,z=direction.z,yaw=0,pitch=0,poseVersion=self.poseVersion});
                     }
                     if(view.actionAvailable&&moved&&Time.unscaledTime-roomAt>2&&!actionSent){Game.Act("pass");actionSent=true;}
                     if(actionSent&&view.notice.StartsWith("Passed."))actionSeen=true;
@@ -98,21 +121,30 @@ namespace Saloon
                         else if(view.duel?.canDeal==true){Game.ChooseBlackjack("deal");nextCommand=Time.unscaledTime+.3f;}
                     }
                     var target=view.players.FirstOrDefault(p=>p.name=="LAN-"+(index^1));if(target==null)return;
-                    var direction=new Vector3(target.x-self.x,target.y-self.y,target.z-self.z);
+                    var direction=new Vector3(target.headX-self.x,target.headY-self.y-SaloonMovement.EyeHeight(self.seated,self.crouched),target.headZ-self.z);
                     float yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg,pitch=-Mathf.Atan2(direction.y,new Vector2(direction.x,direction.z).magnitude)*Mathf.Rad2Deg;
                     Game.Connection.Send(new Command{kind="input",yaw=yaw,pitch=pitch,poseVersion=self.poseVersion});
                     if(view.actionAvailable&&!self.drawn&&!drawSent){Game.Act("draw");drawSent=true;drawAt=Time.unscaledTime;}
-                    if(view.actionAvailable&&self.drawn&&view.busyRemaining<=0&&Time.unscaledTime-drawAt>.85f&&!actionSent){Game.Act("fire");actionSent=true;}
-                    if(actionSent&&self.shots==1&&view.ammo==5)actionSeen=true;
+                    if(view.actionAvailable&&self.drawn&&view.busyRemaining<=0&&Time.unscaledTime-drawAt>.85f&&!actionSent)
+                    {
+                        actionSent=Game.ShootForVerification(target.id);
+                    }
+                    if(actionSent&&self.shots==1&&view.ammo==expectedAmmoAfterShot)actionSeen=true;
                 }
                 else if(round==3&&initialHealth<Game.tuning.health)
                 {
-                    if(view.actionAvailable&&!beerSent){Game.Act("interact");beerSent=true;nextCommand=Time.unscaledTime+.25f;}
-                    if(view.pouring&&view.pourElapsed>=2.65f&&Time.unscaledTime>=nextCommand){Game.Act("stopPour");nextCommand=Time.unscaledTime+.25f;}
-                    if(view.carriedBeer==1&&!actionSent&&Time.unscaledTime>=nextCommand){Game.Act("drink");actionSent=true;nextCommand=Time.unscaledTime+.4f;}
+                    if(view.actionAvailable&&!beerSent&&Time.unscaledTime>=nextCommand)
+                    {
+                        if(self.seated){Game.Act("stance");nextCommand=Time.unscaledTime+.2f;}
+                        else if(!SaloonBeerTaps.WithinReach(new Vector3(self.x,self.y,self.z),Game.tuning.interactionDistance))
+                        {
+                            var direction=Vector3.ProjectOnPlane(SaloonBeerTaps.Position-new Vector3(self.x,self.y,self.z),Vector3.up).normalized;
+                            var local=Quaternion.Euler(0,-self.yaw,0)*direction;
+                            Game.Connection.Send(new Command{kind="input",x=local.x,z=local.z,yaw=self.yaw,pitch=self.pitch,poseVersion=self.poseVersion});
+                        }
+                        else {Game.Act("interact");beerSent=actionSent=true;}
+                    }
                     if(actionSent&&self.health==SaloonHealth.AfterBeer(initialHealth))actionSeen=true;
-                    if(actionSent&&!actionSeen&&view.beerChoiceRemaining>0&&view.carriedBeer==1&&view.busyRemaining<=0&&Time.unscaledTime>=nextCommand)
-                    {Game.Act("drink");nextCommand=Time.unscaledTime+.4f;}
                 }
                 else
                 {
@@ -124,7 +156,7 @@ namespace Saloon
             if(actionSent)
             {
                 if(round==1||(round==2&&index>=4)||(round==3&&initialHealth>=SaloonHealth.Maximum))actionSeen|=view.notice.StartsWith("Passed.");
-                else if(round==2)actionSeen|=self.shots==1&&view.ammo==5;
+                else if(round==2)actionSeen|=self.shots==1&&view.ammo==expectedAmmoAfterShot;
                 else if(round==3)actionSeen|=self.health==SaloonHealth.AfterBeer(initialHealth);
             }
             if(view.phase==Phase.Aftermath&&(completedMask&(1<<round))==0)

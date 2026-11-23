@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.Rendering;
 
@@ -13,7 +14,8 @@ namespace Saloon
         };
         public static readonly Color[] PlayerColors = {
             new Color(.75f,.35f,.20f), new Color(.25f,.51f,.65f), new Color(.66f,.57f,.29f),
-            new Color(.40f,.57f,.38f), new Color(.62f,.39f,.57f)
+            new Color(.40f,.57f,.38f), new Color(.62f,.39f,.57f),
+            new Color(.23f,.65f,.62f), new Color(.82f,.55f,.28f), new Color(.54f,.57f,.76f)
         };
         public static readonly List<Material> GeneratedMaterials = new List<Material>();
         static Transform root;
@@ -30,7 +32,15 @@ namespace Saloon
         public static GameObject Build()
         {
             var old = GameObject.Find("Saloon World");
-            if (old != null) return old;
+            if (old != null)
+            {
+                foreach(var prop in old.GetComponentsInChildren<Transform>(true).Where(t=>t.name=="WineBarrel"&&t.position.z<0).ToArray())
+                {
+                    prop.gameObject.SetActive(false);
+                    if(Application.isPlaying)Object.Destroy(prop.gameObject);else Object.DestroyImmediate(prop.gameObject);
+                }
+                UpgradeSeating(old);return old;
+            }
             GeneratedMaterials.Clear();
             root = new GameObject("Saloon World").transform;
             wood = Material("Honey oak", new Color(.40f,.235f,.115f));
@@ -62,7 +72,7 @@ namespace Saloon
             Box("Porch",new Vector3(0,-.06f,-8.5f),new Vector3(8,.15f,3),wood);
             Box("Porch roof",new Vector3(0,3.3f,-8.5f),new Vector3(8,.15f,3),dark);
             foreach(float x in new[]{-3.7f,3.7f}) Box("Porch post",new Vector3(x,1.6f,-9.7f),new Vector3(.18f,3.2f,.18f),wood);
-            // Two enclosed rooms; SaloonRoomWindows supplies their continuous glass fronts.
+            // Two enclosed rooms; SaloonRoomWindows supplies their solid front walls.
             foreach(float center in new[]{-5f,5f})
             {
                 Box("Room back",new Vector3(center,2.05f,-5.7f),new Vector3(4,4.1f,.18f),dark);
@@ -78,18 +88,15 @@ namespace Saloon
             Prop("Art/bookcaseOpen", new Vector3(-1.3f,0,6.65f),1.95f,180,wood,true);
             for(int shelf=0;shelf<3;shelf++) for(int i=0;i<13;i++)
                 Bottle(new Vector3(-5.5f+i*.38f,.55f+shelf*.57f,6.22f));
-            var tap = Box("Shared beer supply",new Vector3(1.6f,1.6f,3.7f),new Vector3(.32f,.4f,.32f),brass);
-            var beer = tap.AddComponent<InteractionPoint>(); beer.kind=InteractionKind.Beer;
-            for(int i=0;i<5;i++) Seat(new Vector3(-5+i*1.5f,0,2.05f),0,i,true);
+            for(int i=0;i<SaloonRules.BarCapacity;i++) Seat(SaloonStations.Position(false,0,i)-Vector3.up*.35f,SaloonStations.Facing(false,0,i),i,true);
             Prop("Art/tableRound",new Vector3(0,0,-.5f),.75f,0,wood,true);
-            for(int i=0;i<5;i++)Seat(SaloonStations.Position(true,0,i)-Vector3.up*.08f,SaloonStations.Facing(true,0,i),5+i,false);
+            for(int i=0;i<SaloonRules.LobbyCapacity;i++)Seat(SaloonStations.Position(true,0,i)-Vector3.up*.08f,SaloonStations.Facing(true,0,i),SaloonStations.GatherSeatStart+i,false);
             foreach(int room in new[]{1,2})
             {
                 var center=new Vector3(room==1?-5:5,0,-3.8f);Prop("Art/tableRound",center,.70f,0,wood,true);
                 for(int slot=0;slot<2;slot++)Seat(SaloonStations.Position(false,room,slot)-Vector3.up*.08f,SaloonStations.Facing(false,room,slot),10+room*2+slot,false);
             }
             Prop("Art/WineBarrel",new Vector3(-6.8f,.06f,5.5f),1.15f,0,BarrelMaterial(),true);
-            Prop("Art/WineBarrel",new Vector3(6.7f,.06f,-5.8f),1.15f,25,BarrelMaterial(),true);
             foreach(var pos in new[]{new Vector3(-3,3.1f,0),new Vector3(3,3.1f,-3),new Vector3(-2,3.1f,5),new Vector3(6.5f,3.1f,4)})
             {
                 Box("Hanging lantern",pos,new Vector3(.4f,.25f,.4f),brass);
@@ -110,11 +117,53 @@ namespace Saloon
             mat.mainTexture=Resources.Load<Texture2D>("Art/BarrelDiffuse");return mat;
         }
 
+        static void UpgradeSeating(GameObject world)
+        {
+            // Saved scenes predate eight-player matches. Clone their finished furniture,
+            // preserving imported visuals/colliders, then use the same layout as fresh worlds.
+            var points=world.GetComponentsInChildren<InteractionPoint>();
+            var bar=points.Where(p=>p.kind==InteractionKind.Seat&&p.gameObject.name=="stoolBar").OrderBy(p=>p.index).ToList();
+            var gather=points.Where(p=>p.kind==InteractionKind.Seat&&p.gameObject.name=="chair"&&
+                (p.index>=5&&p.index<=9||p.index>=SaloonStations.GatherSeatStart&&p.index<SaloonStations.GatherSeatStart+SaloonRules.LobbyCapacity)).OrderBy(p=>p.index).ToList();
+            Upgrade(bar,true);Upgrade(gather,false);
+            void Upgrade(List<InteractionPoint> seats,bool isBar)
+            {
+                if(seats.Count==0)return;
+                while(seats.Count<SaloonRules.LobbyCapacity)
+                {
+                    var copy=Object.Instantiate(seats[0].gameObject,world.transform);copy.name=seats[0].gameObject.name;
+                    seats.Add(copy.GetComponent<InteractionPoint>());
+                }
+                for(int i=0;i<seats.Count;i++)
+                {
+                    var seat=seats[i];
+                    var position=SaloonStations.Position(!isBar,0,i)-Vector3.up*(isBar?.35f:.08f);
+                    seat.transform.position=position;seat.sitYaw=SaloonStations.Facing(!isBar,0,i);
+                    seat.transform.rotation=Quaternion.Euler(0,seat.sitYaw,0);
+                    seat.index=isBar?i:SaloonStations.GatherSeatStart+i;
+                    seat.sitPosition=position+Vector3.up*(isBar?.17f:-.10f);
+                    if(isBar)BarStoolCollision(seat.gameObject);
+                }
+            }
+        }
+
         static void Seat(Vector3 pos,float yaw,int index,bool bar)
         {
             var go=Prop(bar?"Art/stoolBar":"Art/chair",pos,bar?.86f:.95f,yaw,wood,true);
             var seat=go.AddComponent<InteractionPoint>();seat.kind=InteractionKind.Seat;seat.index=index;
             seat.sitPosition=pos+Vector3.up*(bar?.17f:-.10f);seat.sitYaw=yaw;
+            if(bar)BarStoolCollision(go);
+        }
+
+        static void BarStoolCollision(GameObject stool)
+        {
+            // Round, narrow supports leave a standing player's capsule room between stools.
+            // Apply to saved furniture too: imported bounding boxes close these gaps.
+            var box=stool.GetComponent<BoxCollider>();
+            if(box!=null)box.enabled=false;
+            var capsule=stool.GetComponent<CapsuleCollider>();
+            if(capsule==null)capsule=stool.AddComponent<CapsuleCollider>();
+            capsule.center=new Vector3(0,.43f,0);capsule.height=.86f;capsule.radius=.18f;
         }
 
         static void Bottle(Vector3 position)

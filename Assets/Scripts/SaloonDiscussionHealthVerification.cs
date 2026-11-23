@@ -23,7 +23,7 @@ namespace Saloon
             yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;pitch=-Mathf.Atan2(direction.y,new Vector2(direction.x,direction.z).magnitude)*Mathf.Rad2Deg;
             yield return new WaitForSeconds(.2f);
             var name=avatars[peer.id.ToString()].transform.Find("Name").GetComponent<TextMesh>();
-            Check(name.alignment==TextAlignment.Center&&text.alignment==TextAlignment.Center&&name.text.Contains("\n"),"name, revealed role and health are center-aligned");
+            Check(name.alignment==TextAlignment.Center&&text.alignment==TextAlignment.Center&&!name.text.Contains("Outlaw"),"name and health stay centered without revealing hidden roles to the Renegade");
             Check(name.transform.localScale==text.transform.localScale,"name and health share the same distance scale");
             var nameView=ViewCamera.WorldToViewportPoint(name.GetComponent<Renderer>().bounds.center);
             var healthView=ViewCamera.WorldToViewportPoint(text.GetComponent<Renderer>().bounds.center);

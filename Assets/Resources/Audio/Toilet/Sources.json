@@ -1,0 +1,38 @@
+[
+  {
+    "asset": "Plunger",
+    "author": "Breviceps",
+    "title": "Cartoon - Smoochy Squeak + Plop",
+    "page": "https://freesound.org/people/Breviceps/sounds/444494/",
+    "preview": "https://cdn.freesound.org/previews/444/444494_9159316-hq.mp3",
+    "license": "CC0-1.0",
+    "source_sha256": "feaca3e0069d64d13f176600d12d1d339d1ff28bf8fcf98713390d1885d851e4",
+    "runtime_file": "Plunger.wav",
+    "filters": "atempo=1.75,loudnorm=I=-20:TP=-3:LRA=7,afade=t=in:d=0.005,afade=t=out:st=0.34:d=0.04",
+    "runtime_sha256": "84a6533dae79734d46ee5aff16d6343ca64dfe230fc61f92a5087940d61fca4f"
+  },
+  {
+    "asset": "Gurgle",
+    "author": "harrisonlace",
+    "title": "toilet bubbles",
+    "page": "https://freesound.org/people/harrisonlace/sounds/830332/",
+    "preview": "https://cdn.freesound.org/previews/830/830332_9839964-hq.mp3",
+    "license": "CC0-1.0",
+    "source_sha256": "d20acf6af7f6b14eea13bbcd4950a912e585ed1006eeb7f7e205b2389a880abd",
+    "runtime_file": "Gurgle.wav",
+    "filters": "atrim=start=0.5:end=1.15,asetpts=PTS-STARTPTS,loudnorm=I=-24:TP=-3:LRA=7,afade=t=in:d=0.02,afade=t=out:st=0.55:d=0.10",
+    "runtime_sha256": "073f7386a5e9a074df3e4af074e8f6701d09859ad36952acc5c64407ef0ecff0"
+  },
+  {
+    "asset": "Flush",
+    "author": "buzzatsea",
+    "title": "sound toilet flushing - homemade.wav",
+    "page": "https://freesound.org/people/buzzatsea/sounds/427906/",
+    "preview": "https://cdn.freesound.org/previews/427/427906_3298379-hq.mp3",
+    "license": "CC0-1.0",
+    "source_sha256": "0a8f591f77690bc8d4dbd49b8f6ac3993fe67c28cbbc2d77f86f6768cfa5caea",
+    "runtime_file": "Flush.wav",
+    "filters": "atrim=start=2.12:end=7.52,asetpts=PTS-STARTPTS,atempo=1.2,loudnorm=I=-21:TP=-3:LRA=7,afade=t=in:d=0.02,afade=t=out:st=3.8:d=0.7",
+    "runtime_sha256": "651ed807336865a5fe552695da1c2b95ffe9510ecc55d1cb30e697670ab568e1"
+  }
+]

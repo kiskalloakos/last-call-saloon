@@ -64,6 +64,24 @@ namespace Saloon
             rounds.Tick(Time.time,id=>true);Check(rounds.Phase==Phase.Turns,"smokers can relax while indoor players still have actions");
             OnCommand(host.id,new Command{kind="smoke"});OnCommand(host.id,new Command{kind="smoke"});
             Check(host.puffs==1&&!rounds.HasSpent(host.id),"left-click starts one drag and repeated clicks respect the animation cooldown");
+            while(Time.time<SaloonRagdoll.ObserverDelay+.1f)yield return null;
+            int indoorHealth=indoor.hp,indoorRoom=indoor.room;float indoorDeathAt=indoor.deathAt;
+            try
+            {
+                indoor.hp=0;indoor.deathAt=Time.time;
+                Check(PrivateSnapshot(indoor.id).players.All(p=>p.id!=host.id.ToString()),"death camera retains area privacy before spectator mode starts");
+                indoor.deathAt=Time.time-SaloonRagdoll.ObserverDelay-.1f;
+                foreach(var spectatorPhase in new[]{Phase.Turns,Phase.Aftermath})
+                {
+                    phase=spectatorPhase;
+                    var spectator=Snapshot.FromWireJson(PrivateSnapshot(indoor.id).ToWireJson());
+                    Check(spectator.players.Length==players.Count&&spectator.players.Any(p=>p.id==host.id.ToString()&&p.alive&&p.room==3&&p.puffs==1),"indoor spectator receives living smokers and their animation state during "+phase);
+                    indoor.room=3;
+                    Check(PrivateSnapshot(indoor.id).players.Length==players.Count,"outdoor spectator can also follow indoor players during "+phase);
+                    indoor.room=indoorRoom;
+                }
+            }
+            finally{indoor.hp=indoorHealth;indoor.room=indoorRoom;indoor.deathAt=indoorDeathAt;phase=Phase.Turns;}
             Go(true);yield return null;
             Check(View.players.Length==2&&View.players.All(p=>p.room==3)&&!avatars.ContainsKey(indoor.id.ToString()),"two smokers see each other without indoor audiovisual objects");
             TrySmoke(host);TrySmoke(peer);host.smokeAt=peer.smokeAt=Time.time-1;Broadcast();yield return new WaitForSeconds(.1f);

@@ -21,6 +21,11 @@ public static class SaloonBlackjackPreview
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode first.");
         SaloonProject.OpenForEditing();SessionState.SetInt("Saloon.Preview.Room",3);SessionState.SetBool(Pending,true);EditorApplication.EnterPlaymode();
     }
+    [MenuItem("Saloon/Play Bluff Dice at table")]
+    public static void Dice()
+    {
+        SaloonDicePracticeEditor.Play();
+    }
     [MenuItem("Saloon/Play coin flip at table")]
     public static void Coin()
     {
@@ -33,8 +38,8 @@ public static class SaloonBlackjackPreview
         var game=UnityEngine.Object.FindAnyObjectByType<SaloonGame>();if(game==null)return;
         SessionState.SetBool(Pending,false);
         int room=SessionState.GetInt("Saloon.Preview.Room",2);
-        if(room==3)game.StartSmokingPractice();else if(room==1)game.StartCoinTablePractice();else game.StartBlackjackTablePractice();
-        SessionState.SetInt("Saloon.Preview.Room",2);
+        if(room==3)game.StartSmokingPractice();else if(room==1)game.StartCoinTablePractice(SessionState.GetBool("Saloon.Preview.Dice",false));else game.StartBlackjackTablePractice();
+        SessionState.SetInt("Saloon.Preview.Room",2);SessionState.SetBool("Saloon.Preview.Dice",false);
         var gameView=Type.GetType("UnityEditor.GameView,UnityEditor");
         if(gameView!=null)EditorWindow.GetWindow(gameView).Focus();
     }

@@ -12,11 +12,21 @@ namespace Saloon
         TextMesh label,healthDots;
         Renderer nameRenderer,healthRenderer;
         AudioSource audioSource,drinkAudio,reloadAudio;
+        AudioLowPassFilter roomAudioFilter;
         int lastReload;
-        bool wasDrinking;int lastGift;GameObject handoffMug;
-        int lastShot;
+        bool wasDrinking;
+        int lastShot,lastCharge;
         bool local;
         Vector3 target;
+        Vector3 targetHead,renderedHead,previousHead,previousTarget;
+        float targetServerTime,previousTargetTime,renderTime;
+        Vector3 presentedHead;
+        public float RenderedServerTime { get; private set; }
+        public float RenderFromTime { get; private set; }
+        public float RenderToTime { get; private set; }
+        public Vector3 RenderedHead=>presentedHead;
+        public float HeadRadius=>state?.headRadius??0;
+        public bool Hittable=>state?.alive==true;
         float snapshotAt,shotAt=-10,drawAmount;
         Light flash,thirdFlash;
         float muzzleUntil;
@@ -42,6 +52,10 @@ namespace Saloon
         {
             footsteps=gameObject.AddComponent<SaloonFootsteps>();
             game=owner;state=initial;drawAmount=initial.drawn?1:0;target=new Vector3(initial.x,initial.y,initial.z);transform.position=target;
+            targetHead=renderedHead=new Vector3(initial.headX,initial.headY,initial.headZ);
+            previousHead=targetHead;previousTarget=target;
+            presentedHead=renderedHead;
+            targetServerTime=previousTargetTime=renderTime=RenderedServerTime=RenderFromTime=RenderToTime=owner.View?.serverTime??0;
             transform.rotation=Quaternion.Euler(0,initial.bodyYaw,0);lookYaw=initial.yaw;lookPitch=initial.pitch;
             var prefab=Resources.Load<GameObject>(SaloonCharacterMotion.ResourcePath);
             if(prefab==null)throw new System.InvalidOperationException("Prepare the Western Gunman character from the Saloon menu.");
@@ -55,7 +69,7 @@ namespace Saloon
             smoking=gameObject.AddComponent<SaloonSmokingVisual>();smoking.Initialize(game,motion);
             gunGrip=new SaloonGunGrip(motion);hitReaction=new SaloonHitReaction(model);lastHit=initial.hits;
             gun=MakeGun(transform);gunSpin=gun.transform.Find("Spin pivot");
-            mug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));mug.transform.SetParent(transform,false);mug.transform.localPosition=new Vector3(.28f,1.02f,.33f);mug.SetActive(false);
+            mug=SaloonArt.Model("BeerMug",null,new Vector3(.16f,.17f,.13f));mug.transform.SetParent(transform,false);mug.transform.localPosition=new Vector3(.28f,1.02f,.33f);mug.SetActive(false);
             var nameObject=new GameObject("Name");nameObject.transform.SetParent(transform);nameObject.transform.localPosition=new Vector3(0,2.05f,0);
             label=nameObject.AddComponent<TextMesh>();label.characterSize=.012f;label.fontSize=48;label.anchor=TextAnchor.LowerCenter;label.alignment=TextAlignment.Center;label.lineSpacing=.85f;SaloonWorldText.Attach(label);nameRenderer=label.GetComponent<Renderer>();
             var healthObject=new GameObject("Health dots");healthObject.transform.SetParent(transform,false);healthObject.transform.localPosition=new Vector3(0,1.85f,0);
@@ -66,17 +80,26 @@ namespace Saloon
                 gameObject.AddComponent<SaloonBody>().id=ulong.Parse(initial.id);
             }
             audioSource=gameObject.AddComponent<AudioSource>();audioSource.spatialBlend=1;audioSource.minDistance=2;audioSource.maxDistance=45;
+            roomAudioFilter=gameObject.AddComponent<AudioLowPassFilter>();roomAudioFilter.cutoffFrequency=850;roomAudioFilter.enabled=false;
             drinkAudio=gameObject.AddComponent<AudioSource>();drinkAudio.playOnAwake=false;drinkAudio.clip=SaloonBeerAudio.Drinking;drinkAudio.minDistance=.8f;drinkAudio.maxDistance=7;drinkAudio.rolloffMode=AudioRolloffMode.Linear;
             thirdFlash=MakeMuzzle(gun.transform);
             reloadAudio=gameObject.AddComponent<AudioSource>();reloadAudio.playOnAwake=false;reloadAudio.minDistance=1;reloadAudio.maxDistance=12;reloadAudio.rolloffMode=AudioRolloffMode.Linear;
             lastReload=initial.reloads;
-            lastGift=initial.giftSequence;lastShot=initial.shots;
+            lastShot=initial.shots;lastCharge=initial.shotChargeSequence;
         }
 
         public void Apply(PlayerView next,bool isLocal)
         {
             var nextPosition=new Vector3(next.x,next.y,next.z);
             bool placed=next.poseVersion!=state.poseVersion||(nextPosition-target).sqrMagnitude>2;
+            if(placed||next.seated!=state.seated||next.crouched!=state.crouched)motion.SnapStance(next.seated,next.crouched);
+            previousHead=targetHead;previousTarget=target;previousTargetTime=targetServerTime;
+            targetHead=new Vector3(next.headX,next.headY,next.headZ);targetServerTime=game.View.serverTime;
+            if(placed)
+            {
+                previousHead=renderedHead=targetHead;previousTarget=nextPosition;
+                renderTime=previousTargetTime=targetServerTime;
+            }
             if(placed){transform.rotation=Quaternion.Euler(0,next.bodyYaw,0);lookYaw=next.yaw;lookPitch=next.pitch;}
             walkingVelocity=placed?Vector3.zero:(nextPosition-target)/Mathf.Max(.03f,Time.time-snapshotAt);
             if(placed)transform.position=nextPosition;
@@ -87,7 +110,7 @@ namespace Saloon
             }
             lastHit=next.hits;
             state=next;local=isLocal;snapshotAt=Time.time;
-            if(!next.alive||next.observer||next.drinking){gunGrip.Release();}
+            if(!next.alive||next.observer||next.drinking||next.checkingDrawer){gunGrip.Release();}
             if(next.alive&&ragdoll!=null){ragdoll.Restore();ragdoll=null;}
             if(!next.alive&&ragdoll==null)
             {
@@ -99,19 +122,14 @@ namespace Saloon
                 hitbox.height=next.crouched?SaloonMovement.CrouchingHeight:SaloonMovement.StandingHeight;
                 hitbox.center=Vector3.up*(hitbox.height*.5f);hitbox.enabled=next.alive;
             }
-            drinkAudio.spatialBlend=isLocal?0:1;drinkAudio.volume=isLocal?.5f:.32f;
+            target=nextPosition;
+            SetViewpoint(isLocal);
             if(next.drinking&&!wasDrinking)
             {
                 drinkAudio.pitch=Mathf.Clamp(drinkAudio.clip.length/Mathf.Max(.2f,next.drinkDuration),.25f,4);
                 drinkAudio.time=Mathf.Clamp01(1-next.drinkRemaining/Mathf.Max(.2f,next.drinkDuration))*(drinkAudio.clip.length-.01f);drinkAudio.Play();
             }
             if(!next.drinking&&wasDrinking)drinkAudio.Stop();wasDrinking=next.drinking;
-            if(next.giftSequence>lastGift)
-            {
-                lastGift=next.giftSequence;audioSource.PlayOneShot(SaloonBeerAudio.Handoff,.25f);StartCoroutine(Handoff(next.giftTarget,next.giftRemaining));
-            }
-            target=new Vector3(next.x,next.y,next.z);
-            SetViewpoint(isLocal);
             label.text=next.name+(!next.alive?"  ·  eliminated":"")+(next.sheriff&&string.IsNullOrEmpty(next.revealedRole)?"\nSHERIFF":"")+(!string.IsNullOrEmpty(next.revealedRole)?"\n"+next.revealedRole:"");
             label.color=!next.alive?new Color(.61f,.57f,.51f):next.sheriff?new Color(1,.77f,.3f):new Color(.94f,.86f,.69f);
             if(next.health!=shownHealth||next.maxHealth!=shownMaxHealth)
@@ -126,25 +144,29 @@ namespace Saloon
                 dots.Append(shots==1?"<color=#FF6757>  ":"<color=#F1E4CB>  ").Append(SaloonHealth.Percentage(next.health)).Append("</color>");
                 healthDots.text=dots.ToString();
             }
-            reloadAudio.spatialBlend=isLocal?0:1;reloadAudio.volume=isLocal?.55f:.35f;
             if(next.reloads>lastReload&&next.reloading)
             {
                 reloadAudio.clip=SaloonGunAudio.Reload;reloadAudio.pitch=Mathf.Clamp(reloadAudio.clip.length/Mathf.Max(.2f,next.reloadDuration),.25f,4);
                 reloadAudio.time=Mathf.Clamp01(1-next.reloadRemaining/Mathf.Max(.2f,next.reloadDuration))*(reloadAudio.clip.length-.01f);reloadAudio.Play();
             }
             if(!next.reloading||!next.alive)reloadAudio.Stop();lastReload=next.reloads;
-            bool holdingBeer=next.alive&&next.room!=3&&!next.drawn&&((next.carriedBeer>0&&next.room!=0)||next.drinking);
+            bool holdingBeer=next.alive&&next.room!=3&&!next.drawn&&next.drinking;
             mug.SetActive(!local&&holdingBeer);
             if(firstPersonMug!=null)firstPersonMug.SetActive(local&&holdingBeer);
-            if(next.shots>lastShot)
+            if(next.chargingShot&&next.shotChargeSequence!=lastCharge&&SaloonGunAudio.Cock!=null)
+                audioSource.PlayOneShot(SaloonGunAudio.Cock,local?.28f:.20f);
+            lastCharge=next.shotChargeSequence;
+            if(next.shots>lastShot&&(!next.shotResolved||next.shotAge<.5f))
             {
-                audioSource.spatialBlend=local?0:1;audioSource.pitch=1+(next.shots%3-1)*.015f;
-                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);shotAt=Time.time;muzzleUntil=Time.time+.09f;
-                var tracer=new GameObject("Shot trail");tracer.layer=SaloonSmokingArea.IndoorLayer;var line=tracer.AddComponent<LineRenderer>();
-                line.sharedMaterial=SaloonWorld.Material("Shot trail",new Color(1,.7f,.3f));line.startWidth=.018f;line.endWidth=.003f;line.positionCount=2;
-                var eye=target+Vector3.up*SaloonMovement.EyeHeight(next.seated,next.crouched);var dir=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
+                audioSource.spatialBlend=local?0:1;audioSource.pitch=1+(next.shots%3-1)*.025f;
+                audioSource.PlayOneShot(SaloonGunAudio.Shot,local?.8f:.65f);
+                shotAt=Time.time;muzzleUntil=shotAt+.075f;
                 var weapon=local&&firstPersonGun!=null?firstPersonGun:gun;
-                line.SetPosition(0,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip));line.SetPosition(1,SaloonRoomWindows.ClipShotTrail(eye,dir,20));Destroy(tracer,.055f);
+                var eye=target+Vector3.up*SaloonMovement.EyeHeight(next.seated,next.crouched);
+                var direction=Quaternion.Euler(next.pitch,next.yaw,0)*Vector3.forward;
+                var end=next.shotResolved?new Vector3(next.shotEndX,next.shotEndY,next.shotEndZ):SaloonRoomWindows.ClipShotTrail(eye,direction,65);
+                SaloonShotEffects.Play(transform,weapon.transform.TransformPoint(new Vector3(0,.14f,.21f)-SaloonWeaponPose.Grip),
+                    end,new Vector3(next.shotNormalX,next.shotNormalY,next.shotNormalZ),(SaloonImpactSurface)next.shotSurface,local);
             }
             lastShot=next.shots;
         }
@@ -152,12 +174,16 @@ namespace Saloon
         public void SetViewpoint(bool isViewpoint)
         {
             local=isViewpoint;
-            model.SetActive(!local||!state.alive);
-            label.gameObject.SetActive(!state.observer&&(!local||!state.alive));healthDots.gameObject.SetActive(!local&&state.alive);
+            roomAudioFilter.enabled=game.CameraPlayer!=null&&SaloonPrivacy.MuffledVoice(game.View.phase,game.CameraPlayer.room,state.room);
+            audioSource.spatialBlend=drinkAudio.spatialBlend=reloadAudio.spatialBlend=local?0:1;
+            drinkAudio.volume=local?.5f:.32f;reloadAudio.volume=local?.55f:.35f;
+            model.SetActive((!local||!state.alive)&&game.WalkthroughActorVisible(state.id));
+            label.gameObject.SetActive(!game.TutorialWalkthrough&&!state.observer&&(!local||!state.alive));
+            healthDots.gameObject.SetActive(!game.TutorialWalkthrough&&!local&&state.alive);
             if(local&&state.alive&&firstPersonGun==null)
             {
                 firstPersonGun=MakeGun(game.ViewCamera.transform);firstGunSpin=firstPersonGun.transform.Find("Spin pivot");
-                firstPersonMug=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));firstPersonMug.transform.SetParent(game.ViewCamera.transform,false);
+                firstPersonMug=SaloonArt.Model("BeerMug",null,new Vector3(.16f,.17f,.13f));firstPersonMug.transform.SetParent(game.ViewCamera.transform,false);
                 flash=MakeMuzzle(firstPersonGun.transform);
                 SaloonViewmodel.Attach(game.ViewCamera,firstPersonGun);
             }
@@ -181,14 +207,27 @@ namespace Saloon
                 }
                 return;
             }
-            transform.position=Vector3.Lerp(transform.position,target,1-Mathf.Exp(-Time.deltaTime*22));
+            float poseBlend=1-Mathf.Exp(-Time.deltaTime*22);
+            renderTime=Mathf.Lerp(Mathf.Max(renderTime,previousTargetTime),targetServerTime,poseBlend);
+            float frameBlend=Mathf.InverseLerp(previousTargetTime,targetServerTime,renderTime);
+            transform.position=Vector3.Lerp(previousTarget,target,frameBlend);
+            renderedHead=Vector3.Lerp(previousHead,targetHead,frameBlend);
             float lookBlend=1-Mathf.Exp(-Time.deltaTime*25);
             transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,state.bodyYaw,0),lookBlend);
             lookYaw=Mathf.LerpAngle(lookYaw,state.yaw,lookBlend);lookPitch=Mathf.Lerp(lookPitch,state.pitch,lookBlend);
             float progress=1-Mathf.Clamp01((state.drinkRemaining-(Time.time-snapshotAt))/Mathf.Max(.01f,state.drinkDuration));
             float lift=state.drinking?Mathf.SmoothStep(0,1,Mathf.Min(progress/.2f,(1-progress)/.2f)):0;
             float headYaw=Mathf.DeltaAngle(transform.eulerAngles.y,lookYaw);
-            motion.Pose(state.seated,Time.time-snapshotAt<.25f?walkingVelocity:Vector3.zero,lift,SaloonWeaponPose.Kick(Time.time-shotAt),lookPitch,headYaw,state.crouched);
+            float drawerAge=state.drawerElapsed+Mathf.Max(0,Time.time-snapshotAt);
+            float checking=state.checkingDrawer?Mathf.SmoothStep(0,1,Mathf.Min(drawerAge/.2f,(SaloonRules.DrawerInteractionSeconds-drawerAge)/.2f)):0;
+            motion.Pose(state.seated,Time.time-snapshotAt<.25f?walkingVelocity:Vector3.zero,lift,SaloonWeaponPose.Kick(Time.time-shotAt),lookPitch,headYaw,state.crouched,-1,checking);
+            // Render the same head center that the host recorded for this snapshot.
+            // Cosmetic flinches cannot move a visible head away from its hittable pose.
+            if(state.headRadius>0)motion.Bone(HumanBodyBones.Head).position+=renderedHead-motion.HeadHitCenter;
+            // Publish only the pose actually presented by LateUpdate. Network updates
+            // arriving before the next render must not change a click's pose/time pair.
+            presentedHead=motion.HeadHitCenter;RenderedServerTime=renderTime;
+            RenderFromTime=previousTargetTime;RenderToTime=targetServerTime;
             // Follow the posed head, so sitting or wearing a hat cannot bury the health label.
             var healthPosition=motion.Bone(HumanBodyBones.Head).position+Vector3.up*.43f;
             if(label!=null){label.transform.position=healthPosition;label.transform.rotation=game.ViewCamera.transform.rotation;}
@@ -203,14 +242,17 @@ namespace Saloon
             bool finishingShot=state.shots>0&&elapsed<SaloonWeaponPose.Duration;
             drawAmount=Mathf.MoveTowards(drawAmount,(state.alive&&state.drawn)||finishingShot?1:0,Time.deltaTime/SaloonWeaponPose.DrawSeconds);
             float spin=SaloonWeaponPose.Flip(elapsed);
-            var shotRotation=SaloonWeaponPose.Rotation(elapsed);var shotOffset=SaloonWeaponPose.Offset(elapsed);
+            float charge=state.id==game.LocalId&&!game.IsSpectating?game.ShotChargeProgress:
+                state.chargingShot?Mathf.Clamp01((state.shotChargeAge+Time.time-snapshotAt)/SaloonGame.AccurateShotSeconds):0;
+            var shotRotation=SaloonWeaponPose.Rotation(elapsed)*Quaternion.Euler(-3*charge,0,0);
+            var shotOffset=SaloonWeaponPose.Offset(elapsed)+new Vector3(0,.012f,.01f)*charge;
             var drawOffset=SaloonWeaponPose.DrawOffset(drawAmount);var drawRotation=SaloonWeaponPose.DrawRotation(drawAmount);
             var aimRotation=Quaternion.Euler(lookPitch,lookYaw,0)*shotRotation*drawRotation;
             gun.transform.rotation=aimRotation;
             float crouchDrop=motion.CrouchingBlend*SaloonMovement.CrouchDrop;
             gun.transform.localPosition=new Vector3(.25f,(state.seated?.91f:1.20f)-crouchDrop,.44f)+shotOffset+drawOffset;
             gunSpin.localRotation=Quaternion.Euler(spin,0,0);
-            bool weaponVisible=state.room!=3&&!state.drinking&&(drawAmount>.001f||finishingShot);
+            bool weaponVisible=state.room<3&&!state.drinking&&!state.checkingDrawer&&(drawAmount>.001f||finishingShot);
             if(weaponVisible)
                 gunGrip.Pose(gun.transform,aimRotation,drawAmount);
             else gunGrip.Release();
@@ -236,7 +278,7 @@ namespace Saloon
                 firstPersonMug.transform.localRotation=Quaternion.Euler(-65*lift,0,-10*lift);
             }
             smoking.Pose(state,local,state.smokeAge+Mathf.Max(0,Time.time-snapshotAt));
-            gun.SetActive(!local&&weaponVisible);
+            gun.SetActive(!local&&weaponVisible&&game.WalkthroughActorVisible(state.id));
             AnimateMuzzle(thirdFlash,elapsed);if(flash!=null)AnimateMuzzle(flash,elapsed);
             thirdFlash.gameObject.SetActive(!local&&weaponVisible&&Time.time<muzzleUntil);
             if(firstPersonGun!=null)
@@ -249,28 +291,11 @@ namespace Saloon
             }
         }
 
-        System.Collections.IEnumerator Handoff(string targetId,float remaining)
-        {
-            var offered=SaloonArt.Model("Mug",null,new Vector3(.14f,.17f,.13f));handoffMug=offered;
-            float duration=Mathf.Max(.05f,remaining);
-            for(float elapsed=0;elapsed<duration;elapsed+=Time.deltaTime)
-            {
-                var recipient=game.View?.players?.FirstOrDefault(p=>p.id==targetId);
-                if(recipient==null)break;
-                Vector3 from=local?game.ViewCamera.transform.TransformPoint(new Vector3(.23f,-.30f,.43f)):transform.TransformPoint(new Vector3(.28f,state.seated?.80f:1.02f-(state.crouched?SaloonMovement.CrouchDrop:0),.33f));
-                Vector3 to=targetId==game.LocalId?game.ViewCamera.transform.TransformPoint(new Vector3(.23f,-.30f,.43f)):new Vector3(recipient.x,recipient.y,recipient.z)+Quaternion.Euler(0,recipient.yaw,0)*new Vector3(.28f,recipient.seated?.80f:1.02f-(recipient.crouched?SaloonMovement.CrouchDrop:0),.33f);
-                float amount=Mathf.SmoothStep(0,1,elapsed/duration);offered.transform.position=Vector3.Lerp(from,to,amount)+Vector3.up*Mathf.Sin(amount*Mathf.PI)*.13f;
-                offered.transform.rotation=Quaternion.Slerp(transform.rotation,Quaternion.Euler(0,recipient.yaw,0),amount);
-                yield return null;
-            }
-            if(offered!=null)Destroy(offered);handoffMug=null;
-        }
-
         static void AnimateMuzzle(Light light,float elapsed)
         {
-            float fade=1-Mathf.Clamp01(elapsed/.09f);
-            light.intensity=6*fade*fade;
-            light.transform.localScale=Vector3.one*(.6f+.6f*fade);
+            float fade=1-Mathf.Clamp01(elapsed/.075f);
+            light.intensity=10*fade*fade;
+            light.transform.localScale=Vector3.one*(.8f+.85f*fade);
             light.transform.localRotation=Quaternion.Euler(0,0,(int)(elapsed*120)*37);
         }
         static Light MakeMuzzle(Transform parent)
@@ -307,8 +332,12 @@ namespace Saloon
             return go;
         }
 
-        public void Silence(){if(audioSource!=null)audioSource.Stop();if(drinkAudio!=null)drinkAudio.Stop();if(reloadAudio!=null)reloadAudio.Stop();}
+        public void Silence()
+        {
+            foreach(var source in GetComponentsInChildren<AudioSource>())source.Stop();
+            foreach(var effect in GetComponentsInChildren<SaloonShotEffects>())Destroy(effect.gameObject);
+        }
 
-        void OnDestroy(){if(handoffMug!=null)Destroy(handoffMug);if(firstPersonGun!=null)Destroy(firstPersonGun);if(firstPersonMug!=null)Destroy(firstPersonMug);}
+        void OnDestroy(){if(firstPersonGun!=null)Destroy(firstPersonGun);if(firstPersonMug!=null)Destroy(firstPersonMug);}
     }
 }

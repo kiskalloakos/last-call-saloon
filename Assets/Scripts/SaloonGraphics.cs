@@ -15,7 +15,7 @@ namespace Saloon
         public struct Options
         {
             public int preset,width,height,frameLimit;
-            public bool windowed,vsync;
+            public bool windowed,vsync,reducedMotion;
         }
 
         public Options Current { get; private set; }

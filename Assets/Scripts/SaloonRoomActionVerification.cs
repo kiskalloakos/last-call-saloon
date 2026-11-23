@@ -77,13 +77,13 @@ namespace Saloon
                 while(Time.time<until){OnCommand(p.id,new Command{kind="input",x=x,z=z,yaw=0,pitch=0,poseVersion=p.poseVersion});yield return null;}
                 OnCommand(p.id,new Command{kind="input",poseVersion=p.poseVersion});
             }
-            Window();Do(host,"stance");Check(host.seat<0&&host.controller.enabled&&!rounds.HasSpent(host.id),"F stands up at the bar without spending an action");
+            Window();Do(host,"stance");Check(host.seat<0&&host.controller.enabled&&!rounds.HasSpent(host.id),"Space stands up at the bar without spending an action");
             Vector3 initial=host.body.transform.position;yield return Walk(host,0,-1,.25f);Check(Vector3.Distance(initial,host.body.transform.position)>.25f,"WASD moves a standing player during room actions");
             Do(host,"pass");initial=host.body.transform.position;yield return Walk(host,1,0,.25f);Check(rounds.HasSpent(host.id)&&Vector3.Distance(initial,host.body.transform.position)>.25f,"movement remains available after spending the turn");
-            Window(1);Do(host,"stance");Check(host.seat<0,"F stands up in a side room");
+            Window(1);Do(host,"stance");Check(host.seat<0,"Space stands up in a side room");
             initial=host.body.transform.position;yield return Walk(host,0,1,.25f);Check(Vector3.Distance(initial,host.body.transform.position)>.2f,"side-room walking uses real collision movement");
             Place(host,new Vector3(-6.6f,.08f,-4.8f));yield return Walk(host,-1,0,.4f);Check(SaloonMovement.InRoom(host.body.transform.position,1)&&host.room==1,"movement cannot leave the assigned side room");
-            Window();Do(host,"stance");yield return new WaitForSeconds(.2f);Do(host,"stance");Check(host.seat>=0&&!host.controller.enabled&&!rounds.HasSpent(host.id),"F returns to a nearby empty stool for free");
+            Window();Do(host,"stance");yield return new WaitForSeconds(.2f);Do(host,"stance");Check(host.seat>=0&&!host.controller.enabled&&!rounds.HasSpent(host.id),"Space returns to a nearby empty stool for free");
             phase=Phase.Discussion;initial=host.body.transform.position;Do(host,"stance");OnCommand(host.id,new Command{kind="input",x=1,poseVersion=host.poseVersion});TickServer();Check(host.body.transform.position==initial&&host.seat>=0,"discussion remains seated");
 
             Range();Aim(host,peer.body.transform.position+peer.hitbox.center);var bodyHit=Target(host,65);Check(bodyHit?.collider==peer.hitbox,"body aiming ray reaches the body collider");Do(host,"fire");Check(peer.hp==60&&peer.hits==0&&host.ammo==5&&rounds.HasSpent(host.id),"body shots spend ammo and action without damage or hit effects");
@@ -100,10 +100,10 @@ namespace Saloon
             var headBone=avatars[peer.id.ToString()].GetComponentInChildren<SaloonCharacterMotion>().Bone(HumanBodyBones.Head);
             Check(Vector3.Distance(headBone.position,peer.head.bounds.center)<.2f,"standing head hitbox aligns with the visible character head");
 
-            Range();host.hp=40;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;tuning.drinkSeconds=.45f;Do(host,"drink");float ends=host.busyUntil;Aim(peer,Eye(host));Do(peer,"fire");Check(host.hp==20&&host.busyAction=="drink"&&Mathf.Abs(host.busyUntil-ends)<.001f,"a non-lethal headshot preserves the original beer timer");
+            Range();host.hp=40;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;tuning.drinkSeconds=.45f;MoveToBeerTrayForVerification(host);Do(host,"interact");float ends=host.busyUntil;Aim(peer,Eye(host));Do(peer,"fire");Check(host.hp==20&&host.busyAction=="drink"&&Mathf.Abs(host.busyUntil-ends)<.001f,"a non-lethal headshot preserves the original beer timer");
             yield return new WaitForSeconds(.52f);Check(host.hp==40&&host.busyAction==""&&host.beer==0,"40%, drink, shot to 20%, then beer finishes at 40%");
-            Range();host.hp=40;host.busyAction="giftDrink";host.drinkHealing=SaloonHealth.BeerHealing;host.drinkReady=Time.time;host.busyUntil=Time.time+.4f;Aim(peer,Eye(host));Do(peer,"fire");yield return new WaitForSeconds(.5f);Check(host.hp==40&&host.busyAction=="","gifted beer also finishes after a non-lethal headshot");
-            Range();host.hp=20;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;Do(host,"drink");Aim(peer,Eye(host));Do(peer,"fire");yield return new WaitForSeconds(.5f);Check(host.hp==0&&host.busyAction==""&&!host.head.enabled,"a lethal headshot cancels drinking and never revives the player");
+            Range();host.hp=40;host.busyAction="drink";host.drinkHealing=SaloonHealth.BeerHealing;host.drinkReady=Time.time;host.busyUntil=Time.time+.4f;Aim(peer,Eye(host));Do(peer,"fire");yield return new WaitForSeconds(.5f);Check(host.hp==40&&host.busyAction=="","drinking also finishes after a non-lethal headshot");
+            Range();host.hp=20;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;MoveToBeerTrayForVerification(host);Do(host,"interact");Aim(peer,Eye(host));Do(peer,"fire");yield return new WaitForSeconds(.5f);Check(host.hp==0&&host.busyAction==""&&!host.head.enabled,"a lethal headshot cancels drinking and never revives the player");
             tuning.drinkSeconds=drinkSeconds;
 
             Window();Broadcast();MenuOpen=false;ShowRole=false;externalCamera=true;ViewCamera.fieldOfView=70;

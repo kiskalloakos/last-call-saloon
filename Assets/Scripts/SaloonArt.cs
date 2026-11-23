@@ -7,7 +7,7 @@ namespace Saloon
     public static class SaloonArt
     {
         const string Root="Art/LowPoly/";
-        public static readonly Vector3 SafePosition=new Vector3(4.8f,.06f,1.95f);
+        public static readonly Vector3 SafePosition=new Vector3(-.45f,1.08f,3.0f);
         public static GameObject Model(string asset,Transform parent,Vector3 size)
         {
             var prefab=Resources.Load<GameObject>(Root+asset);
@@ -45,9 +45,32 @@ namespace Saloon
             holder.transform.SetParent(parent,false);return holder;
         }
 
+        static void CleanCounter(Transform overlay)
+        {
+            foreach(Transform child in overlay)
+                if((child.name=="Mug visual"||child.name=="Cup visual"||child.name=="Plate visual")&&child.position.y>1.3f&&child.position.z>3)
+                    child.gameObject.SetActive(false);
+        }
+
+        static void UpgradeBeerMugs(Transform overlay)
+        {
+            // Saved scenes contain the old tankard; migrate those decorations too.
+            foreach(var child in overlay.GetComponentsInChildren<Transform>(true))
+            {
+                if(child.name!="Mug visual"||child.parent!=overlay)continue;
+                var replacement=At("BeerMug",overlay,child.position,new Vector3(.18f,.19f,.15f),child.eulerAngles.y);
+                replacement.SetActive(child.gameObject.activeSelf);
+                child.gameObject.SetActive(false);
+                if(Application.isPlaying)UnityEngine.Object.Destroy(child.gameObject);
+                else UnityEngine.Object.DestroyImmediate(child.gameObject);
+            }
+        }
+
         public static void Apply(bool refresh=false)
         {
             var world=GameObject.Find("Saloon World");if(world==null)return;
+            foreach(var old in world.GetComponentsInChildren<Transform>(true))
+                if(old.name=="Shared beer supply")old.gameObject.SetActive(false);
             if(refresh)
             {
                 var previous=world.transform.Find("Low-poly art overlay");if(previous!=null)UnityEngine.Object.DestroyImmediate(previous.gameObject);
@@ -58,7 +81,7 @@ namespace Saloon
             }
             foreach(var label in world.GetComponentsInChildren<TextMesh>(true))label.gameObject.SetActive(false);
             var existing=world.transform.Find("Low-poly art overlay");
-            if(existing!=null){SaloonInterior.Apply(world);PublicBarLayout(existing);PublicFloorLayout(world);SaloonSurfaces.Apply(world.transform);return;}
+            if(existing!=null){CleanCounter(existing);UpgradeBeerMugs(existing);SaloonInterior.Apply(world);PublicBarLayout(existing);PublicFloorLayout(world);SaloonSurfaces.Apply(world.transform);return;}
             var overlay=new GameObject("Low-poly art overlay");overlay.transform.SetParent(world.transform,false);
             var woodTexture=Resources.Load<Texture2D>(Root+"Textures/WoodPlanks");
             var floor=SaloonWorld.Material("Retro floorboards",new Color(.62f,.48f,.34f));floor.mainTexture=woodTexture;floor.mainTextureScale=new Vector2(.5f,6);
@@ -88,15 +111,11 @@ namespace Saloon
                 else if(child.name=="Bar front"||child.name=="Bar top"||child.name=="Bar panel")Hide(child.gameObject);
             }
             At("Bar",overlay.transform,new Vector3(-1.8f,0,3.8f),new Vector3(9,1.43f,1.4f));
-            var safe=At("Safe",overlay.transform,SafePosition,new Vector3(.85f,1.15f,.9f),180);
-            var collider=safe.AddComponent<BoxCollider>();collider.center=Vector3.up*.575f;collider.size=new Vector3(.85f,1.15f,.9f);
-            foreach(var pos in new[]{new Vector3(0,.76f,-.5f),new Vector3(-5,.76f,-3.8f),new Vector3(5,.76f,-3.8f),new Vector3(-2,1.44f,3.8f)})
+            foreach(var pos in new[]{new Vector3(0,.76f,-.5f),new Vector3(-5,.76f,-3.8f),new Vector3(5,.76f,-3.8f)})
             {
-                At("Mug",overlay.transform,pos,new Vector3(.16f,.19f,.15f));
+                if(Mathf.Abs(pos.x)>1)At("BeerMug",overlay.transform,pos,new Vector3(.18f,.19f,.15f));
                 At("Plate",overlay.transform,pos+Vector3.right*.36f,new Vector3(.23f,.025f,.23f));
             }
-            At("Cup",overlay.transform,new Vector3(.6f,1.44f,3.8f),new Vector3(.11f,.14f,.11f));
-            At("Mug",overlay.transform,new Vector3(1.6f,1.44f,3.7f),new Vector3(.18f,.23f,.17f));
             SaloonInterior.Apply(world);
             PublicBarLayout(overlay.transform);
             PublicFloorLayout(world);
@@ -106,8 +125,11 @@ namespace Saloon
 
         static void PublicFloorLayout(GameObject world)
         {
+            foreach(var prop in world.GetComponentsInChildren<Transform>(true))
+                if((prop.name=="Mug visual"||prop.name=="BeerMug visual")&&Vector3.Distance(prop.position,new Vector3(0,.76f,-.5f))<.65f)
+                    prop.gameObject.SetActive(false);
             foreach(var point in world.GetComponentsInChildren<InteractionPoint>())
-                if(point.kind==InteractionKind.Seat&&point.index>=5&&point.index<=9)
+                if(point.kind==InteractionKind.Seat&&point.index>=SaloonStations.GatherSeatStart&&point.index<SaloonStations.GatherSeatStart+SaloonRules.LobbyCapacity)
                 {var box=point.GetComponent<BoxCollider>();if(box!=null){box.center=new Vector3(0,.5f,0);box.size=new Vector3(.55f,1,.55f);}}
             foreach(var table in world.GetComponentsInChildren<Transform>())
                 if(table.name=="tableRound"&&Mathf.Abs(table.position.x)<1)
@@ -115,13 +137,32 @@ namespace Saloon
             SaloonEntranceDoor.Build();
         }
 
+        public static GameObject BuildCashDrawer(Transform parent)
+        {
+            var drawer=new GameObject("Cash drawer");drawer.transform.SetParent(parent,false);drawer.transform.position=SafePosition;
+            var wood=SaloonWorld.Material("Cash drawer walnut",new Color(.27f,.15f,.08f),.2f);
+            var brass=SaloonWorld.Material("Cash drawer brass",new Color(.72f,.48f,.18f),.65f);
+            void Part(string name,Vector3 offset,Vector3 size,Material material)
+            {
+                var part=SaloonWorld.Box(name,SafePosition+offset,size,material,drawer.transform);
+                var collider=part.GetComponent<Collider>();collider.enabled=false;
+            }
+            Part("Drawer body",new Vector3(0,.12f,.12f),new Vector3(.86f,.24f,.34f),wood);
+            Part("Drawer face",new Vector3(0,.12f,-.075f),new Vector3(.89f,.25f,.06f),wood);
+            Part("Brass pull",new Vector3(0,.12f,-.13f),new Vector3(.24f,.035f,.045f),brass);
+            var access=drawer.AddComponent<BoxCollider>();access.center=new Vector3(0,.12f,.05f);access.size=new Vector3(.9f,.26f,.45f);
+            return drawer;
+        }
+
         static void PublicBarLayout(Transform overlay)
         {
-            // Saved scenes already contain the art overlay, so migrate its safe too.
-            var safe=overlay.Find("Safe visual");
-            if(safe!=null){safe.position=SafePosition;safe.rotation=Quaternion.Euler(0,180,0);}
-            if(overlay.Find("Public Bar boundary")!=null)return;
+            // Migrate saved scenes without editing their unrelated furniture/art.
+            var oldSafe=overlay.Find("Safe visual");if(oldSafe!=null)oldSafe.gameObject.SetActive(false);
+            if(overlay.Find("Cash drawer")==null)BuildCashDrawer(overlay);
+            var existingBoundary=overlay.Find("Public Bar boundary");
+            if(existingBoundary!=null){existingBoundary.gameObject.layer=SaloonMovement.SolidLayer;return;}
             var boundary=new GameObject("Public Bar boundary");boundary.transform.SetParent(overlay,false);
+            boundary.layer=SaloonMovement.SolidLayer;
             var wall=boundary.AddComponent<BoxCollider>();
             wall.center=new Vector3(0,1.9f,3.45f);wall.size=new Vector3(15.8f,3.8f,.12f);
             var wood=SaloonWorld.Material("Bar access walnut",new Color(.24f,.135f,.075f),.26f);

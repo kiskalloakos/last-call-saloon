@@ -70,13 +70,13 @@ namespace Saloon
             yield return Capture("06-seated-gesture");
 
             VerificationFinished=VerificationPassed=false;
-            var windows=FindObjectsByType<SaloonRoomWindow>();
-            Check(windows.Length==2,"both room windows are present in the player");
+            var windows=FindObjectsByType<SaloonRoomWall>();
+            Check(windows.Length==2,"both solid room walls are present in the player");
             foreach(var pane in windows)
             {
-                Check(pane.outside.sharedMaterial.shader==Resources.Load<Shader>("Shaders/SaloonWindowGlass")&&pane.outside.sharedMaterial.shader.isSupported,"window uses the included glass shader in "+SaloonStations.Name(pane.room));
+                Check(pane.surface.sharedMaterial.shader.isSupported&&pane.surface.sharedMaterial.renderQueue<2450,"wall uses an opaque surface in "+SaloonStations.Name(pane.room));
                 CheckWindowRendering(pane,Check);
-                Check(pane.barrier.enabled&&!pane.barrier.isTrigger,"glass remains a solid shot and movement barrier");
+                Check(pane.barrier.enabled&&!pane.barrier.isTrigger,"wall remains a solid shot and movement barrier");
             }
             externalCamera=true;RefreshViewpoint();
             WindowPreview(new Vector3(-5,1.70f,2.05f),new Vector3(-5,1.5f,-3.8f),68,"build-left-room");

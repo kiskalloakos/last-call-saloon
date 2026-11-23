@@ -9,23 +9,16 @@ using UnityEngine;
 public static class SaloonRoundVerification
 {
     const string Pending="Saloon.RoundVerification.Pending";
-    const string PossePending="Saloon.PosseVerification.Pending";
     const string BeerPending="Saloon.BarBeerVerification.Pending";
 
     [MenuItem("Saloon/Verify bar and beer in Play mode")]
     public static void VerifyBarBeer()
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before running the verification.");
-        SessionState.SetBool(PossePending,false);SessionState.SetBool(BeerPending,true);SessionState.SetBool(Pending,true);EditorApplication.EnterPlaymode();
+        SessionState.SetBool(BeerPending,true);SessionState.SetBool(Pending,true);EditorApplication.EnterPlaymode();
     }
     static bool running,cleaningUp;
 
-    [MenuItem("Saloon/Verify posse arrival in Play mode")]
-    public static void VerifyPosse()
-    {
-        if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before running the verification.");
-        VerifyClock();SessionState.SetBool(BeerPending,false);SessionState.SetBool(PossePending,true);SessionState.SetBool(Pending,true);EditorApplication.EnterPlaymode();
-    }
     static SaloonRoundVerification() { EditorApplication.update+=Poll; }
 
     [MenuItem("Saloon/Verify rounds in Play mode")]
@@ -33,7 +26,7 @@ public static class SaloonRoundVerification
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before running the verification.");
         VerifyClock();
-        SessionState.SetBool(BeerPending,false);SessionState.SetBool(PossePending,false);
+        SessionState.SetBool(BeerPending,false);
         SessionState.SetBool(Pending,true);
         EditorApplication.EnterPlaymode();
     }
@@ -78,14 +71,6 @@ public static class SaloonRoundVerification
         r.Start(living,0,30,30,1);foreach(var id in living)r.SetReady(id,true);r.Tick(0,living.Contains);
         r.TrySpend(1,1);r.TrySpend(2,1);r.Tick(30,living.Contains);
         Check(r.Phase==Phase.Aftermath,"deadline still ends a round with an idle player");
-        for(int round=1;round<=17;round++)
-            Check(SaloonPosse.Stage(round,Phase.Discussion)==0&&SaloonPosse.Stage(round,Phase.Turns)==0&&SaloonPosse.Stage(round,Phase.Aftermath)==0&&!SaloonPosse.Arrives(round),"no early posse pressure in round "+round);
-        Check(SaloonPosse.Stage(17,Phase.Regroup)==1,"posse warning starts as round 18 approaches");
-        Check(SaloonPosse.RoundsRemaining(18,Phase.Discussion)==3&&SaloonPosse.RoundsRemaining(19,Phase.Turns)==2&&SaloonPosse.RoundsRemaining(20,Phase.Turns)==1,"rounds 18–20 are three full warning rounds");
-        Check(SaloonPosse.Stage(20,Phase.Aftermath)==4&&SaloonPosse.Arrives(20)&&!SaloonPosse.CanEscape(20)&&SaloonPosse.CanEscape(19),"arrival waits for round 20 actions and round 19 is the last escape declaration");
-        Check(SaloonPosse.ArrivalOutcome(new[]{Role.Sheriff,Role.Outlaw}).StartsWith("LAW WINS")&&SaloonPosse.ArrivalOutcome(new[]{Role.Deputy,Role.Renegade}).StartsWith("LAW WINS"),"either surviving Law role can win at arrival");
-        Check(SaloonPosse.ArrivalOutcome(new[]{Role.Outlaw,Role.Renegade}).StartsWith("DRAW")&&SaloonPosse.ArrivalOutcome(new[]{Role.Outlaw}).StartsWith("DRAW"),"uncleared criminals are captured");
-        Check(SaloonPosse.ArrivalOutcome(new[]{Role.Renegade}).StartsWith("RENEGADE WINS")&&SaloonPosse.ArrivalOutcome(Array.Empty<Role>())=="DRAW — NO SURVIVORS","elimination outcomes retain priority");
         SaloonRoomReservationVerification.Run();
         Debug.Log("SALOON_ROUND_CLOCK PASS");
     }
@@ -134,13 +119,13 @@ public static class SaloonRoundVerification
         {
             running=true;game.AutomatedInput=true;game.Port="17987";
             game.tuning.discussionSeconds=30;game.tuning.turnSeconds=8;game.tuning.roundLimit=6;
-            game.HostLan(true);game.StartCoroutine(SessionState.GetBool(BeerPending,false)?game.VerifyBarAndBeer():SessionState.GetBool(PossePending,false)?game.VerifyPosseArrival():game.VerifyGameplay());
+            game.HostLan(true);game.StartCoroutine(SessionState.GetBool(BeerPending,false)?game.VerifyBarAndBeer():game.VerifyGameplay());
         }
         if(!game.VerificationFinished)return;
         if(!cleaningUp){cleaningUp=true;game.Leave();return;}
         if(game.InRoom||game.View!=null)return;
         cleaningUp=false;
-        SessionState.SetBool(Pending,false);SessionState.SetBool(PossePending,false);SessionState.SetBool(BeerPending,false);running=false;
+        SessionState.SetBool(Pending,false);SessionState.SetBool(BeerPending,false);running=false;
         Debug.Log(game.VerificationPassed?"SALOON_EDITOR_ROUNDS PASS":"SALOON_EDITOR_ROUNDS FAIL");
         EditorApplication.ExitPlaymode();
     }

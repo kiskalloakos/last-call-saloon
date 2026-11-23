@@ -30,31 +30,39 @@ namespace Saloon
             yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==0,"a wall blocks witnessing");Destroy(wall);yield return null;
             witness.hp=0;yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==0,"dead players collect no clues");witness.hp=60;
             yield return new WaitForSeconds(.9f);
-            Check(witness.evidence.Count==1&&witness.evidence[0].Contains(worker.name)&&witness.evidence[0].Contains("did not see whether"),"watching real safe work records one named observation without claiming completion");
+            Check(witness.evidence.Count==1&&witness.evidence[0].Contains(worker.name)&&witness.evidence[0].Contains("did not see what they did inside"),"watching real safe work records one named observation without claiming completion");
             yield return new WaitForSeconds(.9f);Check(witness.evidence.Count==1,"continued watching does not spam duplicate clues");
             Check(outsider.evidence.Count==0&&PrivateSnapshot(outsider.id).evidence.Length==0&&PrivateSnapshot(worker.id).evidence.Length==0,"other rooms and the worker receive no witness notebook");
+            // A legitimate inspection must produce the same witness description.
+            Actions();worker.role=Role.Deputy;worker.busyAction="inspect";worker.busyUntil=Time.time+100;
+            witness.evidence.Clear();witness.safeWatch.Clear();
+            yield return new WaitForSeconds(.9f);
+            Check(witness.evidence.Count==1&&witness.evidence[0].Contains("did not see what they did inside"),"Law inspection is witnessed exactly like theft without certifying a role");
             worker.busyAction="";worker.busyUntil=0;witness.body.transform.position=SafeApproach+Vector3.left*.25f;Physics.SyncTransforms();InspectSafe(witness);
-            Check(witness.safeReport.Contains("No tool marks")&&safeProgress==0,"interrupted work leaves no completed-work inspection marks");
-            Actions();CompleteRobbery(worker);InspectSafe(witness);
-            Check(witness.safeReport.Contains("New tool marks")&&witness.safeReport.Contains("round 1"),"inspection compares completed safe work with the previous check");
-            Check(!rounds.CanAct(witness.id,Time.time),"inspection still costs the Sheriff's action");
+            yield return new WaitForSeconds(SaloonRules.DrawerInteractionSeconds+.1f);
+            Check(witness.safeReport.Contains("money present")&&safeProgress==0,"an interrupted check leaves the money in the drawer");
+            Actions();worker.role=Role.Outlaw;safeProgress=SaloonRules.DrawerWorkSteps-1;lastSafeWorkRound=0;CompleteRobbery(worker);InspectSafe(witness);
+            yield return new WaitForSeconds(SaloonRules.DrawerInteractionSeconds+.1f);
+            Check(witness.safeReport.Contains("money missing")&&witness.safeReport.Contains("changed since"),"inspection compares drawer changes with the previous check");
+            Check(!rounds.CanAct(witness.id,Time.time),"inspection still costs the observer's action");
             ShowRole=true;Broadcast();SyncPointer();
             Check(NeedsPointer&&Cursor.lockState==CursorLockMode.None,"Tab makes room-action clues scrollable with a free cursor");
             ShowRole=false;
-            string report=witness.safeReport;CompleteRobbery(worker);
-            Check(witness.safeReport==report,"later safe work never updates an old report automatically");
-            Actions();InspectSafe(witness);Actions();InspectSafe(witness);
-            Check(witness.safeReport.Contains("No new tool marks"),"another check without progress reports no new marks");
+            string report=witness.safeReport;ReturnDrawerMoney(worker);worker.bag=false;
+            Check(witness.safeReport==report,"later drawer changes never update an old report automatically");
+            Actions();InspectSafe(witness);yield return new WaitForSeconds(SaloonRules.DrawerInteractionSeconds+.1f);
+            Actions();InspectSafe(witness);yield return new WaitForSeconds(SaloonRules.DrawerInteractionSeconds+.1f);
+            Check(witness.safeReport.Contains("No change since"),"another check without a state change reports no change");
             var wire=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(PrivateSnapshot(witness.id),out _));
             Check(wire.evidence.SequenceEqual(witness.evidence),"private notebook survives the actual compressed snapshot wire");
             Check(PrivateSnapshot(outsider.id).safeReport==""&&PrivateSnapshot(outsider.id).evidence.Length==0,"inspection clues remain private too");
             for(int i=0;i<10;i++)NoteEvidence(witness,"Test clue "+i);
             Check(witness.evidence.Count==6&&witness.evidence[0]=="Test clue 4","notebook keeps only the six latest clues");
             ResetHeist();Check(players.Values.All(p=>p.evidence.Count==0&&p.safeWatch.Count==0)&&lastSafeWorkRound==0,"new match resets every clue and observation timer");
-            NoteEvidence(witness,"Round 1: you saw "+worker.name+" working the safe. You did not see whether they finished.");
-            NoteEvidence(witness,"Round 2 check · tampered with · money inside. New tool marks since your last check (round 1).");
+            NoteEvidence(witness,"Round 1: you saw "+worker.name+" checking the cash drawer. You did not see what they did inside.");
+            NoteEvidence(witness,"Round 2 drawer check · money missing. The drawer changed since your last inspection.");
             rounds.Start(players.Keys,Time.time,30,30,6,1,1);phase=rounds.Phase;PositionEveryone(true);MenuOpen=false;Broadcast();
-            float previewUntil=Time.unscaledTime+20;bool captured=false;
+            float previewUntil=Time.unscaledTime+1;bool captured=false;
             while(Time.unscaledTime<previewUntil)
             {
                 if(ShowRole&&!captured){ScreenCapture.CaptureScreenshot("/tmp/saloon-sheriff-tab.png");captured=true;}

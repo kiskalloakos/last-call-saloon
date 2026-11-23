@@ -22,7 +22,7 @@ namespace Saloon
             string directory=Path.Combine(Path.GetTempPath(),"LastCall-StoryMaps");Directory.CreateDirectory(directory);
             void Deal(Role role)
             {
-                var deck=SaloonRules.Deck.ToList();deck.Remove(role);int i=0;
+                var deck=SaloonRules.DeckFor(5,role==Role.Swindler?Role.Swindler:Role.Renegade).ToList();deck.Remove(role);int i=0;
                 foreach(var p in players.Values)
                 {p.role=p==host?role:deck[i++];p.hp=100;p.room=p.chosenRoom=0;p.busyUntil=0;p.busyAction="";p.deathAt=-1;}
                 ResetHeist();phase=Phase.Discussion;outcome="";
@@ -40,7 +40,7 @@ namespace Saloon
             StoryMilestone Node(Snapshot snapshot,string title)=>SaloonStoryMap.Build(snapshot).Nodes.Single(n=>n.Title==title);
             var atlas=Resources.Load<Texture2D>("UI/StoryMilestones");
             Check(atlas!=null&&atlas.isReadable&&atlas.width==atlas.height*2,"readable illustrated atlas preserves its 4 x 2 grid");
-            foreach(var role in new[]{Role.Sheriff,Role.Deputy,Role.Outlaw,Role.Renegade})
+            foreach(var role in new[]{Role.Sheriff,Role.Deputy,Role.Outlaw,Role.Renegade,Role.Swindler})
             {
                 Deal(role);var initial=Snapshot();var map=SaloonStoryMap.Build(initial);
                 Check(map.Completed==1&&map.Nodes.Any(n=>n.State==StoryState.Next),"fresh "+role+" map starts with role known and a next move");
@@ -54,6 +54,10 @@ namespace Saloon
             Check(Node(sheriffView,"Inspect the safe").State==StoryState.Complete&&sheriffView.evidence.Length>0,"successful inspection completes the clue milestone");
             ApplySnapshot(sheriffView);ShowRole=true;yield return new WaitForEndOfFrame();
             ScreenCapture.CaptureScreenshot(Path.Combine(directory,"Sheriff-progress.png"));yield return null;
+            Deal(Role.Deputy);Actions();
+            Check(SaloonStoryMap.Build(Snapshot()).NextTitle=="Inspect the safe","Deputy's next step offers the same inspection as the Sheriff");
+            InspectSafe(host);var deputyView=Snapshot();
+            Check(Node(deputyView,"Inspect the safe").State==StoryState.Complete&&deputyView.evidence.Contains(deputyView.safeReport),"Deputy inspection completes the clue milestone and remains in their own notebook");
             Deal(Role.Outlaw);Actions();BeginRobbery(host);
             Check(!Snapshot().storyProgress.HasFlag(StoryProgress.SafeWork),"starting safe work does not falsely complete it");
             var partner=players.Values.Single(p=>p!=host&&p.role==Role.Outlaw);
@@ -70,7 +74,7 @@ namespace Saloon
             partnerView=PrivateSnapshot(partner.id);
             Check(Node(partnerView,"Take the money").State==StoryState.Complete&&!partnerView.moneyBag&&partnerView.outlawTeamMoneyBag,"money milestone is shared without creating a second carrier");
             Actions();DeclareEscape(host);
-            Check(Node(Snapshot(),"Declare escape").State==StoryState.Complete&&SaloonStoryMap.Build(Snapshot()).NextTitle=="Ride out alive","accepted escape advances to the response round");
+            Check(Node(Snapshot(),"Declare escape").State==StoryState.Complete&&SaloonStoryMap.Build(Snapshot()).NextTitle=="Finish the escape","accepted escape advances to the response round");
             partnerView=PrivateSnapshot(partner.id);
             Check(Node(partnerView,"Declare escape").State==StoryState.Complete&&!partnerView.escapePending&&partnerView.outlawTeamEscapePending,"partner shares the escape milestone without declaring their own escape");
             Check(players.Values.Where(p=>p.role!=Role.Outlaw).All(p=>!PrivateSnapshot(p.id).outlawTeamMoneyBag&&!PrivateSnapshot(p.id).outlawTeamEscapePending),"team money and escape state stay private to Outlaws");
@@ -92,14 +96,31 @@ namespace Saloon
             foreach(var p in players.Values.Where(p=>p.role==Role.Outlaw))p.hp=0;
             Check(!Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone),"smoking separation does not reveal unseen indoor deaths");
             host.room=0;
-            Check(Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone)&&SaloonStoryMap.Build(Snapshot()).NextTitle=="Turn on the Law","observed Outlaw deaths advance the Renegade's route");
+            Check(!Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone),"observed bodies do not certify hidden Outlaw identities");
             host.room=3;
-            Check(Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone),"already observed deaths remain complete across area changes");
+            Check(!Snapshot().storyProgress.HasFlag(StoryProgress.OutlawsGone),"area changes cannot grant hidden faction knowledge");
             host.room=0;
             ApplySnapshot(Snapshot());ShowRole=true;yield return new WaitForEndOfFrame();
             ScreenCapture.CaptureScreenshot(Path.Combine(directory,"Renegade-progress.png"));yield return null;
-            Deal(Role.Deputy);phase=Phase.Finished;outcome="LAW WINS — POSSE ARRIVED";
-            Check(Node(Snapshot(),"Hold for the posse").State==StoryState.Complete&&Node(Snapshot(),"Stop the criminals").State!=StoryState.Complete,"alternative victory routes are not falsely both completed");
+            Deal(Role.Deputy);phase=Phase.Finished;outcome="LAW WINS";
+            Check(Node(Snapshot(),"Win as the Law").State==StoryState.Complete&&Node(Snapshot(),"Stop the criminals").State==StoryState.Complete,"Law victory follows elimination of the criminals");
+
+            Deal(Role.Renegade);Actions();
+            host.drawn=true;host.ammo=tuning.cylinder;host.nextShot=0;host.pitch=-75;
+            int shots=host.shots,reloads=host.reloads,emptyClicks=host.emptyClicks;
+            OnCommand(host.id,new Command{kind="reload"});
+            Check(!rounds.HasSpent(host.id)&&host.busyAction==""&&host.reloads==reloads,"Renegade reload spends no action and starts no animation");
+            OnCommand(host.id,new Command{kind="fire"});
+            Check(host.shots==shots+1&&host.ammo==tuning.cylinder&&rounds.HasSpent(host.id),"Renegade can fire immediately after pressing reload without spending a bullet");
+            host.ammo=0;
+            for(int i=0;i<tuning.cylinder;i++)
+            {
+                Actions();host.nextShot=0;
+                OnCommand(host.id,new Command{kind="fire"});
+            }
+            Check(host.shots==shots+1+tuning.cylinder&&host.ammo==0&&host.emptyClicks==emptyClicks,"Renegade fires past the cylinder capacity without empty clicks");
+            var renegadeWire=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(Snapshot(),out _));
+            Check(renegadeWire.UnlimitedAmmo&&players.Values.Where(p=>p!=host).All(p=>!PrivateSnapshot(p.id).UnlimitedAmmo),"only the Renegade gets the unlimited bullet display");
             ResetHeist();
             Check(players.Values.All(p=>p.storyProgress==StoryProgress.None&&p.storySeenDead.Count==0),"rematch resets every private milestone and observed death");
             ShowRole=false;Debug.Log("SALOON_STORY_MAP PASS "+checks+" checks; screenshots="+directory);

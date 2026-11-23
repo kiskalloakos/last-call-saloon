@@ -13,14 +13,15 @@ namespace Saloon
         {foreach(var renderer in root.GetComponentsInChildren<Renderer>(true))renderer.gameObject.layer=layer;}
         public static void ApplyCamera(Camera camera,bool outdoors)
         {
-            int mask=camera.cullingMask&~((1<<IndoorLayer)|(1<<OutdoorLayer));
-            camera.cullingMask=mask|(1<<(outdoors?OutdoorLayer:IndoorLayer));
+            int mask=camera.cullingMask&~((1<<IndoorLayer)|(1<<OutdoorLayer)|(1<<SaloonSunset.EntranceLayer));
+            camera.cullingMask=mask|(outdoors?1<<OutdoorLayer:(1<<IndoorLayer)|(1<<SaloonSunset.EntranceLayer));
         }
         public static void Apply()
         {
             var world=GameObject.Find("Saloon World");if(world!=null)SetLayer(world.transform,IndoorLayer);
+            SaloonSunset.ApplyEntrance();
             var existing=GameObject.Find("have a smoke · sunset deck");
-            if(existing!=null){SaloonSurfaces.Apply(existing.transform);return;}
+            if(existing!=null){BenchSeats(existing.transform);SaloonSurfaces.Apply(existing.transform);return;}
             var placeholder=GameObject.Find("have a smoke · placeholder yard");
             if(placeholder!=null){placeholder.SetActive(false);Object.Destroy(placeholder);}
             var root=new GameObject("have a smoke · sunset deck").transform;root.position=Center-Vector3.up*.08f;
@@ -40,9 +41,23 @@ namespace Saloon
             Box("Quiet cedar bench",root,new Vector3(-2.9f,.46f,0),new Vector3(.52f,.12f,2.8f),wood);
             foreach(float z in new[]{-1.05f,1.05f})Box("Bench support",root,new Vector3(-2.9f,.2f,z),new Vector3(.4f,.4f,.15f),dark);
             var sign=new GameObject("have a smoke sign");sign.transform.SetParent(root,false);sign.transform.localPosition=new Vector3(-3.86f,2.4f,0);sign.transform.localRotation=Quaternion.Euler(0,-90,0);
-            var text=sign.AddComponent<TextMesh>();text.text="Have a Smoke\nStay a while. Watch the sun go down.";text.characterSize=.011f;text.fontSize=64;text.anchor=TextAnchor.MiddleCenter;text.alignment=TextAlignment.Center;text.color=new Color(.94f,.84f,.65f);SaloonWorldText.Attach(text);
+            var text=sign.AddComponent<TextMesh>();text.text="Out the back\nHave a Smoke";text.characterSize=.011f;text.fontSize=64;text.anchor=TextAnchor.MiddleCenter;text.alignment=TextAlignment.Center;text.color=new Color(.94f,.84f,.65f);SaloonWorldText.Attach(text);
+            BenchSeats(root);
             if(world!=null)foreach(var light in world.GetComponentsInChildren<Light>())light.cullingMask&=~(1<<OutdoorLayer);
             SaloonSunset.Build(root);SaloonSurfaces.Apply(root);SetLayer(root,OutdoorLayer);
+        }
+        static void BenchSeats(Transform root)
+        {
+            var sign=root.Find("have a smoke sign")?.GetComponent<TextMesh>();
+            if(sign!=null)sign.text="Out the back\nHave a Smoke";
+            for(int slot=0;slot<2;slot++)
+            {
+                string name="Back bench seat "+(slot+1);if(root.Find(name)!=null)continue;
+                var seat=new GameObject(name).transform;seat.SetParent(root,false);
+                seat.localPosition=new Vector3(-2.9f,.08f,slot==0?-.75f:.75f);
+                var point=seat.gameObject.AddComponent<InteractionPoint>();point.kind=InteractionKind.Seat;point.index=40+slot;
+                point.sitYaw=90;point.sitPosition=seat.position+Vector3.up*.08f;
+            }
         }
         static void Box(string name,Transform root,Vector3 position,Vector3 size,Material material,bool solid=true)
         {

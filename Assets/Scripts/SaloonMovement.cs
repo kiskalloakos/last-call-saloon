@@ -12,17 +12,17 @@ namespace Saloon
         public static Vector3 ClampToRoom(Vector3 p,int room)
         {
             if(room==3)return SaloonSmokingArea.Clamp(p);
+            if(room==SaloonBathroom.Room)return SaloonBathroom.Clamp(p);
             if(room==1){p.x=Mathf.Clamp(p.x,-6.65f,-3.35f);p.z=Mathf.Clamp(p.z,-5.35f,-2.02f);}
             else if(room==2){p.x=Mathf.Clamp(p.x,3.35f,6.65f);p.z=Mathf.Clamp(p.z,-5.35f,-2.02f);}
             else
             {
                 // The public floor includes the center aisle and entrance, around the
-                // discussion table. Preserve the enclosed side rooms as separate areas.
+                // discussion table. The rooms meet the outer and entrance walls.
                 var bar=new Vector3(Mathf.Clamp(p.x,-7.4f,7.4f),p.y,Mathf.Clamp(p.z,-1.25f,BarPublicBackZ));
                 var aisle=new Vector3(Mathf.Clamp(p.x,-2.65f,2.65f),p.y,Mathf.Clamp(p.z,-6.55f,BarPublicBackZ));
-                var entrance=new Vector3(Mathf.Clamp(p.x,-7.4f,7.4f),p.y,Mathf.Clamp(p.z,-6.55f,-6.1f));
                 var nearest=(bar-p).sqrMagnitude<(aisle-p).sqrMagnitude?bar:aisle;
-                p=(entrance-p).sqrMagnitude<(nearest-p).sqrMagnitude?entrance:nearest;
+                p=nearest;
             }
             return p;
         }
@@ -31,12 +31,12 @@ namespace Saloon
 
     public partial class SaloonGame
     {
-        bool CanWalk(Participant p)=>p.Alive&&p.seat<0&&p.busyAction!="pour"&&!TableLocksSeat(p)&&(phase==Phase.Lobby||phase==Phase.Turns);
+        bool CanWalk(Participant p)=>p.Alive&&p.seat<0&&!TableLocksSeat(p)&&(phase==Phase.Lobby||phase==Phase.Turns);
 
         // Movement runs independently of turn/action authorization, just like human input.
         void TickBotMovement(Participant p)
         {
-            if(p.room==3){p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;return;}
+            if(p.room==3||p.room==SaloonBathroom.Room){p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;return;}
             if(TableLocksSeat(p)){p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;return;}
             if(!p.Alive||phase!=Phase.Turns)
             {p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;p.botRoamAt=0;return;}
@@ -47,8 +47,9 @@ namespace Saloon
                 if(p.seat>=0)return;
                 p.botRoamAt=0;
             }
-            if(p.busyUntil>Time.time&&(p.busyAction=="rob"||p.busyAction=="drink"||p.busyAction=="giftDrink"||p.busyAction=="give"))
+            if(p.busyUntil>Time.time&&(p.busyAction=="rob"||p.busyAction=="drink"||p.busyAction=="toilet"))
             {p.move=Vector2.zero;p.botMoveWorld=Vector3.zero;p.botRoamAt=0;return;}
+            if(BotWantsBeer(p)){WalkBotToBeer(p);return;}
             if(BotWantsSafe(p)){WalkBotToSafe(p);return;}
             var threat=players.Values.Where(x=>x!=p&&x.Alive&&x.room==p.room&&Enemies(p,x))
                 .OrderBy(x=>(x.body.transform.position-p.body.transform.position).sqrMagnitude).FirstOrDefault();
@@ -75,6 +76,24 @@ namespace Saloon
                 else p.botRoamAt=Time.time+UnityEngine.Random.Range(.2f,.4f);
             }
             var local=Quaternion.Euler(0,-p.yaw,0)*p.botMoveWorld;
+            OnCommand(p.id,new Command{kind="input",x=local.x*.7f,z=local.z*.7f,yaw=p.yaw,pitch=p.pitch,poseVersion=p.poseVersion});
+        }
+
+        bool BotWantsBeer(Participant p)=>p.Alive&&p.room==0&&p.hp<=2*SaloonHealth.RevolverDamage&&beers>0&&
+            phase==Phase.Turns&&rounds.CanAct(p.id,Time.time)&&p.busyUntil<=Time.time;
+
+        void WalkBotToBeer(Participant p)
+        {
+            var toward=Vector3.ProjectOnPlane(SaloonBeerTaps.Position-p.body.transform.position,Vector3.up).normalized;
+            var direction=NearBeerTray(p)?Vector3.zero:toward;
+            if(direction!=Vector3.zero&&!BotPathClear(p,direction))
+            {
+                direction=Vector3.zero;
+                foreach(float angle in new[]{45f,-45f,90f,-90f})
+                {var candidate=Quaternion.Euler(0,angle,0)*toward;if(BotPathClear(p,candidate)){direction=candidate;break;}}
+            }
+            p.botMoveWorld=direction;p.botRoamAt=0;
+            var local=Quaternion.Euler(0,-p.yaw,0)*direction;
             OnCommand(p.id,new Command{kind="input",x=local.x*.7f,z=local.z*.7f,yaw=p.yaw,pitch=p.pitch,poseVersion=p.poseVersion});
         }
 
@@ -115,16 +134,15 @@ namespace Saloon
 
         void UpdatePlayerColliders(Participant p)
         {
-            float headHeight=SaloonMovement.EyeHeight(p.seat>=0,p.crouched)-.04f;
-            p.head.center=Vector3.up*headHeight;p.head.radius=.13f;p.head.enabled=p.Alive;
-            float bodyHeight=headHeight-.135f;
+            PoseCombatRig(p);
+            p.head.enabled=p.Alive;
+            float bodyHeight=Mathf.Max(.5f,p.head.center.y-p.head.radius-.01f);
             p.hitbox.height=bodyHeight;p.hitbox.center=Vector3.up*(bodyHeight*.5f);p.hitbox.enabled=p.Alive;
             p.solid.height=bodyHeight;p.solid.center=p.hitbox.center;p.solid.enabled=p.Alive&&p.seat>=0&&phase==Phase.Turns;
         }
 
         void ToggleStance(Participant p)
         {
-            if(p.busyAction=="pour"){p.notice="Stop pouring before leaving the tap.";return;}
             if(phase!=Phase.Turns){p.notice="Stand and walk during room actions. Discussion stays at the table.";return;}
             if(p.seat>=0){Stand(p);return;}
             InteractionPoint nearest=null;float best=1.35f;
@@ -135,7 +153,7 @@ namespace Saloon
                 if(distance>=best||players.Values.Any(other=>other!=p&&other.Alive&&other.seat>=0&&Vector3.ProjectOnPlane(other.body.transform.position-point.transform.position,Vector3.up).magnitude<.55f))continue;
                 nearest=point;best=distance;
             }
-            if(nearest==null){p.notice="Move closer to an empty chair or stool, then press F to sit.";return;}
+            if(nearest==null){p.notice=p.room==3?"Move closer to an empty bench spot, then press Space to sit.":"Move closer to an empty chair or stool, then press Space to sit.";return;}
             p.controller.enabled=false;p.body.transform.position=nearest.transform.position+Vector3.up*(nearest.gameObject.name=="stoolBar"?.35f:.08f);
             p.crouched=p.crouchHeld=false;UpdateCrouch(p);
             p.seat=1000+nearest.index;p.yaw=p.bodyYaw=nearest.sitYaw;p.pitch=0;p.poseVersion++;p.move=Vector2.zero;p.vertical=0;

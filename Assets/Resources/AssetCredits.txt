@@ -5,7 +5,7 @@ https://creativecommons.org/licenses/by/4.0/
 Adapted for Last Call: FBX export, texture resolution and material changes, Unity placement.
 
 Other artwork is CC0: Kenney furniture and characters; Donnee tavern furniture;
-Frakassets/Pixor ale mug; Grab3D Office Safe; wriks WRAD ARMS;
+eugeneloza OpenDungeons beer tankard; Grab3D Office Safe; wriks WRAD ARMS;
 Amal Kumar / Poly Haven Wood Planks; James Ray Cock / Poly Haven Wine Barrel.
 Source links and full provenance are recorded in Documentation/ASSET-SOURCES.md.
 
@@ -15,9 +15,15 @@ Standard Unity Asset Store EULA (not CC0).
 https://unity.com/legal/as-terms
 Adapted for Last Call: normalized prefab, procedural animation, jaw/grip blend shapes.
 
-CC0 recorded sound effects from Freesound — Dredile (reload), Q.K. (drinking),
-Max_Headroom (horse galloping), Resaural (distant gunshot).
+CC0 recorded sound effects from Freesound — Dredile (reload), Q.K. (drinking).
 Source pages, license and processing notes: Resources/Audio/Recorded/License.txt.
 
 Revolver shot: Heathers Gunshot Effect2.wav by okieactor (Freesound #415912), CC0 1.0.
 https://freesound.org/people/okieactor/sounds/415912/
+
+Beer tankard: eugeneloza — Dwarf Beer Barrel [OpenDungeons] (mug subset), CC0.
+https://opengameart.org/content/dwarf-beer-barrel-opendungeons
+
+Toilet Foley (CC0 1.0): Breviceps (suction pop), harrisonlace (toilet bubbles),
+buzzatsea (toilet flushing). Full source URLs and processing details:
+Audio/Toilet/License.txt and Audio/Toilet/Sources.json.

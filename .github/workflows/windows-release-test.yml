@@ -6,15 +6,16 @@ on:
       release:
         description: Published release tag to execute
         required: true
-        default: v0.2.17
+        default: v0.3.0
         type: string
 
       suite:
-        description: Standard regressions or delayed/lossy connection tests
+        description: Current release, legacy regressions, or delayed/lossy connection tests
         required: true
-        default: standard
+        default: release
         type: choice
         options:
+          - release
           - standard
           - rooms
           - stress

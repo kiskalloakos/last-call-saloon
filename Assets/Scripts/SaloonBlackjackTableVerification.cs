@@ -72,8 +72,26 @@ namespace Saloon
             Broadcast();yield return new WaitForSeconds(1.6f);Broadcast();yield return null;
             CaptureBlackjack("dealer");
             Check(PrivateDuel(host).canDeal&&!PrivateDuel(peer).canDeal,"dealer controls are private to the correct seat");
+            for(int seed=0;seed<10000;seed++)
+            {
+                var hand=new SaloonBlackjack(new System.Random(seed));
+                if(!hand.Complete){hand.Stand();while(!hand.Complete)hand.DealerStep();}
+                if(hand.Winner==0){d.blackjack=hand;break;}
+            }
+            d.readyAt=0;d.revealAt=0;TickBlackjack(d);BlackjackTable.ClearHand();Broadcast();
+            yield return new WaitForSeconds(1.05f);Broadcast();yield return null;
+            Check(PlayingBlackjack&&PrivateDuel(host).stage=="tiebreak","client stays in table mode throughout the automatic tiebreak");
+            Check(BlackjackTable.CardCount==d.blackjack.Player.Count+d.blackjack.Dealer.Count+2&&BlackjackTable.HiddenCount==0,"automatic tiebreak displays two extra face-up cards without replacing the original hands");
+            var board=BlackjackTable.transform.Find("Blackjack cards");
+            Check(board.GetComponentsInChildren<MeshRenderer>().Where(r=>r.name.StartsWith("Player ")||r.name.StartsWith("Dealer ")).All(r=>r.enabled),"joining a tiebreak reveals the full original hand without replaying a staggered deal");
+            Check(board.Find("Player high card")!=null&&board.Find("Dealer high card")!=null&&Mathf.Abs(board.Find("Player high card").localPosition.z)>.5f&&Mathf.Abs(board.Find("Dealer high card").localPosition.z)>.5f,"high cards occupy distinct rows on the felt");
+            CaptureBlackjack("tiebreak");
+            if(!Application.isBatchMode)
+            {yield return new WaitForEndOfFrame();ScreenCapture.CaptureScreenshot(Path.Combine(Path.GetTempPath(),"SaloonBlackjack-tiebreak-screen.png"));yield return null;}
             rounds.BeginAftermath(Time.time);phase=rounds.Phase;Broadcast();yield return null;
-            Check(!BlackjackTable.Visible&&BlackjackTable.CardCount==0,"phase change clears cards and table input");
+            Check(BlackjackTable.Visible&&BlackjackTable.CardCount>0&&View.duel==null,"aftermath retains physical cards without table input");
+            rounds.BeginAftermath(Time.time-4);TickServer();Broadcast();yield return null;
+            Check(!BlackjackTable.Visible&&BlackjackTable.CardCount==0,"regroup clears the completed hand when players leave");
             VerificationFinished=VerificationPassed=true;Debug.Log("SALOON_TABLETOP PASS");
         }
         void CaptureBlackjack(string name)

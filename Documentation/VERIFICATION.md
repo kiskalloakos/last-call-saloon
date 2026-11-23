@@ -1,3 +1,97 @@
+# Multiplayer shot registration — 2026-11-23
+
+- Replaced the fixed eye-height head sphere with a mesh-fitted head volume driven by
+  the same humanoid rig as the visible character. A hidden authoritative rig keeps
+  working when the host is in a different visibility area.
+- Trigger commands carry click-time aim, including camera kick, and the last actually
+  rendered snapshot interval. Client rendering and host hit tests interpolate the
+  same authoritative head samples, including nonlinear flinches and packet loss.
+- The host retains one second of combat geometry and accepts shot ages up to 500 ms;
+  queued draw shots have an 800 ms total-age cap. It rewinds query colliders only,
+  restores them in `finally`, and retains static wall/glass occlusion. Clients do not
+  claim hits, head positions or damage. Invalid times/poses and duplicate actions are
+  rejected; a recently acknowledged stance remains valid while its confirmation travels.
+- Fire bypasses the unrelated 90 ms action debounce. Legal draw clicks remain queued
+  through nonlethal hits and are cleared on death, lobby reset or a new match.
+- `SALOON_SHOOTING PASS`: 64 checks using eight real UDP participants. Covers stale
+  movement aim, actual camera-kick trigger input, duplicate clicks, seated/crouched/look
+  poses, both orders of simultaneous hits, flinching and nonlinear interpolated heads,
+  delayed movement, snapshots arriving before render, stance acknowledgement delay,
+  body hits, glass, targets invisible to the host, queued draw shots and invalid inputs.
+  Log: `/tmp/lastcall-shooting.log`.
+- Existing `SALOON_ROOM_ACTIONS PASS` and rendered `SALOON_COMBAT PASS`: normal head
+  damage, no body damage, dodging, healing, weapon grip, flinch/flash, recovery and
+  lethal ragdoll behavior. Rendered flinch capture inspected.
+  Logs: `/tmp/lastcall-shooting-room-actions.log`, `/tmp/lastcall-shooting-visual.log`.
+- `python3 Tools/verify_planning.py`: **21,142 checks passed**.
+- Eight independent Mac processes passed three rounds and the start of round four
+  with the actual `Shoot()` path over an impaired LAN: 80 ms one-way latency,
+  25 ms jitter and 2% configured packet loss on seven links. All links dropped packets,
+  every player exited 0, and headshot health/confirmation checks passed.
+  Logs: `/tmp/lastcall-shooting-lan-impaired`.
+- Eight independent Mac processes passed the same three-round shooting/healing flow
+  through an actual private Unity Relay room, with every player exiting 0.
+  Logs: `/tmp/lastcall-shooting-online`.
+- Matching macOS and Windows x64 development builds succeeded under
+  `Builds/MultiplayerVerification`. Protocol is now `state-17`; all peers need these
+  updated builds. Windows executable verified as PE32+ x86-64.
+  Logs: `/tmp/lastcall-shooting-build-mac.log`, `/tmp/lastcall-shooting-build-windows.log`.
+
+The matching test ZIPs in `Builds/MultiplayerVerification` passed complete CRC checks;
+macOS executable permissions were verified. `SHA256SUMS-shooting-fix.txt` records both
+archive hashes. The Mac build contains Intel and Apple silicon executables.
+
+Windows runtime, physical mixed-device/network play and the user's original live
+playtest still need a device check. The automated players ran on this Mac; successful
+regressions do not establish that every possible network or aiming issue is eliminated.
+
+# Eight-player multiplayer source update — 2026-11-22
+
+- Online and LAN matches support 4–8 participants, including the host, with the
+  agreed decks: 6 = Sheriff / 2 Deputies / 2 Outlaws / Renegade;
+  7 = Sheriff / 2 Deputies / 3 Outlaws / Renegade;
+  8 = Sheriff / 3 Deputies / 3 Outlaws / Renegade. Four/five-player decks remain defined.
+- Host bot-fill controls cover every size from four through eight. Saved scenes
+  receive eight stools, eight pouring stations and eight distinct discussion seats
+  at startup. Seat interaction IDs do not overlap. Side rooms still hold two.
+- Lobby rosters scroll; six-to-eight-player results use two rows. Sheriff and Outlaw
+  private information lists every permitted teammate. Protocol `state-16` requires
+  matching updated builds on all devices.
+- `python3 Tools/verify_planning.py`: **21,142 checks passed**, including exact decks,
+  unsupported sizes, eight concurrent Bar actions and paired side-room limits.
+- Unity `RunLobby`: **PASS** for real UDP rounds at 4, 5, 6, 7 and 8 humans, private
+  roles, distinct seating, movement, actions, ninth-player rejection, bot filling
+  and replacement. Final rendered lobby, bot controls and eight-player results were
+  inspected. Log: `/tmp/lastcall-eight-lobby-final.log`.
+- Unity `RunKnowledge`: **PASS** at every size from four through eight, including
+  all Deputy/Outlaw identities and spectator permissions.
+  Log: `/tmp/lastcall-eight-knowledge.log`.
+- Unity `RunRematch`: **PASS** with eight UDP participants: reconnect at full capacity
+  preserves role, health, inventory, evidence and position; results include all eight
+  players and all Law winners; unanimous rematch, return to lobby and reconnect
+  expiry preserve the expected roster. Log: `/tmp/lastcall-eight-rematch.log`.
+- Unity `RunPublicFloor`: **25 checks passed**, including the real collision loop
+  around the eight-chair discussion table and the closed entrance. Discussion seats
+  retain the original radius to preserve walking clearance.
+  Log: `/tmp/lastcall-eight-floor.log`.
+- Local macOS development build succeeded at
+  `Builds/MultiplayerVerification/macOS/Last Call.app`.
+  Log: `/tmp/lastcall-eight-build.log`.
+- Eight independent packaged processes passed **three rounds and the start of round
+  four** over LAN and, separately, an actual private online Relay room. Every process
+  exited 0 with the correct eight-role deck. Covered standing/walking, coin and
+  blackjack pairs, shooting, healing and private role replication.
+  Logs: `/tmp/lastcall-eight-lan-processes` and `/tmp/lastcall-eight-online-processes`.
+- An initial simultaneous online join attempt hit Unity Lobby HTTP 429 throttling.
+  Online joining now has three bounded retries with increasing delay and jitter for
+  rate-limit errors; other errors still surface immediately. The final eight-process
+  online run passed without throttling, so live retry recovery was not exercised in
+  that successful run.
+
+Remaining human checks: separate physical devices/networks, Windows runtime,
+router/firewall behavior, physical microphones, minimum-hardware performance and
+balance of the new role distributions. The automated Relay clients ran on one Mac.
+
 # Release 0.2.2 — LAN room-selection regression, 2026-11-07
 
 - Existing 0.2.1 rendered Mac host/client smoke reproduction exited successfully; the
@@ -1823,3 +1917,1083 @@ interruption recovery all passed in run 43588065431. Source and packages were
 unchanged for this validation. Release notes link to the native Linux success,
 Windows standard partial result, and Windows LAN success without claiming the
 obsolete rendered-room fixture passed.
+
+## 2026-11-23 — Configurable solo practice (development source)
+
+Solo practice now opens a setup page before starting. It offers 3–7 bots
+(4–8 total players), 5–120 seconds of discussion, 5–60 seconds of room actions,
+and 0–16 shared beers. The bot selection uses the existing match-size setting;
+the selected timers and supply feed the normal local match startup.
+
+`Saloon → Verify solo practice startup in Play mode`: PASS, 49 checks in
+`Logs/Editor.log`, ending with `SALOON_SOLO PASS` and
+`SALOON_EDITOR_ITERATION PASS`. Checks cover all five bot counts, exact role
+decks, minimum/maximum timers and beer supply, active-match count locking,
+local commands and minigames, teardown, and a real UDP client joining a LAN
+host after practice.
+
+Visually inspected the setup page in the running Unity Game view: all settings,
+the total-player summary, Back and Start practice fit without overlap. Native
+mouse automation returned `noWindowsAvailable`, so mouse clicks through the
+new page were not verified. The visual preview temporarily opened directly
+on setup; that preview override was removed. No player build was produced.
+
+## 2026-11-23 — Interactive first-build tutorial (development source)
+
+Added a 23-chapter local tutorial, with first-launch welcome, Skip tutorial,
+per-build acknowledgement, and a permanent main-menu Tutorial button. Build
+identity includes both application version and build GUID. Editor and explicit
+automation runs do not automatically open onboarding; Editor preview is available
+through `Saloon → Preview interactive tutorial`.
+
+Chapters exercise real movement, planning, action spending, role cards, beer,
+quick and accurate shots, reload, window approaches, Coin Flip, both Blackjack
+seats, smoking, boosted beer, Sheriff/Deputy inspection, three Outlaw safe jobs,
+escape declaration and response, Renegade role knowledge and combat, a round-six
+bartender question, and spectator cycling. Each chapter resets its own scenario.
+Tutorial bots cannot roam, shoot, or change plans autonomously. The normal
+minigame opponent can play cards and pass its opening. Instructions pause the
+local action timers. Exiting restores the original tuning object and bot settings.
+
+The welcome and action chapter show **1 ACTION = 1 ROUND** in large bold text.
+The action chapter lists eight action categories and separately lists free
+controls. Indoor sound is correctly described as two-way proximity sound;
+minigame windows have one-way visibility. The smoking deck has separate voice
+and activity visibility. The tutorial does not request or connect a microphone.
+
+Validation:
+
+- `Saloon → Verify interactive tutorial in Play mode`: PASS, 72 checks,
+  `SALOON_TUTORIAL PASS checks=72` and `SALOON_EDITOR_TUTORIAL PASS` in
+  `Logs/Editor.log`. Includes skip/replay, build identity, every exercise,
+  completion, early exit, and settings restoration.
+- Existing solo-practice suite: PASS, 49 checks, including all 3–7 bot counts
+  and a real UDP peer joining LAN after solo teardown.
+- Native keyboard preview: Enter opened the welcome's first lesson; Enter
+  started it; Space and Ctrl+W completed the actual movement exercise. The
+  completion state and Next lesson control were visually confirmed.
+- Inspected rendered welcome, action list, healing instructions, and final
+  chapter. Images are under the OS temporary `lastcall-tutorial` directory.
+- A sentence-length check found no tutorial lesson sentence longer than 20
+  words. Short instructions and stable technical terms follow the requested
+  [ASD-STE100 writing direction](https://www.asd-ste100.org/assets/files/ASD-STE100_ISSUE9.pdf).
+  A complete approved-dictionary conformance audit was not performed.
+- `git diff --check`: PASS.
+
+The first-launch decision and persistence were tested in the Editor with build
+identities. Fresh-install auto-display in a packaged player and full mouse play
+through all chapters still require a player playtest. No new player build or
+release was produced.
+
+## 2026-11-23 — Continuous training saloon and optional help library
+
+The default first-launch tutorial is now a continuous playable route. A compact
+welcome offers Start walkthrough, Help topics, and Skip tutorial. The route has
+short prompts and automatic progress, with no chapter counter or Next buttons.
+The old detailed exercises remain optional topic practice, with searchable help.
+
+`SaloonTrainingMap` builds a separate saloon shell, shooting lane, bar and safe,
+two open-access minigame booths with real one-way glass, and a connected smoking
+veranda. It disables the original world and smoking deck while active. Exit and
+topic-practice transitions restore the original objects, lighting, fog, and
+practice settings. Shared game models and minigame furniture retain their normal
+interaction anchors; the training shell and connected walking paths are new.
+
+The walkthrough runs real host commands and timers for shots, reload, beer,
+planning, both minigames, smoking, role inspection, safe work, escape response,
+the bartender, and spectator cycling. Its Outlaw example starts with two work
+steps already completed by training allies. Normal match rules are unchanged.
+The action checkpoint prominently shows **1 ACTION = 1 ROUND** and all eight
+action categories. Esc pauses the route; F1 opens help without resetting it.
+
+Validation in Unity Editor:
+
+- `Verify short tutorial in Play mode`: PASS, 33 checks. The test navigated the
+  physical paths through production movement and colliders, performed the real
+  interactions, and reached the exit in **53.7 seconds**. It did not teleport
+  between teaching stations or bypass timed actions. Table seating and the
+  elimination/respawn demonstration use the same tutorial transitions as a player.
+- Automatic continuation, one persistent training map, inactive original world,
+  non-attacking opponents, offline startup, pause/help preservation, map/settings
+  restoration, and transition to an individual topic example all passed.
+- Retained topic-practice suite: PASS, 72 checks.
+- Solo-practice regression suite: PASS, 49 checks, including real UDP LAN after
+  solo teardown.
+- Native keyboard preview: Enter started the new route; F1 opened the help
+  browser; typing a search filtered topics; Esc and Enter returned to the same
+  training position. Inspected rendered welcome, new map, prompts, minigames,
+  and the optional help layout.
+- `git diff --check`: PASS.
+
+The 53.7-second run is an automated mechanical baseline. It excludes reading,
+decision time, and first-time aiming. The design target is under five minutes;
+a fresh-player timing/usability test is still needed to confirm that target.
+Rendered evidence is in the OS temporary `lastcall-walkthrough` directory.
+No new packaged player or release was produced.
+
+## 2026-11-23 — Anonymous opening matchup
+
+Retained the original 5.5-second personal role reveal and added a nine-second
+results-style matchup briefing before discussion. The briefing uses the existing
+role portraits, labels each anonymous slot above its portrait, and marks the
+local role, allies, enemies, and known/public/undiscovered identities under the
+current role rules. The host's existing intro allowance now covers both screens.
+
+The lineup is constructed from the match-size role deck with the local role first,
+then allies and enemies in role order. It never maps portraits to actual player
+names, IDs, roster order, or revealed-role fields. Lobby/end state clears it;
+snapshot refreshes and later rounds do not replay it.
+
+Validation:
+
+- Unity compiled the change and rendered the original reveal followed by the
+  five-player Outlaw briefing: one ally, three enemies, two hidden identities,
+  role names above portraits, and no player names.
+- Temporary checks compiling the production intro state logic covered all 20
+  role/player-count combinations (four roles, four through eight players), exact
+  deck composition, anonymous ordering despite changed names/IDs/revealed roles,
+  rematch reset, lobby/end cleanup, and no replay on refresh/later rounds.
+- The extended temporary planning harness passed 21,052 assertions; its extra
+  walkthrough stubs accommodate a concurrent tutorial change and are not game
+  changes. The regular planning suite passed 20,831 assertions before that change.
+- `git diff --check` passed for the changed intro and README.
+
+The compact six-through-eight-player visual layout was not manually reviewed;
+window-control failures interrupted that check. No standalone build or release
+was produced.
+
+
+## 2026-11-23 — Focused tutorial lighting and wrong-plan recovery
+
+The native preview had competing bright stations, floating signs, a destination
+marker, a direction banner, and the normal match HUD. The training map now has
+one warm spotlight. It lights a reachable waypoint, then the actual target,
+beer tray, table, safe, or bartender. Cool ambient light keeps obstacles visible.
+The camera background is dark during training and restores on exit.
+
+The route shows one current instruction with a short explanation. Turn guidance
+appears when the light is outside the view. Interaction keys appear when the
+real game reach checks allow the action. Match counters, idle character labels,
+station signs, progress bars, repeated markers, and generic success banners are
+removed from the walkthrough. Actual minigame choices and the large bold
+**1 ACTION = 1 ROUND** reminder with its eight-action list remain.
+
+Fixed the reported planning dead end: trying to lock Coin Flip, Blackjack, or
+Have a Smoke during the Bar exercise now keeps discussion open and explains how
+to correct the choice. Bar has a visible outline in the planner. The host checks
+all ready paths, including Go alone. A plan that has already advanced into an
+invalid room safely returns to the same map and planning checkpoint.
+
+Validation in Unity Editor:
+
+- Continuous tutorial: PASS, **43 checks**, **56.1 seconds** automated route.
+  Includes all three wrong destinations, Go alone, direct ready commands,
+  recovery from an already-transferred wrong plan, and completing the route
+  after correction.
+- One active training spotlight, waypoint following, actual beer/card station
+  focus, normal lighting/background restoration, offline startup, help
+  preservation, and separate topic-practice takeover passed.
+- Normal room/companion planning and reservation regression suites: PASS,
+  including a real LAN host, paired locking, full-room rejection, unlock, and
+  delayed-snapshot handling.
+- Rendered movement, offscreen turn guidance, target, beer, cards, and the action
+  list were visually inspected. Copies are in `Logs/Verification/tutorial-focus`.
+- `git diff --check`: PASS.
+
+The automated time excludes human reading and aiming. Fresh-player usability
+and under-five-minute timing still need a player playtest. No packaged player
+build or release was produced.
+
+
+## 2026-11-23 — Action keys and spectator checkpoint controls
+
+Added the actual controls in parentheses beside all eight actions in the large
+round-action reminder and the help library: shooting (left/right click), reload
+(R), beer (E), inspect (C), safe work (H), escape (X), bartender (I), and pass (F).
+The reminder also names movement (WASD), aiming (mouse), and drawing (Q).
+The missed-shot action cost remains explicit.
+
+The spectator exercise previously used an ambiguous Left/Right instruction and
+hid the normal clickable controls when the training HUD was simplified. It now
+shows a countdown during the normal 3.2-second death-camera delay, then explicitly
+names the Left/Right arrow keys and offers visible Previous/Next buttons. The
+pointer stays available for the buttons. Training bots are restored and placed
+in front of the bar, looking toward the lit beer tray, so there are always
+multiple living views. Switching targets continues the route and restores the
+learner for the exit. A host snapshot refresh also handles an overdue local
+observer update. Normal-match spectator rules and delay are unchanged.
+
+Validation:
+
+- Continuous tutorial: PASS, **49 checks**, **57.7 seconds** automated route.
+- The spectator camera automatically reached a living player's eye position
+  after the delay; both target directions worked; the controls rendered with
+  an unlocked pointer; switching continued through respawn and the exit.
+- The updated action reminder, death countdown, and settled spectator view with
+  its buttons were visually inspected. Evidence: `Logs/Verification/tutorial-focus`.
+- Added **Saloon → Preview tutorial spectator checkpoint** for direct Editor
+  retries without repeating earlier exercises. Opened that preview and verified
+  a native Right-arrow key press restored the learner and continued to the exit.
+- `git diff --check`: PASS. No packaged player build or release was produced.
+
+
+## 2026-11-23 — Normal game vitals and tutorial sunset deck
+
+The continuous tutorial now calls the normal `Vitals()` renderer, using the same
+health percentage, five health segments, cartridge icons, empty cartridges,
+Renegade unlimited-ammo display, smoking boost indicator, and spectator health
+behavior. The planner, role card, and bartender panel keep normal visibility
+rules. Removed the redundant health percentage from the tutorial prompt.
+
+The connected smoking deck now uses `SaloonSunset.Build`, the same desert sky,
+low sun, mesas, cacti, terrain, and outdoor sun as the real smoking area. Cedar
+planks, open rails, and a bench use the normal weathered outdoor surface style.
+The saloon's east wall and roof stop before the deck so the sun is visible on
+arrival. Entering faces the player toward the sunset; the indoor action lamp is
+off outside, and outdoor scenery is hidden when the player returns indoors.
+Generated tutorial scenery materials and meshes are disposed with the map.
+
+Validation in Unity Editor:
+
+- Continuous route: PASS, **53 checks**, **54.9 seconds** automated run.
+- The shared sunset vista has only nonblocking scenery and uses the outdoor
+  visibility layer. Its directional light affects only outdoor scenery.
+- The arrival camera faces the sun, and a physical ray confirms a clear low-sun
+  view from the entrance. Returning indoors restores the single action light.
+- Inspected the rendered normal health/ammo HUD during shooting, reload,
+  healing, minigames, smoking, and spectating. Inspected the sunset render.
+  Evidence is in `Logs/Verification/tutorial-focus`.
+- Added **Saloon → Preview tutorial sunset deck** for direct Editor review.
+- `git diff --check`: PASS. No packaged player build or release was produced.
+
+## Beer artwork and waiting-scene continuity — 2026-11-23
+
+- Unity 6000.5.10f1 compiled the runtime and Editor changes.
+- **Verify beer artwork and scene continuity** passed in Editor Play mode,
+  including beer stock, healing, restrictions, replacement mug import, unchanged
+  camera/position during aftermath, disabled actions and a single camera cut at regroup.
+- Tabletop blackjack and coin-flip checks passed: their physical cards/coin
+  persist during aftermath, controls close, and props clear at regroup.
+- Production planning/rules verification passed over 21,000 checks.
+- Screenshots and focused checks: `Documentation/BeerScenePreviews/`.
+- No downloadable player builds were rebuilt; remote human transition testing
+  remains outside this local Editor check.
+
+## 2026-11-23 — Hidden allies and random independent role
+
+Development source now hides Deputies from the Sheriff and removes the Renegade's
+complete role roster. Only Outlaws retain named hidden teammate knowledge; the
+public Sheriff badge remains available. Removed the Renegade story-map flags that
+could certify hidden factions from observed deaths. Updated role guides, tutorial
+copy, bartender eligibility, and private information panels accordingly.
+
+Each new match/rematch chooses exactly one independent with a 50/50 host roll:
+Renegade or Swindler. The anonymous opening hides that selection from other roles
+behind an Independent slot, while showing the recipient their own correct role.
+The Swindler earns a private personal victory only from a lethal Sheriff/Deputy
+shot; nonlethal, Outlaw, Renegade, self-inflicted and reflected damage do not earn
+it. Others continue their heist. Final results preserve the personal winner beside
+faction winners; rematches/lobby reset it. Law can defeat all threats without
+killing a surviving Swindler. A sole surviving Swindler does not win.
+
+Networking identity is now state-20, preventing old clients from joining with
+obsolete role/knowledge rules. No packaged player or release was produced.
+
+Validation:
+
+- Production rules/planning harness: 21,009 checks passed, including both decks
+  for all 4–8-player sizes, private teammate permissions, masked independent intro
+  slots, roll boundaries, lethal-killer eligibility, personal victory recording,
+  results eligibility and Swindler story guidance.
+- Full runtime and Editor C# assemblies compiled with Unity's compiler and
+  references; logs in /private/tmp/lastcall-role-rework-compile/.
+- The live Unity run exercised role privacy across both independents and 4–8
+  players and reached real Law-caused lethal shots, private snapshot state, result
+  preservation and rematch reset. The full run did not pass: repeated synthetic
+  avatar deaths/restorations hit ragdoll errors, and a later run lost its host
+  fixture. The revised rule fixture detaches local avatar rendering and resets
+  Editor-run state after an interrupted run; its full live rerun remains pending.
+- Further live attempts were interrupted by editor/window changes. No claim of
+  complete rendered, LAN, reconnect or human balance verification is made here.
+
+Practice Swindler bots draw a gun and pass; they do not simulate social bluffing.
+The existing Renegade portrait is reused for the Swindler with distinct role text.
+
+
+## 2026-11-23 — Separate beer and cash drawer positions; live theft checks
+
+- Moved the shared beer tray 2.8 metres left along the counter, from x=-1.8 to
+  x=-4.6; the drawer remains at x=-0.45. Updated training routes, beer fixtures,
+  and preview framing to use the shared tray position.
+- Unity 6000.5.10f1 / Metal passed SALOON_DRAWER: 40 checks covering all five
+  roles inspecting at full health, report privacy, competing thefts producing
+  one carrier, compressed snapshots, next-phase escape, fresh defender actions,
+  headshot interruption, successful escape, elimination returns, and separate
+  beer/drawer interaction positions.
+- SALOON_BAR_BEER and SALOON_EDITOR_ITERATION passed: 45 assertions covering
+  physical walking access between stools, drinking/healing, stock races,
+  rejected interactions, visible mugs, and round/camera continuity. Updated an
+  old route to stop in front of the fitted drawer instead of inside its collider.
+  Refreshed previews are in Documentation/BeerScenePreviews/.
+- Tools/verify_planning.py passed 21,043 checks. These are source/editor results;
+  human social-balance sessions and dedicated reconnect/rematch checks remain.
+
+
+## 2026-11-23 — Close role/theft engineering gaps
+
+- Removed reflected ally damage. Headshots still damage allies normally, so a
+  mistaken accusation can hurt the team, but shooter health cannot certify a role.
+  Ally/enemy hit confirmations now match; the headshot story milestone advances
+  for either, closing two further allegiance leaks. Updated handbook/tutorial copy.
+- Fixed repeated reconnect: NGO disconnect callbacks supply the current network
+  ID, whereas LocalId retains the original seat identity. Comparing the callback
+  with Manager.LocalClientId restores recovery after the second disconnect.
+- Full live role/privacy verification passed 1,299 assertions across both
+  independent roles, 4–8 players, all phases, observer privacy, Swindler killer
+  eligibility, private victory, result preservation, rematch reset, and identical
+  normal/boosted ally/enemy feedback. Synthetic server fixtures detach avatar
+  rendering; the health suite separately exercises rendered labels and spectating.
+- Eight real localhost UDP connections passed 34 reconnect/rematch assertions:
+  repeated recovery preserves personal victory, money, private reports, planned
+  and active escape, spent actions, and single-carrier ownership. Results, votes,
+  rematch/lobby resets, reservation expiry, and aborted results also pass.
+- Discussion evidence passed 18 assertions: sight/occlusion, death, brief glances,
+  ambiguous theft/inspection witnesses, timed drawer reports, report privacy,
+  stale reports, wire serialization, notebook limits, and reset. Updated obsolete
+  three-step safe fixtures for the two-second shared drawer.
+- Health passed 53 assertions plus 12 rendered discussion-health checks, including
+  allied damage without reflection, lethal target-only damage, five-hit death,
+  partial health, healing, wire confirmation, hidden-role labels and spectating.
+  Corrected an obsolete fixture that expected the Renegade to see an Outlaw label.
+- Cash drawer regression passed all 40 checks again. Production planning/rules
+  harness passed 21,043 checks. Each completed live suite reported
+  SALOON_EDITOR_ITERATION PASS; scoped git diff whitespace checks passed.
+- Items 1 and 2 are implemented and engineering-verified in development source.
+  No new downloadable build was produced. Human social-balance testing is still
+  outstanding; its concrete session checklist is in REPLAYABILITY-README.md.
+
+
+## 2026-11-23 — Enclosed room sight and sound; quiet opening
+
+- Coin Flip and Blackjack privacy panes are opaque on both sides. Saved scenes
+  migrate using window layout version 4; the tutorial uses the same two-way
+  opacity. Living Bar players no longer receive minigame table snapshots.
+- Indoor cross-room voice uses Vivox participant taps with native duplicate
+  playback silenced, positional Unity playback, 28% volume, and an 850 Hz
+  low-pass filter. Same-room voices stay clear; local player mutes apply to taps.
+  Avatar sounds across indoor rooms use the same low-pass cutoff. Smoking still
+  uses its isolated channel and visibility rules, and spectator playback follows
+  the watched player's room.
+- Waiting-room voice remains enabled. Both opening role screens pause input and
+  output (including routed sources); table discussion resumes voice automatically.
+  Microphone echo tests cannot bypass the role reveal pause.
+- Unity / Metal passed 68 room-window assertions, including actual rendered
+  occlusion in both directions, hidden Bar table state, collision/bullets, and
+  cross-room gunshot filtering. Live Vivox passed 195 voice-control assertions:
+  symmetric room rules, audio filter configuration, role-intro silence/resume,
+  recovery, outdoor isolation, spectator routing, and cleanup. The live test
+  never requests or captures the physical microphone. Corrected its spectator
+  fixture to avoid testing exactly on the floating-point death-delay boundary.
+- Tabletop coin flip regression passed after updating Bar visibility assertions;
+  the production planning/rules harness passed 21,043 checks. Scoped diff checks
+  passed. Protocol identity is state-22 to reject clients with old privacy rules.
+- Remote-human listening and subjective intelligibility tuning remain untested;
+  SDK connectivity and routing are tested, not a two-human recorded conversation.
+  No downloadable build was produced. Continue roadmap item 3 with room incentives.
+
+
+## 2026-11-23 — Featured medical room opportunity (roadmap item 3)
+
+- The host randomly announces Coin Flip or Blackjack for medical supplies during
+  each discussion. Snapshots do not reroll it. Normal two-player reservations,
+  unmatched fallback, minigame rules, result pauses, and opening deadlines apply.
+- The featured room winner chooses Heal 20% or Keep opening. Healing immediately
+  restores 20 percentage points (capped at 100), spends the one round action, and
+  releases the opponent's response. Keeping the opening is free, declines supplies,
+  and retains the existing deadline; inactivity passes normally. Full-health,
+  losing, dead, wrong-room, expired and duplicate claims cannot grant healing.
+- Supplies use no beer, do not consume or multiply the smoking boost, and produce
+  no public reward-use announcement. Choice flags belong only to the eligible
+  winner's private snapshot. The guided tutorial has no featured opportunities;
+  Help topics explain the normal-match rules. Injured practice bots can use supplies.
+- Planning announces the opportunity before room selection and labels its room
+  tile. The winner gets a clickable heal/opening choice with the time remaining.
+  Inspected both rendered screens. Previews: temporary lastcall-medical-supplies/.
+- Unity / Metal: SALOON_MEDICAL passed 84 assertions across both rooms and all
+  five roles, including production commands, choice authorization, action/response
+  rules, health caps, boost/beer independence, timeouts, reset, and wire state.
+- Eight-client UDP reconnect/rematch verification passed 36 assertions, including
+  equal featured-room announcements and persistence across reconnection. Both
+  tabletop Coin Flip and Blackjack regressions passed. Planning/rules passed
+  21,043 checks; scoped whitespace checks passed. Protocol identity is state-23.
+- This is development source; no downloadable build was produced. Human balance
+  testing remains: does healing tempt the guard away, is foregoing a shot worth
+  it, and is the normal ten-second choice window understandable? The session
+  checklist is in REPLAYABILITY-README.md under Item 3.
+
+## 2026-11-23 — solid minigame walls and large paintings
+
+Replaced the two Bar-facing window assemblies and their frames with full-height plaster walls and matching walnut dado. Enlarged the painted card and coin graphics to cover the wall faces. Moved both private-room lights to centered ceiling pendants and moved the pendant that straddled a room boundary into the Bar.
+
+Unity compiled both assemblies. `SALOON_ROOM_STENCILS PASS` checked saved-scene migration, two large paintings, no remaining minigame windows, two centered room pendants, no lamp/wall intersections, stable repeated application, and muffled audio rules in both directions. The Play mode room-boundary suite passed (`SALOON_WINDOWS PASS`, `SALOON_EDITOR_ITERATION PASS`): rendered visibility blocked from both sides and Bar seats, movement and bullet collisions, real shots stopped by walls, hidden table state, and a filtered cross-room gunshot. Five rendered previews were inspected under `Documentation/RoomStencilPreviews/`. Scene and source only; no release build.
+
+
+## 2026-11-23 — Visual, occasional room events
+
+- Round one has no medical event. From round two, each discussion has a 50%
+  chance of no event, 25% Coin Flip, and 25% Blackjack. The host rolls once per
+  round and shares the same result with all clients; reconnection preserves it.
+- Replaced the long event banner with a breathing teal room card, mint medical
+  case icon, and short Medical supplies label. Planner selection accents are
+  blue. Removed the solo/table explanation and invitation instruction paragraphs,
+  and kept the single Choose your room title and Players & invitations column.
+  Reduced-motion settings use a static highlight. No-event rounds highlight
+  neither table nor Bar.
+- Unity / Metal passed 93 medical assertions, including quiet round one, random
+  selection boundaries, no-event reward rejection, both rooms, all five roles,
+  and the existing winner/action/health/privacy rules. Eight real localhost UDP
+  clients passed 36 reconnect/rematch assertions. Both live suites completed with
+  SALOON_EDITOR_ITERATION PASS. Production planning/rules passed 21,043 checks.
+- Inspected rendered event, quiet first-round, and quiet later-round planners.
+  Previews are in MedicalEventPreviews/. Protocol identity is state-24.
+  Source changes only; no downloadable build was produced.
+
+
+## 2026-11-23 — Escape warning before room commitments
+
+- Reproduced a bot defender staying in a locked minigame pair while an Outlaw
+  announced escape. Previously the public warning appeared only after room
+  assignments, allowing a round-one theft and unopposed round-two escape.
+- Escape declarations are now public during discussion, before room assignment.
+  The planner marks Bar with a pulsing red card and identifies the carrier's
+  intent. The first announcement guarantees ten seconds to reconsider rooms,
+  even when everyone has locked or the timer was nearly over. Repeated
+  cancel/redeclare commands cannot repeatedly extend discussion. Holds reset
+  for each discussion and match. No additional theft steps were introduced.
+- Bot carriers announce before bot pair selection. An available Law or Renegade
+  bot responds to that public declaration by guarding Bar, releasing a bot-only
+  pair if necessary; explicit human invitations remain respected. A round-two
+  escape remains possible when nobody successfully responds.
+- Production planning/rules passed 21,096 checks, including new 4–8 seat bot
+  response scenarios for Sheriff, Deputy and Renegade, explicit distractions,
+  theft-round rejection, stable planning, deadline holds, spam prevention, and
+  reset. Existing fixture-only unused-field compiler warnings remain.
+- Unity / Metal passed 44 drawer/escape assertions, including real wire-format
+  public planning warnings, the unskippable planning window, and an actual bot
+  shot interrupting a living carrier's escape through normal combat. Eight real
+  localhost UDP clients passed 38 reconnect/rematch assertions, including every
+  client receiving the warning before room lock. Both live suites completed
+  with SALOON_EDITOR_ITERATION PASS. Inspected the rendered planner in
+  EscapePreviews/Planning.png. Scoped whitespace checks passed.
+- Protocol identity is state-25 to reject clients using the old warning timing.
+  Source only; no downloadable build. Human balance testing remains necessary.
+  Next roadmap work is item 4, after testing this Outlaw follow-up.
+
+
+## 2026-11-23 — Sheriff death victory and three-round theft
+
+- Sheriff death now ends actions and awards the Outlaw team, regardless of the
+  killer. The sole-surviving Renegade takes priority; killing the Sheriff while
+  any other player remains instead awards Outlaws. Eliminated Outlaw teammates
+  share their faction's victory. Death handling resolves the result outside the
+  shot-specific path too, retaining the usual final aftermath animation.
+- Theft requires three shared two-second drawer actions in three different
+  rounds. At most one step completes per round across the team, including
+  simultaneous attempts and duplicate completions. Only the third worker gets
+  the bag. Earliest money collection is round three and escape is round four.
+  Interrupted actions grant no progress. Carrier death returns the money and
+  resets all three steps. Private inspections can detect partial tampering
+  while money is still present; public checks retain the same ambiguous pose.
+- Updated role cards, story maps, drawer prompts, training and README guidance.
+  Renegade bots leave Sheriff until last. Bots stop seeking the drawer once
+  that round's shared step is complete; an otherwise idle bot passes instead
+  of repeatedly attempting the rejected action. The focused test fixture keeps
+  its inspection bot idle while separately testing another bot's pass.
+- Production planning/rules passed 21,177 checks. Unity / Metal passed 51
+  drawer/escape assertions and 1,314 role/privacy/victory assertions, including
+  actual lethal shots by Outlaw, Renegade, Deputy and Swindler, remaining-action
+  lockout, dead Outlaw winners and last-survivor priority. Eight real localhost
+  UDP clients passed 41 reconnect/rematch assertions, including partial theft,
+  per-round cap persistence and full reset. All three live suites completed
+  with SALOON_EDITOR_ITERATION PASS.
+- The chapter-based tutorial passed 74 live checks, including three real theft
+  actions, automatic training round advancement, delayed escape and cleanup.
+  Its full run exposed and corrected a missing initial spectator viewpoint in
+  the existing library lesson; cycling views now completes that lesson.
+- The continuous walkthrough passed 52 checks in 72.9 seconds, including three
+  theft actions, the full ten-second escape warning, spectator controls and map
+  restoration. Restricted its retry helper to the action phase so an old spent
+  action cannot skip escape discussion, and corrected its test driver to send
+  an explicit ready/lock value instead of an unlock command. Both tutorial
+  suites completed with SALOON_EDITOR_TUTORIAL PASS. Scoped whitespace checks
+  passed.
+- Protocol identity is state-26. The existing posse and random independent slot
+  remain unchanged by this revision. Source changes only; no downloadable
+  build was produced. Human balance testing remains outstanding.
+
+
+## 2026-11-23 — Posse removed
+
+- Removed the arrival system, round-20 automatic ending, escape round cutoff,
+  public countdown, approach audio component and runtime-only hoofbeat/distant
+  shot recordings. Removed its snapshot fields and obsolete outcome handling.
+  Reload, drinking and revolver recordings remain bundled; the preparation
+  script and manifest now contain only active recordings. Archived original
+  source audio and historical verification records retain their provenance.
+- Updated HUD, pause menu, role guidance, tutorial topics, story maps, README
+  and replayability reference. Law wins by eliminating the Outlaws and any
+  Renegade while the Sheriff survives. Sheriff death, sole-surviving Renegade,
+  Swindler personal wins and three-step theft retain their existing rules.
+- Production planning/rules passed 21,254 checks, including no automatic result
+  in late rounds and authorized escapes in rounds 20, 21 and 50. Unity / Metal
+  passed 82 new checks: normal play through round 25 into round 26, no arrival
+  component or bundled arrival audio, no countdown fields over the real wire,
+  and a round-26 escape with fresh defender actions and normal victory.
+- Eight actual localhost UDP clients passed 41 reconnect/rematch assertions.
+  Both live suites completed with SALOON_EDITOR_ITERATION PASS. Runtime and
+  Editor assemblies compiled; deleted script GUIDs have no serialized asset
+  references. Scoped whitespace checks passed. Protocol identity is state-27.
+- Source changes only; no downloadable build was produced.
+
+
+## 2026-11-23 — Blackjack dead time and high-card ties
+
+- Initial dealing is 1.2 seconds instead of 3.2, with 0.22-second card spacing
+  and 0.3-second slides/flips. Card input settles for 0.45 seconds instead of
+  1.5. Idle dealers advance after two seconds instead of eight; bots also act
+  sooner. Blackjack results pause for two seconds instead of four. Coin Flip
+  keeps its existing result timing.
+- Tied totals, including two natural blackjacks, automatically draw high cards
+  from the remaining deck. Aces are highest; suits do not decide ties. Equal
+  ranks redraw only those cards. Two distinct rows show the deciding cards
+  while preserving the original hands. A 1.2-second presentation leads to one
+  winner and the normal opening, without another Blackjack hand or input.
+- Discussion time, the 45-second player decision window, the ten-second combat
+  opening, medical choices, and damage are unchanged. Weapons stay locked
+  through card settling, the tiebreak, and the result pause.
+- Standalone production Blackjack checks passed 10,000 seeded hands. A further
+  stand-only sweep resolved 467 tied hands, including 29 equal-rank redraws;
+  a fixed equal-fours regression confirms only the high cards are redrawn.
+  Production planning/rules passed 21,254 checks. The live Blackjack flow and
+  tabletop suite passed 51 assertions with real commands, snapshot serialization, hidden
+  cards, duplicate-input rejection, full opening/response, tied naturals, and
+  physical tiebreak cards. Joining during a tiebreak presents the full existing
+  hand together instead of staggering historical cards. Rendered cards were inspected.
+- Updated the replayability plan: remove the shorter match deadline; playtest
+  pacing before combat balance, then prioritize Phantom, round events, ordinary
+  Deputy bluffing before a dedicated role, and finally maps/appearances.
+- Protocol identity is state-28 for the added high-card snapshot fields and
+  tiebreak stage. Development source only; no downloadable build or human
+  balance session was produced.
+
+
+## 2026-11-23 — Front sunset and private back bench
+
+- The room-voting smoking card now says Out the back. Its existing solo/paired
+  plan remains the only route to the private deck. The front entrance now has
+  low saloon doors framing the same desert sunset; full-height collision and
+  existing Bar bounds still prevent walking out through it.
+- Front scenery uses its own visibility layer and restricted light. Indoor
+  cameras see the front vista without the back deck, while smokers see only
+  their own deck/vista. Private player snapshots and separate voice channels
+  keep smoker avatars, cigarette animations, and conversation out of the Bar.
+- Added two interaction spots to the existing bench, including migration of
+  saved decks without duplicates. Space near an empty spot sits facing the
+  sunset; Space again finds a safe standing position and restores movement.
+  Seated smokers can take a drag without spending an action. Weapons, health,
+  and cigarette boost rules retain their existing behavior.
+- Unity / Metal passed 35 sunset/back-deck checks, including real walking to
+  both bench spots, occupancy rejection, seated snapshot posture, smoking while
+  seated, safe standing, private snapshots/voice-channel identity, full-height
+  entrance collision, separate camera/light masks, and stable repeated setup.
+  Inspected rendered front-entrance and seated-pair previews in SmokingPreviews/.
+- Additional live regressions passed: medical room choices (93 checks), public
+  floor/entrance movement (34 checks), and the continuous tutorial (52 checks).
+  The tutorial hides the front vista while its own map runs and restores it on
+  exit. An initial tutorial run was interrupted by a pending script reload;
+  the clean rerun passed. Runtime and Editor assemblies compiled, and scoped
+  whitespace checks passed. Source changes only; no downloadable build.
+
+
+## 2026-11-23 — Middle Blackjack pace and exterior windows
+
+- Owner feedback: the first faster Blackjack version felt rushed. Opening deal
+  now takes 2.2 seconds, with 0.4-second spacing and 0.5-second slides/flips.
+  Hits/reveals settle for one second; idle dealers advance after five seconds.
+  Bots also pause longer between decisions. Results last three seconds, and
+  automatic high-card ties show their deciding pair for two seconds. Discussion,
+  the 45-second player choice allowance, ten-second opening, damage, and the
+  no-redeal tie rules are unchanged.
+- Added two exterior windows to each long Bar wall and one to the outer side of
+  each minigame room. Saved-world migration cuts every outer wall layer and
+  creates timber frames, recessed sills and transparent glass. Glass remains
+  solid to movement and shots; shot trails end at it. Room bounds and the opaque
+  Bar-facing room walls/murals are preserved. Reapplying creates no duplicates.
+- Exterior views use the existing public desert scenery. Cameras still exclude
+  the private back deck, and living indoor snapshots omit smokers; positional
+  voice/privacy rules are unchanged. Editor scene-saving support persists the
+  new glass material along with the existing room materials.
+- Unity / Metal: 101 room/window assertions passed, including rendered views
+  through all six openings, a rendered smoking-layer visibility probe through
+  each window, character collision, bullet rays/trails, opaque room boundaries,
+  hidden tables, muffled sounds and real shots absorbed by the interior walls.
+  Blackjack passed 51 flow/tabletop assertions, including the revised timings,
+  tied naturals, physical high cards, duplicate-input rejection and opening
+  protection. Sunset/back-deck regression passed 35 assertions, including both
+  bench spots, seated smoking, safe standing, private snapshots and separate
+  voice-channel identity. All three suites ended with SALOON_EDITOR_ITERATION
+  PASS. Production planning/rules passed 21,254 checks; scoped whitespace checks
+  passed. Six rendered exterior views were inspected in ExteriorWindowPreviews/.
+- Recorded positive initial owner feedback on theft/escape and the value of
+  treatment/smoking. Phantom is deferred in the replayability reference; round
+  events are a candidate next step, with no new event implemented in this change.
+- Protocol identity is state-29 for the changed physical layout. Development
+  source only; no downloadable build or completed formal balance session claimed.
+
+
+## 2026-11-23 — Bar sunset lighting and gradual dusk
+
+- Bar views replace the bright shadowless daylight fill and three ceiling lamps
+  with two low, golden window light sources, one dim pendant and faint wall
+  lamps. Window frames and room geometry still cast normal shadows. Dusk shifts
+  the Bar's ambient bounce toward cool night and fades the public exterior sky
+  and its sun glow along with the incoming light.
+- The existing shared snapshot round drives the presentation: sunset in round
+  one, intermediate dusk around round ten, and night by round twenty. Transitions
+  blend smoothly, late joiners use their current round immediately, and a new
+  match resets sunset. Later rounds keep night; no match limit or rules changed.
+- The change is scoped to the Bar camera and its weapon overlay. Original
+  ambient, lights, masks and public sky are restored after each render. Blackjack
+  and Coin Flip keep their existing lighting; smoking and tutorial views retain
+  theirs. No extra network fields or protocol change were required.
+- Unity / Metal passed SALOON_BAR_LIGHTING (15 checks): rendered comparisons for
+  rounds 1, 10, 20 and 50, a gradual fade, new-match reset, actual serialized round
+  input, removal of ceiling floods, source count, and restoration of ambient and
+  light state. Mean wide-view luminance was 0.391 before, 0.196 at round one,
+  0.163 at round ten and 0.131 at round twenty. Rounds twenty and fifty matched.
+  Both minigame room renders matched their original baselines pixel for pixel
+  at early and late rounds; the smoking view also matched its baseline.
+- Room/window regression passed 101 checks, including six exterior views,
+  smoking visibility boundaries, solid glass, bullet rays/trails, opaque room
+  walls, real shots and muffled sound. Both live suites ended with
+  SALOON_EDITOR_ITERATION PASS. Production planning/rules passed 21,254 checks;
+  scoped whitespace checks passed. Inspected before/sunset/dusk/night renders
+  saved under BarLightingPreviews/. An old Play session was stopped after a
+  script reload; validation ran in clean sessions.
+- Added the requested post-lighting reminders to REPLAYABILITY-README.md:
+  Toilet Trouble, Darts, Liar's Dice, and the original nine-point roadmap.
+  These activity ideas remain proposals. Source only; no downloadable build.
+
+
+## 2026-11-23 — Random Toilet Trouble and dimmed Bar lamps
+
+- One uniform host selection from all living players each discussion; no role,
+  health, human/bot or previous-assignment weighting. Private Accept/Deny offer;
+  accepting releases a partner and reserves a solo Bar plan and round action.
+  Denying preserves normal planning. Pending offers cannot be readied by a
+  partner, stolen by another player, replayed or answered after discussion.
+- Added a physical toilet and plunger in the public Bar's right-hand corner
+  beside the counter. Space to stand, normal collision movement to approach,
+  and E starts a two-second placeholder interaction. Completing it grants
+  twenty health points once, capped at 100%, using one action and no beer.
+  Cigarette buffs neither multiply this heal nor get consumed by it. Hits,
+  distance and phase changes interrupt work; new matches clear assignment.
+  Detailed unclog mechanics are deferred. Injured practice bots perform the
+  job; full-health bots decline without affecting the random assignment.
+- Corrected the earlier Bar lighting revision: all four Bar pendants and both
+  sconces remain visible and enabled at lower intensity, and the daylight fill
+  stays enabled but dim. A faint amber chamber glow remains visible at night.
+  The existing sunset-to-night progression over rounds 1–20 remains. Camera
+  rendering restores the original lamp, glass emission, ambient and sky state.
+- Unity / Metal: SALOON_TOILET passed 53 checks, including uniform selection
+  across 1,000 seeded draws, eliminated-player exclusion, compressed private
+  snapshots, all five roles, planning consent, stale/duplicate commands, action
+  spending, healing limits, interruptions, reset, actual walking from a Bar
+  seat, timed completion, and an assigned bot navigating to complete the job.
+  Existing medical opportunities passed 93 regression checks; production
+  planning/rules passed 21,254 checks. Scoped whitespace checks passed.
+  SALOON_BAR_LIGHTING passed 15 checks with every fixture on. Mean wide-view
+  luminance: old 0.392, sunset 0.202, round ten 0.168, round twenty 0.137.
+  Blackjack, Coin Flip and smoking renders still match their original lighting
+  pixel for pixel. Existing medical opportunities passed 93 regression checks.
+  All live suites ended with SALOON_EDITOR_ITERATION PASS. Production planning
+  and rules passed 21,254 checks; scoped whitespace checks passed.
+- Inspected offer/corner renders in ToiletDutyPreviews/ and refreshed the
+  before/sunset/dusk/night images in BarLightingPreviews/. Updated the original
+  REPLAYABILITY-README.md: Toilet Trouble is implemented at this initial scope;
+  Darts and Liar's Dice remain proposals. Protocol state-30 includes the new
+  private duty fields. Development source only; no release build was produced.
+
+
+## 2026-11-23 — Enclosed bathroom, click-to-pump unclogging and brighter Bar
+
+- Extended the right-hand Bar wall between its exterior windows into an enclosed
+  bathroom with a signed doorway, floor, ceiling, solid walls, basin and lamp.
+  The toilet and plunger now sit inside it. The extension remains part of the
+  Bar assignment and voice area; it does not connect to either minigame room,
+  the desert or the private smoking deck. Original solid wall layers and
+  decorative chair rails are cut at the doorway. Mesh clipping preserves
+  material submeshes and tangents so the surrounding wood renders correctly.
+- Replaced the two-second automatic completion with eight distinct left-click
+  strokes, at least 0.4 seconds apart. Left click can equip and pump directly;
+  E equips without progressing. Holding the button, waiting, duplicate input,
+  spam, stale rounds and another player's commands cannot complete the job.
+  Each accepted stroke moves the plunger, lowers the visible waste and clears
+  the water. The last stroke awards the existing 20-point heal once, capped
+  at 100%, for one action. Damage, distance and action-time expiry cancel work
+  without healing or a refund. Random discussion offers remain unchanged.
+- Replicated Bar-visible clog/stroke state and private command sequence recovery
+  for reconnecting workers. Toilet bots use the existing collision-aware Bar
+  route finder to navigate the chairs and doorway, then pump normally. Protocol
+  state-31 covers the extended map and new pump commands/snapshot fields.
+- Raised Bar lamp intensity, daylight fill and ambient bounce while retaining
+  every fixture and the sunset-to-night progression. Night remains readable.
+  Rendered mean luminance is approximately 0.259 at sunset, 0.224 at round ten
+  and 0.188 at round twenty, versus 0.202 / 0.168 / 0.137 in the prior revision.
+  Blackjack, Coin Flip and the smoking deck retain their original lighting.
+- Unity / Metal: Toilet Trouble passed 83 checks, including actual walking
+  through the doorway, enclosing walls, clear visual trim, input validation,
+  all roles, no automatic completion, visible plunger/clog changes, healing,
+  interruptions, expiry, private snapshots and bot navigation/completion.
+  Bar lighting passed 15 checks, including original-lighting comparisons for
+  both minigame rooms and smoking. Room/window regression passed 101 checks;
+  the current cash-drawer/theft/escape suite passed 51 checks. These live suites
+  ended with SALOON_EDITOR_ITERATION PASS. Production planning/rules passed
+  21,254 checks and scoped whitespace checks passed.
+- Also attempted the older physical-safe suite. Its obstruction test still
+  positions its barrier using the former floor-safe height, leaving a gap
+  beneath it at the current raised cash drawer; it fails before navigation.
+  That legacy fixture was left unchanged. The current drawer suite above passed.
+- Inspected and saved bathroom entry, clogged bowl, pumping and completion
+  images in ToiletDutyPreviews/ and refreshed BarLightingPreviews/. Updated
+  REPLAYABILITY-README.md and README.md. Source changes only; no release build.
+
+
+## 2026-11-23 — Toilet Foley and injured-only offers
+
+- Toilet duty now samples uniformly from living players below maximum health.
+  Full-HP and eliminated players are excluded; if no one is injured, no offer
+  appears and existing room plans/readiness stay intact. A selected player who
+  reaches full health cannot accept an old offer. Roles, human/bot status and
+  previous assignments do not bias selection among eligible players.
+- Added three CC0 recorded Foley clips: suction pop on an accepted plunger
+  stroke, water gurgle while pumping and one completion flush. Playback follows
+  accepted snapshot progress, never raw clicks. Duplicate, stale and initial
+  late-join snapshots do not replay effects. Interruptions stop pumping audio;
+  regroup stops remaining tails. Sources are positioned at the toilet, fade
+  with distance and use the existing indoor low-pass/volume convention through
+  room walls. Private smoking snapshots contain no toilet activity or audio.
+- Source downloads, hashes and creator links live in ArtSource/Audio/Toilet/;
+  runtime mono PCM clips, credits and filters are in Resources/Audio/Toilet/.
+  Tools/prepare_toilet_audio.py reproduces the trims, normalization and fades.
+  Recorded clip durations: plunger 0.368 s, gurgle 0.650 s, flush 4.512 s.
+  PCM peaks are 0.708 / 0.218 / 0.428, without clipping. Protocol is state-32.
+- Unity / Metal passed 87 toilet-flow checks plus 18 audio checks (105 total),
+  including all-healthy/no-offer planning, 1,000 mixed-health selections, a lone
+  99-HP candidate, full-health acceptance rejection, every injured role, actual
+  walking/pumping/healing and bot completion. Audio checks cover actual source
+  playback, resource samples, silence on spawn, late joins, repeated snapshots,
+  one completion flush, interruptions, indoor muffling and smoking isolation.
+  The live suite ended with SALOON_EDITOR_ITERATION PASS. Production planning
+  and rules passed 21,254 checks; source audio hashes, peaks, Unity metadata and
+  scoped whitespace checks passed. Validation used a fresh Play session after
+  stopping an old session affected by a script reload. Source only; no release
+  build was produced.
+
+
+## 2026-11-23 — Optional isolated toilet mission with retained combat action
+
+- Replaced the Bar-attached bathroom with a standalone closed room at world
+  (0, 0, 40), under the runtime scene root `Isolated solo bathroom`. Room ID 4
+  uses render layer 17, separate camera visibility and a private voice-channel
+  identity. The former Bar extension and doorway no longer exist. The bathroom
+  cannot be selected, reserved or used as an invitation destination.
+- Each discussion uniformly selects one living injured player, without role,
+  human/bot or previous-assignment bias. Healthy players receive no offer.
+  Reject preserves normal planning; accept releases the prior companion,
+  reserves a Bar return and starts the mission at the room-action phase.
+- Arrival starts a 12-second timer, including idle time. Eight distinct strokes
+  at least 0.4 seconds apart heal 20 percentage points, capped at full health,
+  once. Success immediately returns the worker to Bar with the same round's
+  combat action unspent. Idle/partial-work timeout or abandoning active work
+  returns without healing or spending that action. The shared clock continues;
+  shortened action phases reserve up to three seconds for combat after return.
+- Damage and combat/action commands are blocked while inside. Protection ends
+  immediately on return. Return resets movement/combat history to avoid stale
+  poses, preserves beer/ammo/cigarette buffs and restores Bar visibility. Beer
+  healing, shared stock and action cost were left unchanged. Bots complete the
+  same isolated mission and return without spending their action.
+- Plunger/gurgle Foley is isolated to the mission; only its worker hears the
+  completion flush follow the immediate return to Bar. Private progress and
+  reconnect command sequencing prevent outsider, duplicate and stale effects.
+- Unity / Metal passed 121 mission checks plus 21 audio checks (142 total),
+  ending with `SALOON_EDITOR_ITERATION PASS`. Checks include 1,000 seeded
+  selections, all five roles, reject/full-health/stale acceptance, hidden room
+  plans, snapshots and camera isolation, damage immunity, normal damage after
+  return, idle/partial/short-phase expiry, no round extension, bot completion,
+  capped healing and a real boosted headshot fired after returning with the
+  retained action. Voice validation covers channel identity and snapshots;
+  no live cloud voice call was performed.
+- Room/window regression passed 101 checks, with discussion-health verification
+  and `SALOON_EDITOR_ITERATION PASS`. The current cash-drawer/theft/escape
+  suite passed 51 checks and Bar lighting passed 15 checks, both ending with
+  `SALOON_EDITOR_ITERATION PASS`. Production planning/rules passed 21,254
+  checks. Inspected fresh mission and returned-to-Bar captures are saved in
+  `ToiletMissionPreviews/`. README and REPLAYABILITY-README document the final
+  behavior. Network protocol is state-33. Development source only; no release
+  build was produced.
+
+
+## 2026-11-23 — Liar's Dice and announced West room rotation
+
+- Classic alternates Coin Flip on odd rounds and Liar's Dice on even rounds,
+  starting with Coin Flip. The authoritative game travels in every discussion
+  snapshot, before room voting. Room cards, the discussion banner, invitation
+  descriptions, selected plans and the wall presentation name that round's
+  game. The same two seats and Coin Flip furniture are reused. Tutorial coin
+  lessons continue to use Coin Flip.
+- One short contest uses three hidden dice per player, no wild ones and bids
+  ordered by quantity then face. A call reveals both cups: meeting the claim
+  awards the bidder the opening, otherwise the caller wins. Six seconds per
+  decision and a fixed 24-second contest follow a 0.8-second opening roll.
+  Idle opening bids one of that player's own faces; later decision timeout
+  or the contest deadline automatically challenges the current bid. Invalid,
+  duplicate, stale-round/revision and out-of-turn commands cannot change it.
+- Each player receives only their own dice until reveal. Public/spectator views
+  contain no hidden values; other rooms receive no table state. Physical cups
+  and pipped dice follow that same authorization. Bidding uses mouse controls
+  and locks standing/weapons. The three-second result pause restores standing
+  and dodging before the existing ten-second exclusive winner's opening.
+  Both players retain their normal one-action allowance. Passing, idle opening
+  expiry, damage and the response use the existing combat rules. Medical events
+  support both games. Beer, toilet duty and lighting were left unchanged.
+- Bots bid and challenge using only their own hand. Added Editor play and
+  verification menus, standalone production-rules checks and protocol state-34
+  for the announced game, private dice snapshots and revision-checked commands.
+- Standalone rules passed 61,500 checks across 500 seeded rolls, all increasing
+  bids, every quantity/face challenge, exact-face counting, copied private
+  hands, bounds, completed contests and forfeits. Production planning/rules
+  passed 21,254 checks. Live Unity / Metal passed 52 dice-flow checks plus 34
+  existing Blackjack flow checks, ending with `SALOON_EDITOR_ITERATION PASS`.
+  Dice checks include six rounds of announcement/assignment agreement, actual
+  compressed recipient snapshots, private and spectator rendering, invalid and
+  stale commands, both timeouts, real paced bot play, unmatched solo fallback,
+  winner-only action order, a real opening shot with unchanged damage and the
+  medical choice. Existing Coin Flip passed 29 checks and medical events passed
+  93 checks; both suites ended with `SALOON_EDITOR_ITERATION PASS`.
+- Initial verification fixtures were corrected to compare floating-point timer
+  differences with tolerance, clear the stance-input debounce before synthetic
+  immediate re-use and wait through the real spectator delay. Final suites
+  passed without runtime exceptions. Inspected planning, bidding and reveal
+  captures are saved in `LiarsDicePreviews/`. Scoped whitespace and Unity script
+  metadata checks passed. README and REPLAYABILITY-README document the behavior.
+  Development source only; no release build or separate-machine LAN playtest
+  was produced in this task.
+
+
+## 2026-11-23 — Exterior dice mural and dedicated playable test scene
+
+- Replaced the Dice round's plain text sign with a large transparent cup-and-dice
+  stencil. Its paint color, matte material, alpha cutoff, shadow settings, wall
+  position and 3.1 × 2.81 metre size match the existing Coin Flip mural. The
+  correct graphic swaps in discussion and returns to Coin Flip on coin rounds.
+  The artwork adds no collider, doorway or view into the enclosed room. The
+  deterministic Swift stencil generator now reproduces all three game graphics.
+- Added `Assets/Scenes/LiarsDiceTest.unity`, created and opened by the existing
+  Saloon → Play Liar's Dice at table menu. The scene builds the normal saloon
+  environment and starts offline with exactly one human and one bot at the
+  Dice table. It skips voting, role intro, toilet offers and medical events.
+  Only this environment forces Dice on every hand; Classic keeps its rotation.
+- N immediately starts another hand, restoring health, ammunition and combat
+  actions, including a dead player. New hands advance the round token so old
+  inputs cannot apply. After the normal combat phase finishes, the environment
+  deals again after two seconds. Normal decision/result/opening timing and
+  damage remain active. Leaving clears the practice flag. The new scene is
+  excluded from the normal release scene list.
+- Unity / Metal passed 62 dice checks plus the 34 existing Blackjack flow checks,
+  ending with `SALOON_EDITOR_ITERATION PASS`. Added checks cover mural resource,
+  placement, size, paint, collider absence, round swapping, offline two-person
+  startup, skipped distractions, consecutive Dice-only hands, state restoration
+  and old-command rejection. Production planning/rules passed 21,254 checks.
+  The original core Dice rules were unchanged. Scoped whitespace and Unity
+  asset metadata checks passed.
+- Inspected and saved the Bar-facing mural and practice table renders in
+  `LiarsDicePreviews/exterior-mural.png` and `LiarsDicePreviews/practice.png`.
+  Opened the dedicated scene in the Unity Editor, observed the playable table
+  with its bidding controls, then pressed N and observed a fresh second hand.
+  The test environment was left running for the owner. Updated README and the
+  original REPLAYABILITY-README. Source changes only; no release build.
+
+
+## 2026-11-23 — Spoken Bluff Dice replaces Liar's Dice
+
+- Replaced the bid model and number/face grid with a random speaker's three
+  secret dice, a private assigned spoken sentence and exactly two listener
+  choices: Believe / Don't Believe. A correct judgment awards the listener
+  the normal combat opening; an incorrect one awards the speaker. The reveal
+  shows the speaker's actual three dice and explains truth and judgment.
+- The speaker sees the sentence and whether it is true, with the goal of
+  misleading the listener. Human listeners receive neither sentence, truth
+  nor roll until reveal. The public table and spectators also receive no
+  secret prompt or dice. A bot speaker uses a caption; bot listeners make
+  blind guesses and do not consume hidden truth or understand microphone audio.
+  Human speech uses existing room voice; it is not transcribed or enforced.
+- Classic keeps Coin Flip on odd rounds and announces Bluff Dice on even
+  rounds before voting. The cup-and-dice mural remains. A 0.8-second roll
+  precedes eight seconds of speaking and six seconds for judgment. Early,
+  wrong-actor, malformed, stale-round, stale-revision, old raise/call and duplicate
+  inputs are rejected. An idle listener forfeits to the speaker. The existing
+  three-second result pause, ten-second opening, action budget, pass/expiry,
+  response, damage and medical opportunities remain unchanged.
+- Renamed the test scene to BluffDiceTest.unity and updated its boot script,
+  menu, artwork resource and generation source. Its instructions wait for Start.
+  One local bot and one human alternate listener/speaker roles; the listener's
+  judgment is untimed, reveal is held for review, Continue restores the normal
+  combat pause/opening, and finished combat waits for the next-hand choice.
+  N deals again with restored health, ammo and actions and a new round token.
+  The scene remains excluded from release builds. Leaving clears practice state.
+- Standalone production rules passed 52,595 checks: all 216 three-dice rolls
+  against all 12 predicates, 5,000 seeded games, both judgments, every outcome,
+  copied roll privacy, forfeits, true/false and speaker distribution, duplicate
+  resolution and statement coverage. Live Unity / Metal passed 88 Bluff Dice
+  checks plus 34 existing Blackjack flow checks, ending with
+  SALOON_EDITOR_ITERATION PASS. The suite includes compressed private snapshots,
+  both human roles and all four truth/judgment outcomes, physical hidden/revealed
+  cups, authorization, idle forfeits, real bot judgments, actual opening gunfire,
+  medical healing, announcement/rotation, spectator isolation and practice
+  help/review/restart timing. Coin Flip passed 29 checks and medical events
+  passed 93 checks, both ending with SALOON_EDITOR_ITERATION PASS. Production
+  planning/rules passed 21,254 checks. No live multi-human voice call was tested.
+- Inspected the speaker, human listener, bot-caption listener and review screens;
+  saved current captures in BluffDicePreviews/. The UI uses opaque, readable
+  panels, plain claims and only the two judgment buttons during listener play.
+  Scoped whitespace, Unity metadata and scene build-exclusion checks passed.
+  README and REPLAYABILITY-README document the replacement and its test flow.
+  Protocol is state-35. Development source only; no release build.
+- Opened the renamed test scene in Play mode, observed the paused instructions,
+  clicked Start Practice and observed the bot-caption listener screen with just
+  Believe / Don't Believe. Reset it to the paused instruction screen for the
+  owner. The local scene log contains no new runtime exceptions.
+
+### Bluff Dice throws and tabletop presentation — 2026-11-23
+
+- Added a 2.4-second host-timed cup shake and animated throw. Three beveled,
+  six-sided ivory dice tumble and bounce onto the baize, settling on the host's
+  actual roll. Leather shakers have brass bindings; timed procedural clatter
+  accompanies shaking and landings. Listener and spectator snapshots still
+  contain no secret faces, and their cup stays closed until the judgment.
+- Added a brass-edged rolling tray and oxblood playing surface. Lower claim and
+  result panels leave the table visible; the header tracks Throw / Claim /
+  Call / Reveal. The seated result camera stays on the physical cup lift and
+  returns to normal combat framing afterwards. Existing bluff rules remain.
+- Production rules passed 52,595 checks. Unity / Metal passed 104 Bluff Dice
+  checks and the existing Blackjack flow regression, with
+  `SALOON_EDITOR_ITERATION PASS`. Added checks for airborne dice, settling,
+  all six authoritative face orientations, hidden throws, cup movement,
+  reveal framing and table-surface alignment. Inspected final throw, settled
+  and revealed renders. Previews and check output are in
+  `BluffDicePreviews/ThrownDice/`. Development source only; no release build.
+
+### Player-controlled Bluff Dice throws — 2026-11-23
+
+- Added a waiting stage: the speaker clicks Throw Dice or presses Space to
+  start the existing cup-and-dice throw. No human throw starts automatically.
+  Claim and dice snapshots stay empty until the speaker throws; speaking and
+  judgment timers begin relative to that input. The host accepts one throw
+  from the current speaker and rejects duplicates, stale hands and outsiders.
+- Practice starts with the human as speaker and waits indefinitely for their
+  throw. Roles still alternate, and bot speakers throw on their own turns.
+  Classic gives the speaker 15 seconds; an idle speaker forfeits to the
+  listener without rolling or revealing an invented result.
+- Production rules passed 52,595 checks; Unity passed 115 Bluff Dice checks
+  and the existing Blackjack flow regression, ending with
+  `SALOON_EDITOR_ITERATION PASS`. New checks cover waiting beyond the former
+  automatic roll, the client throw control, timer start, unauthorized and
+  repeated inputs, idle forfeits, bot throws and untimed practice.
+  Captures and output are in `BluffDicePreviews/ManualThrow/`.
+
+
+## 2026-11-23 — Escape actions and immediate victory
+
+- Starting an escape preserves the carrier's normal action: shooting, healing,
+  reloading or passing. Headshots still interrupt the escape and preserve the
+  money for a later attempt. Interrupting escape no longer shortens a timed
+  action already underway.
+- Once every living Bar player has used an action and timed Bar actions finish,
+  an uninterrupted escape goes straight to the existing Outlaw results screen.
+  Side-room games do not delay a guaranteed escape. Unused Bar actions retain
+  their response window, including the carrier's action after all defenders miss;
+  the normal action deadline remains the fallback.
+- Snapshots no longer count the escape itself as a busy action. Updated help,
+  tutorial text and escape expectations in the existing verification fixtures.
+- Production planning/rules passed 21,334 checks, including four-to-eight-player
+  escape actions, timed actions, interruption, deadline fallback, side rooms and
+  preservation of a queued elimination result. Unity 6000.5.10f1 / Metal compiled
+  runtime and Editor assemblies and passed 57 drawer/escape checks with
+  `SALOON_EDITOR_ITERATION PASS`. Live checks include actual defender misses,
+  the carrier's final shot, healing before victory, interrupted healing, bot
+  headshots and compressed result snapshots with the complete winner roster.
+- Inspected the rendered victory screen. Evidence is saved under
+  `EscapePreviews/EscapeVictoryAfterFinalAction.png` and
+  `EscapePreviews/EscapeActionsVerification.log`. Source and Editor verification;
+  no standalone build was made.
+
+
+## 2026-11-23 — Shootable windows and bottles
+
+- Added individual breakable targets for all six exterior window panes and all
+  63 backbar bottles. Each valid bullet hit removes the intact target and its
+  bullet collider, emits tumbling triangular glass fragments, and plays a
+  positional glass crash. Bottle body, neck, label and stopper break together.
+  Window frames and movement boundaries remain in place. Later bullets pass
+  through the shattered pane.
+- Bottles are excluded from static scenery batching. Saved scenes upgrade the
+  interior and windows without duplicates; obsolete invisible bottle/bookcase
+  colliders are disabled. The public Bar's invisible movement barrier now uses
+  the existing movement-only layer, allowing shots above the physical counter
+  to reach visible bottles.
+- Destruction is host-authoritative and travels as stable IDs in every full
+  snapshot, including reconnect snapshots. It persists between rounds and resets
+  on a new match or leaving. New clients reconstruct the state without replaying
+  old shatter effects; repeated snapshots do not duplicate effects. Protocol is
+  state-36 so all participants use matching scenery and state.
+- Unity 6000.5.10f1 / Metal compiled runtime and Editor assemblies. The new
+  `Saloon → Verify breakable windows and bottles` suite passed 90 checks using
+  four real UDP participants. Checks cover real remote gunfire, normal ammo/action
+  spending, rejected shots, target isolation, open-pane raycasts, shards/audio,
+  compressed snapshots, client reconstruction, reconnect, round persistence and
+  rematch restoration. `SALOON_EDITOR_ITERATION PASS` completed the run.
+- Production planning/rules passed 21,334 checks. Inspected the rendered window
+  and bottle effects; before/after previews and check output are saved under
+  `BreakablePreviews/`. Scoped whitespace checks passed. Development source only;
+  no standalone build was created.
+
+
+## 2026-11-23 — Local project and Mac cleanup
+
+- Read-only Unity dependency audit protected 307 dependencies of the two retained
+  scenes, runtime Resources loads and required Editor sources. Removed 112 unused
+  assets with their metadata, including the recovery and imported demo scenes,
+  unused character variants, legacy models, duplicate textures and stale generated
+  meshes/materials. Saloon.unity and BluffDiceTest.unity retain their exact hashes.
+- Removed obsolete/evaluated source downloads and duplicate archives; kept current
+  exporter inputs, source citations and license records. The low-poly exporter and
+  asset verification now omit retired models; checksum inventories match retained
+  files.
+- Removed all local Builds output, Unity Library/Temp caches, logs, generated IDE
+  files, obsolete verification captures, LAST CALL temporary compiler/test output,
+  Mac player logs and generated Editor analytics data. Unrelated projects, apps,
+  user preferences and Git history were preserved. No installed LAST CALL app or
+  release archive was found in the searched app, Desktop, Documents or Downloads
+  locations. Unity regenerates its cache when the project is next opened.
+- Post-removal verification: Unity compiled; all 307 protected dependencies exist;
+  both scenes have no missing scripts; nine retained low-poly models validated;
+  four-player UDP breakable scenery regression passed 90 checks and
+  SALOON_EDITOR_ITERATION PASS. Production planning passed 21,334 checks and
+  Bluff Dice rules passed 52,595 checks. Python tools parse and no orphan asset
+  metadata remains. Generated caches were removed after these checks.
+- Automatic approval review rejected scene-wide rebuilding/pruning. Continued with
+  verified unused-file removal and preserved both retained scene files unchanged.
+  Exact removed paths, sizes and verification summary are in CleanupManifest.json.
+  Historical capture references above describe past verification; generated images
+  and logs are intentionally no longer stored in this checkout.

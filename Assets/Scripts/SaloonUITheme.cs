@@ -12,7 +12,7 @@ namespace Saloon
         GUIStyle tableActionButton,tableActionDisabled,tableActionCaption;
         Font headingFont,bodyFont;
         bool worldHud;
-        Texture2D badgeIcon,cartridgeIcon,emptyCartridgeIcon;
+        Texture2D cartridgeIcon,emptyCartridgeIcon;
 
         Texture2D Swatch(Color color)
         {
@@ -49,7 +49,7 @@ namespace Saloon
             bodyFont=Resources.Load<Font>("Fonts/BarlowSemiCondensed-Medium");
             if(headingFont==null||bodyFont==null)throw new System.InvalidOperationException("Bundled HUD fonts are missing.");
             flatSkin.font=bodyFont;
-            badgeIcon=Icon(true);cartridgeIcon=Icon(false);emptyCartridgeIcon=Icon(false,true);
+            cartridgeIcon=Icon(false);emptyCartridgeIcon=Icon(false,true);
             title=new GUIStyle(GUI.skin.label){font=headingFont,fontSize=42,fontStyle=FontStyle.Normal,normal={textColor=ink}};
             body=new GUIStyle(GUI.skin.label){font=bodyFont,fontSize=17,wordWrap=true,normal={textColor=ink}};
             subtitle=new GUIStyle(body){fontSize=13,fontStyle=FontStyle.Normal,normal={textColor=gold}};
@@ -62,7 +62,8 @@ namespace Saloon
             var night=Swatch(new Color(.105f,.12f,.115f,.98f));var nightHover=Swatch(new Color(.18f,.20f,.18f,.98f));
             var amber=Swatch(new Color(.78f,.55f,.29f));var amberHover=Swatch(new Color(.91f,.69f,.40f));
             plannerButton=new GUIStyle(button);FlatStates(plannerButton,night,nightHover,nightHover,new Color(.94f,.90f,.80f));
-            plannerPrimary=new GUIStyle(button);FlatStates(plannerPrimary,amber,amberHover,amberHover,new Color(.12f,.10f,.07f));
+            var blue=Swatch(new Color(.24f,.40f,.57f));var blueHover=Swatch(new Color(.30f,.49f,.66f));
+            plannerPrimary=new GUIStyle(button);FlatStates(plannerPrimary,blue,blueHover,blueHover,new Color(.94f,.97f,1));
             tableActionButton=new GUIStyle(button){fontSize=18,padding=new RectOffset(16,16,8,8)};
             FlatStates(tableActionButton,Swatch(new Color(.055f,.065f,.06f,.94f)),Swatch(new Color(.18f,.20f,.17f,.98f)),amber,new Color(.96f,.91f,.80f));
             tableActionButton.active.textColor=tableActionButton.onActive.textColor=new Color(.12f,.10f,.07f);
@@ -70,13 +71,12 @@ namespace Saloon
             var quiet=Swatch(new Color(.055f,.065f,.06f,.65f));
             FlatStates(tableActionDisabled,quiet,quiet,quiet,new Color(.59f,.59f,.53f));
             tableActionCaption=new GUIStyle(subtitle){fontSize=13,alignment=TextAnchor.MiddleCenter,normal={textColor=new Color(.94f,.88f,.75f)}};
-            field=new GUIStyle(GUI.skin.textField){font=bodyFont,fontSize=18,padding=new RectOffset(12,12,8,8)};
-            FlatStates(field,blank,blank,hover,ink);
-            flatSkin.settings.cursorColor=gold;flatSkin.settings.selectionColor=new Color(.44f,.34f,.18f);
+            BuildMenuStyles();
+            flatSkin.settings.cursorColor=MenuAccent;flatSkin.settings.selectionColor=new Color(.44f,.34f,.18f);
             FlatStates(flatSkin.horizontalSlider,line,line,line,ink);flatSkin.horizontalSlider.fixedHeight=3;flatSkin.horizontalSlider.margin=new RectOffset(0,0,10,10);
-            FlatStates(flatSkin.horizontalSliderThumb,accent,accent,accent,ink);flatSkin.horizontalSliderThumb.fixedWidth=12;flatSkin.horizontalSliderThumb.fixedHeight=16;
+            FlatStates(flatSkin.horizontalSliderThumb,amber,amberHover,amberHover,ink);flatSkin.horizontalSliderThumb.fixedWidth=12;flatSkin.horizontalSliderThumb.fixedHeight=16;
             FlatStates(flatSkin.verticalScrollbar,line,line,line,ink);flatSkin.verticalScrollbar.fixedWidth=5;
-            FlatStates(flatSkin.verticalScrollbarThumb,accent,accent,accent,ink);flatSkin.verticalScrollbarThumb.fixedWidth=5;
+            FlatStates(flatSkin.verticalScrollbarThumb,amber,amberHover,amberHover,ink);flatSkin.verticalScrollbarThumb.fixedWidth=5;
             foreach(var style in new[]{flatSkin.verticalScrollbarUpButton,flatSkin.verticalScrollbarDownButton,flatSkin.horizontalScrollbarLeftButton,flatSkin.horizontalScrollbarRightButton})
             {style.fixedHeight=style.fixedWidth=0;FlatStates(style,line,line,line,ink);}
             flatSkin.scrollView=new GUIStyle();

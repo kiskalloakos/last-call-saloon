@@ -1,13 +1,4 @@
 {
-  "Mug": {
-    "triangles": 624,
-    "materials": [
-      "Beer foam",
-      "Dark iron",
-      "Dark wood",
-      "Wood"
-    ]
-  },
   "Safe": {
     "triangles": 3724,
     "materials": [
@@ -19,12 +10,6 @@
     "triangles": 816,
     "materials": [
       "Colt_Pistol"
-    ]
-  },
-  "Arms": {
-    "triangles": 1196,
-    "materials": [
-      "arm_mat_pale"
     ]
   },
   "Bar": {
@@ -60,19 +45,6 @@
       "door_texture",
       "wood_color",
       "wood_texture"
-    ]
-  },
-  "Window": {
-    "triangles": 210,
-    "materials": [
-      "glass",
-      "window_texture"
-    ]
-  },
-  "Cup": {
-    "triangles": 236,
-    "materials": [
-      "cup_texture"
     ]
   },
   "Plate": {

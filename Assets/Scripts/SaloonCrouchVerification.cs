@@ -100,7 +100,7 @@ namespace Saloon
             int Difference(Color32[] a,Color32[] b)=>a.Zip(b,(x,y)=>Mathf.Abs(x.r-y.r)+Mathf.Abs(x.g-y.g)+Mathf.Abs(x.b-y.b)>30?1:0).Sum();
             int wallPixels=Difference(Render(false,null),Render(true,"wall"));
             Check(wallPixels>200,"revolver remains rendered against a wall in front of its muzzle ("+wallPixels+" pixels)");
-            blocker.GetComponent<Renderer>().sharedMaterial=FindObjectsByType<SaloonRoomWindow>().First().outside.sharedMaterial;
+            blocker.GetComponent<Renderer>().sharedMaterial=FindObjectsByType<SaloonRoomWall>().First().surface.sharedMaterial;
             int glassPixels=Difference(Render(false,null),Render(true,"glass"));
             Check(glassPixels>200,"window glass cannot clip the held revolver ("+glassPixels+" pixels)");
             Check(pass.Overlay.clearFlags==CameraClearFlags.Depth&&pass.Overlay.cullingMask==(1<<SaloonViewmodel.Layer),"weapon pass clears depth and draws only its own layer");

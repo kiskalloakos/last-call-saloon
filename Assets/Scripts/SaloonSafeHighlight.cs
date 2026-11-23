@@ -25,7 +25,7 @@ namespace Saloon
         bool Bind()
         {
             if(safe!=null)return overlays.Count>0;
-            safe=GameObject.Find("Safe visual")?.transform;if(safe==null)return false;
+            safe=GameObject.Find("Cash drawer")?.transform;if(safe==null)return false;
             safeCollider=safe.GetComponent<Collider>();
             var shader=Resources.Load<Shader>("Shaders/SaloonSafeHighlight");
             if(shader==null)return false;
@@ -49,18 +49,22 @@ namespace Saloon
             return overlays.Count>0;
         }
 
+        internal static string KeyFor(Snapshot view)=>view?.ownRole!=null&&view.ownRole!="Unknown"?"C":"";
+        internal static string ActionFor(Snapshot view,string key)=>"Check cash drawer";
+
         public void Refresh()
         {
             var view=game?.View;var self=game?.Self;
-            string key=view?.ownRole=="Sheriff"?"C":view?.ownRole=="Outlaw"&&view.moneyBag==false?"H":"";
+            string key=KeyFor(view);
             bool visible=view?.phase==Phase.Turns&&self?.alive==true&&key!=""&&
                 !game.MenuOpen&&!game.GraphicsMenuOpen&&!game.ShowRole&&!game.IsSpectating&&
                 !game.Connection.Reconnecting&&!game.PlayingTableGame&&game.NearSafe;
             Highlighted=visible&&Bind();
             Key=Highlighted?key:"";
-            Action=Highlighted?(key=="C"?"INSPECT SAFE":"WORK SAFE / TAKE MONEY"):"";
-            Status=!Highlighted?"":self.robbing?"Working… stay beside the safe":view.busyRemaining>0?"Finish your current action":
-                view.actionAvailable?"Press "+key+" to interact":view.actionBlockReason==""||view.actionBlockReason==null?"Action spent · available next round":view.actionBlockReason;
+            Action=Highlighted?ActionFor(view,key):"";
+            Status=!Highlighted?"":self.checkingDrawer?"Checking the drawer · stay nearby.":view.busyRemaining>0?"Finish your current action.":
+                view.actionAvailable?(view.ownRole=="Outlaw"&&!view.moneyBag?"C · Inspect   H · Work drawer   "+view.safeProgress+" / "+SaloonRules.DrawerWorkSteps:"C · Inspect privately   (2 seconds)"):
+                string.IsNullOrEmpty(view.actionBlockReason)?"Wait for your next action.":view.actionBlockReason;
             foreach(var renderer in overlays)if(renderer!=null)renderer.enabled=Highlighted;
             if(Highlighted)glow.SetColor("_Color",new Color(1,.67f,.20f,.68f+.12f*Mathf.Sin(Time.unscaledTime*2.4f)));
         }

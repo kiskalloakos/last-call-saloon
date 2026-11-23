@@ -9,17 +9,34 @@ namespace Saloon
         {
             var duel=Game.View.duel;
             if(duel==null||Game.View.phase!=Phase.Turns||Game.MenuOpen||Game.ShowRole||Game.Self?.alive!=true)return;
+            if(duel.game=="bluff"&&duel.stage=="result"){DiceResult(duel);return;}
             if(duel.stage=="result")
             {
                 string winner=duel.firstId==Game.LocalId?"You win":duel.firstName+" wins";
-                string result=duel.game=="coin"?duel.result+" · "+winner:winner;
+                string result=duel.game=="coin"?duel.result+" · "+winner:duel.playerHighCard>=0?"High card · "+winner:winner;
                 Text(420,279,440,42,result,new GUIStyle(title){fontSize=25,alignment=TextAnchor.MiddleCenter});
-                Text(420,326,440,25,"Get ready · F to stand / WASD to dodge",new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
+                Text(420,326,440,25,"Get ready · Space to stand / WASD to dodge",new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
                 Fill(new Rect(570,365,140,2),new Color(1,.90f,.68f,.25f));
-                Fill(new Rect(570,365,140*Mathf.Clamp01(duel.remaining/4),2),new Color(1,.90f,.68f));
+                Fill(new Rect(570,365,140*Mathf.Clamp01(duel.remaining/(duel.game=="blackjack"?SaloonGame.BlackjackResultSeconds:duel.game=="bluff"?SaloonGame.DiceResultSeconds:4)),2),new Color(1,.90f,.68f));
                 return;
             }
-            if(duel.stage=="playing")return;
+            if(duel.game=="bluff"&&duel.stage!="result"&&duel.stage!="playing")
+            {DiceControls(duel);return;}
+            if(duel.stage=="playing")
+            {
+                if(Game.View.medicalChoice)
+                {
+                    Text(300,528,680,26,"Healing uses your action; your opponent can then respond. "+Mathf.CeilToInt(duel.remaining)+"s",new GUIStyle(small){alignment=TextAnchor.MiddleCenter});
+                    DecisionControls("MEDICAL SUPPLIES",y=>
+                    {
+                        bool enabled=GUI.enabled;GUI.enabled=enabled&&Game.View.medicalCanHeal;
+                        if(TableAction(400,y,232,Game.View.medicalCanHeal?"HEAL 20%":"FULL HEALTH"))Game.ChooseMedicalSupplies(true);
+                        GUI.enabled=enabled;
+                        if(TableAction(648,y,232,"KEEP OPENING"))Game.ChooseMedicalSupplies(false);
+                    });
+                }
+                return;
+            }
             if(Cursor.lockState==CursorLockMode.Locked)return;
             if(duel.game=="coin")
             {
@@ -33,9 +50,9 @@ namespace Saloon
                 return;
             }
             if(duel.game!="blackjack")return;
-            if(duel.stage=="redealing")
+            if(duel.stage=="tiebreak")
             {
-                Text(440,485,400,32,"Push · another hand",new GUIStyle(body){alignment=TextAnchor.MiddleCenter});
+                Text(340,485,600,32,"Tie · high card · Aces high",new GUIStyle(body){alignment=TextAnchor.MiddleCenter});
                 return;
             }
             if(duel.stage=="dealing")return;
@@ -60,9 +77,9 @@ namespace Saloon
             actions(594);worldHud=prior;
         }
 
-        bool TableAction(float x,float y,float width,string label)
+        bool TableAction(float x,float y,float width,string label,float height=48)
         {
-            var rect=new Rect(x,y,width,48);
+            var rect=new Rect(x,y,width,height);
             bool enabled=GUI.enabled;GUI.enabled=true;
             bool clicked=GUI.Button(rect,label,enabled?tableActionButton:tableActionDisabled);GUI.enabled=enabled;
             if(Event.current.type==EventType.Repaint)

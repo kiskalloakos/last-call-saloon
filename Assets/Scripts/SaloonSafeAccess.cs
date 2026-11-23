@@ -7,20 +7,21 @@ namespace Saloon
     public partial class SaloonGame
     {
         public const float SafeReach=1.35f;
-        static Vector3 SafeApproach=>SaloonArt.SafePosition+Vector3.back*1.05f;
+        static Vector3 SafeApproach=>new Vector3(SaloonArt.SafePosition.x,.08f,SaloonArt.SafePosition.z-.95f);
         Collider safeAccessCollider;
         readonly Dictionary<ulong,Queue<Vector3>> botSafeRoutes=new Dictionary<ulong,Queue<Vector3>>();
 
         bool AtSafe(Vector3 position)
         {
             var offset=position-SaloonArt.SafePosition;
-            if(Mathf.Abs(offset.y)>1||Vector3.ProjectOnPlane(offset,Vector3.up).sqrMagnitude>SafeReach*SafeReach)return false;
-            if(safeAccessCollider==null)safeAccessCollider=GameObject.Find("Safe visual")?.GetComponent<Collider>();
-            if(safeAccessCollider==null||!safeAccessCollider.enabled)return false;
+            if(Mathf.Abs(offset.y)>1.6f||Vector3.ProjectOnPlane(offset,Vector3.up).sqrMagnitude>SafeReach*SafeReach)return false;
+            if(safeAccessCollider==null)safeAccessCollider=GameObject.Find("Cash drawer")?.GetComponent<Collider>();
+            var access=TutorialWalkthrough?trainingMap?.SafeCollider:safeAccessCollider;
+            if(access==null||!access.enabled)return false;
             // A nearby wall/counter still blocks access. Players do not block each other's hands.
-            var origin=position+Vector3.up*.9f;var direction=safeAccessCollider.bounds.center-origin;
+            var origin=position+Vector3.up*.9f;var direction=access.bounds.center-origin;
             return !Physics.RaycastAll(origin,direction.normalized,direction.magnitude,~(1<<SaloonRagdoll.Layer),QueryTriggerInteraction.Ignore)
-                .Any(hit=>hit.collider!=safeAccessCollider&&hit.collider.GetComponentInParent<SaloonBody>()==null);
+                .Any(hit=>hit.collider!=access&&hit.collider.GetComponentInParent<SaloonBody>()==null);
         }
 
         bool AtSafe(Participant person)=>person.Alive&&person.room==0&&AtSafe(person.body.transform.position);
@@ -28,14 +29,14 @@ namespace Saloon
 
         void TickSafeWork(Participant person)
         {
-            if(person.busyAction!="rob"||AtSafe(person))return;
+            if((person.busyAction!="rob"&&person.busyAction!="inspect")||AtSafe(person))return;
             person.busyAction="";person.busyUntil=0;
             rounds.SetCompletion(person.id,Time.time);
-            person.notice="Safe work interrupted. Stay next to the safe while working.";
+            person.notice="Drawer check interrupted. Stay beside the counter.";
         }
 
         bool BotWantsSafe(Participant person)=>person.role==Role.Outlaw&&person.room==0&&!person.bag&&
-            rounds.CanAct(person.id,Time.time)&&!players.Values.Any(p=>p.Alive&&p.bag)&&
+            rounds.CanAct(person.id,Time.time)&&lastSafeWorkRound!=rounds.Round&&!players.Values.Any(p=>p.Alive&&p.bag)&&
             !players.Values.Any(p=>p.Alive&&p.room==0&&Enemies(person,p)&&(p.escapeRound>0||p.hp<=SaloonHealth.RevolverDamage));
 
         void WalkBotToSafe(Participant person)
@@ -65,11 +66,12 @@ namespace Saloon
                 .Any(hit=>hit.collider.GetComponentInParent<SaloonBody>()?.id!=person.id);
         }
 
-        Queue<Vector3> FindSafeRoute(Participant person)
+        Queue<Vector3> FindSafeRoute(Participant person)=>FindBarRoute(person,AtSafe,59);
+        Queue<Vector3> FindBarRoute(Participant person,System.Func<Vector3,bool> reached,int columns)
         {
             // Sample the actual Bar colliders once per route: stools and discussion
             // chairs leave narrow, staggered gaps that a straight steering line misses.
-            const int columns=59,rows=17;const float step=.25f;
+            const int rows=17;const float step=.25f;
             var points=new Vector3[columns*rows];var open=new bool[points.Length];
             var previous=Enumerable.Repeat(-1,points.Length).ToArray();var pending=new Queue<int>();
             var position=person.body.transform.position;int start=-1;float nearest=float.MaxValue;
@@ -77,7 +79,7 @@ namespace Saloon
             for(int z=0;z<rows;z++)for(int x=0;x<columns;x++)
             {
                 int index=z*columns+x;var point=new Vector3(-7.25f+x*step,.08f,-1.1f+z*step);points[index]=point;
-                open[index]=!Physics.OverlapCapsule(point+Vector3.up*.4f,point+Vector3.up*1.45f,.31f,
+                open[index]=SaloonMovement.InRoom(point,0)&&!Physics.OverlapCapsule(point+Vector3.up*.4f,point+Vector3.up*1.45f,.31f,
                     ~((1<<8)|(1<<SaloonRagdoll.Layer)),QueryTriggerInteraction.Ignore)
                     .Any(c=>c.GetComponentInParent<SaloonBody>()?.id!=person.id);
                 float distance=(point-position).sqrMagnitude;
@@ -88,7 +90,7 @@ namespace Saloon
             while(pending.Count>0)
             {
                 int current=pending.Dequeue();
-                if(AtSafe(points[current])){goal=current;break;}
+                if(reached(points[current])){goal=current;break;}
                 int x=current%columns,z=current/columns;
                 foreach(var next in new[]{x>0?current-1:-1,x+1<columns?current+1:-1,z>0?current-columns:-1,z+1<rows?current+columns:-1})
                 {

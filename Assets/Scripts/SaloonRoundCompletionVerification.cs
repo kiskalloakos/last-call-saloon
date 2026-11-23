@@ -39,7 +39,7 @@ namespace Saloon
             Setup();actors=players.Values.Where(p=>p.Alive&&p.room==0).ToArray();
             foreach(var p in actors.Take(actors.Length-1))Pass(p);
             var last=actors.Last();last.hp=tuning.health-SaloonHealth.RevolverDamage;last.beer=1;last.beerHealing=SaloonHealth.BeerHealing;last.lastAction=-100;
-            float duration=tuning.drinkSeconds;tuning.drinkSeconds=.4f;OnCommand(last.id,new Command{kind="drink"});TickServer();
+            float duration=tuning.drinkSeconds;tuning.drinkSeconds=.4f;MoveToBeerTrayForVerification(last);OnCommand(last.id,new Command{kind="interact"});TickServer();
             Check(phase==Phase.Turns&&last.busyAction=="drink","early completion never cuts off the last player's drink");
             yield return new WaitForSeconds(.55f);
             Check(last.hp==tuning.health&&phase==Phase.Aftermath,"the last drink heals before automatically starting aftermath");tuning.drinkSeconds=duration;
@@ -135,7 +135,7 @@ namespace Saloon
                     int shots=actor.shots;OnCommand(actor.id,new Command{kind="fire"});
                     Check(actor.shots==shots+1&&rounds.HasSpent(actor.id),"room "+room+" spends the shooter action");
                     OnCommand(actor.id,new Command{kind="stance"});
-                    Check(actor.seat<0&&actor.controller.enabled&&CanWalk(actor),"room "+room+" allows F immediately after shooting, on either seat and either turn");
+                    Check(actor.seat<0&&actor.controller.enabled&&CanWalk(actor),"room "+room+" allows Space immediately after shooting, on either seat and either turn");
                     Check(SaloonMovement.InRoom(actor.body.transform.position,room),"standing never leaves the assigned room");
                     Vector3 before=actor.body.transform.position;bool moved=false;
                     foreach(var direction in new[]{Vector2.right,Vector2.left,Vector2.up,Vector2.down})

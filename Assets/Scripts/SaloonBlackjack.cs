@@ -15,6 +15,8 @@ namespace Saloon
         public bool Complete { get; private set; }
         // 1 = player wins, -1 = dealer wins, 0 = push.
         public int Winner { get; private set; }
+        public int PlayerHighCard { get; private set; }=-1;
+        public int DealerHighCard { get; private set; }=-1;
         public int PlayerTotal=>Total(player);
         public int DealerTotal=>Total(dealer);
         public SaloonBlackjack(Random random)
@@ -35,6 +37,16 @@ namespace Saloon
         }
         public static string Label(int card)
         {int rank=card%13+1;return (rank==1?"A":rank==11?"J":rank==12?"Q":rank==13?"K":rank.ToString())+new[]{"C","D","H","S"}[card/13];}
+        public static int HighCardRank(int card)=>card%13==0?14:card%13+1;
+        public void BreakTie()
+        {
+            if(!Complete||Winner!=0)return;
+            // Keep the blackjack hands intact. Equal ranks redraw only this pair;
+            // suits never decide the opening and neither seat needs to act.
+            do{PlayerHighCard=deck.Pop();DealerHighCard=deck.Pop();}
+            while(HighCardRank(PlayerHighCard)==HighCardRank(DealerHighCard));
+            Finish(HighCardRank(PlayerHighCard)>HighCardRank(DealerHighCard)?1:-1);
+        }
         public void Hit()
         {
             if(Complete||!PlayerTurn)return;

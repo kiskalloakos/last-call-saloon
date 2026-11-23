@@ -10,6 +10,7 @@ namespace Saloon
         // Kept for snapshot compatibility: zero means unlimited.
         public int Limit => 0;
         public float Deadline { get; private set; }
+        public float DiscussionHeldUntil { get; private set; }
         public ulong? Active => null;
         public IReadOnlyList<ulong> Order => order;
         ulong[] order=Array.Empty<ulong>();
@@ -31,22 +32,25 @@ namespace Saloon
         {
             order=ids.Distinct().ToArray();if(order.Length==0)throw new ArgumentException("Players required");
             this.discussion=Math.Max(1,discussion);this.actions=Math.Max(1,actions);this.regroup=Math.Max(1,regroup);
-            Round=1;spent.Clear();ready.Clear();readyOrder.Clear();nextReady=0;Phase=Phase.Discussion;Deadline=now+this.discussion;
+            Round=1;spent.Clear();ready.Clear();readyOrder.Clear();nextReady=0;DiscussionHeldUntil=0;Phase=Phase.Discussion;Deadline=now+this.discussion;
         }
         public bool CanAct(ulong id,float now)=>Phase==Phase.Turns&&order.Contains(id)&&!HasSpent(id)&&now<Deadline;
+        // One public escape warning per discussion guarantees time to reconsider rooms.
+        public void HoldDiscussionUntil(float until)
+        {if(Phase==Phase.Discussion&&DiscussionHeldUntil==0){DiscussionHeldUntil=until;Deadline=Math.Max(Deadline,until);}}
         public void DelayDeadline(float seconds){if(Phase==Phase.Turns)Deadline+=Math.Max(0,seconds);}
         public void EnsureDeadline(float until){if(Phase==Phase.Turns)Deadline=Math.Max(Deadline,until);}
         public void BeginAftermath(float now){Phase=Phase.Aftermath;Deadline=now+3;}
         public bool TrySpend(ulong id,float now,float duration=0)
         {if(!CanAct(id,now))return false;spent[id]=now+Math.Max(0,duration);return true;}
-        // Pouring reserves its follow-up sip/offer inside the same action.
+        // Timed actions may update their completion without spending another action.
         public void SetCompletion(ulong id,float until){if(spent.ContainsKey(id))spent[id]=until;}
         public void Tick(float now,Func<ulong,bool> alive,Func<ulong,bool> hasAction=null)
         {
             if(Phase==Phase.Discussion)
             {
                 var living=order.Where(alive).ToArray();
-                if(living.Length==0||(now<Deadline&&living.Any(id=>!ready.Contains(id))))return;
+                if(living.Length==0||now<DiscussionHeldUntil||(now<Deadline&&living.Any(id=>!ready.Contains(id))))return;
                 spent.Clear();Phase=Phase.Turns;Deadline=now+actions;return;
             }
             if(Phase==Phase.Turns)
@@ -62,11 +66,11 @@ namespace Saloon
             else if(Phase==Phase.Aftermath)
             {Phase=Phase.Regroup;Deadline=now+regroup;}
             else if(Phase==Phase.Regroup)
-            {Round++;ready.Clear();readyOrder.Clear();nextReady=0;Phase=Phase.Discussion;Deadline=now+discussion;}
+            {Round++;ready.Clear();readyOrder.Clear();nextReady=0;DiscussionHeldUntil=0;Phase=Phase.Discussion;Deadline=now+discussion;}
         }
         public Dictionary<ulong,int> AssignRooms(IEnumerable<ulong> ids,Func<ulong,int> room,int[] limits=null,bool preventSolo=false)
         {
-            limits=limits??new[]{5,2,2,2};
+            limits=limits??new[]{SaloonRules.BarCapacity,2,2,2};
             var result=new Dictionary<ulong,int>();var capacity=new int[limits.Length];
             // Lock order is authoritative; pair acceptance locks both seats together.
             foreach(var id in ids.OrderBy(id=>readyOrder.TryGetValue(id,out var ticket)?ticket:long.MaxValue).ThenBy(id=>id))

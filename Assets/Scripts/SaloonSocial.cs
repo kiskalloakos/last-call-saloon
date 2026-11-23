@@ -15,12 +15,17 @@ namespace Saloon
         public string dealerId,playerId;
         public int handNumber;
         public int[] playerHand,dealerHand;
+        public int playerHighCard=-1,dealerHighCard=-1;
         public float remaining;
         public bool yourTurn,waitingForOpening;
         public bool canChooseCoin;
         public string coinAId,coinBId,headsId;
         public float coinElapsed,coinDuration;
         public int coinRound;
+        public int[] yourDice,opponentDice,revealedDiceA,revealedDiceB;
+        public string bluffSpeakerId,bluffListenerId,bluffSpeakerName,bluffClaim;
+        public int bluffRevision;
+        public bool bluffIsSpeaker,bluffCanJudge,bluffTruthKnown,bluffClaimTrue,bluffJudged,bluffBelieved,bluffTimedOut,bluffBotCaption;
     }
 
     [Serializable]
@@ -41,9 +46,10 @@ namespace Saloon
             public ulong a,b,heads,first;
             public float choiceUntil,revealAt,firstUntil,combatAt;
             public float coinChoiceSeconds=CoinChoiceSeconds,coinFlipSeconds=CoinFlipSeconds;
-            public bool claimed,flipping,revealed;
+            public bool claimed,flipping,revealed,medicalDeclined;
             public string result;
             public SaloonBlackjack blackjack;
+            public SaloonBluffDice bluff;public float judgmentUntil,throwUntil;public bool bluffTimedOut,bluffThrown;
             public ulong dealer;
             public float nextCardAt,nextInputAt,readyAt;
             public int handNumber;
@@ -57,7 +63,7 @@ namespace Saloon
         }
         readonly Dictionary<int,RoomTurn> roomTurns=new Dictionary<int,RoomTurn>();
         public bool RoomPlannerOpen;
-        public bool NeedsPointer=>View!=null&&(BartenderMenuVisible||ShowRole||View.phase==Phase.Finished||(View.phase==Phase.Discussion&&RoomPlannerOpen)||View.phase==Phase.Choosing||(View.phase==Phase.Turns&&(View.duel?.stage=="choosing"||PlayingTableGame)));
+        public bool NeedsPointer=>View!=null&&(DicePracticeHelp||DicePracticeReview||DicePractice&&View.phase!=Phase.Turns||ShowRole||View.toiletOffer||View.medicalChoice||View.phase==Phase.Finished||(View.phase==Phase.Discussion&&RoomPlannerOpen)||View.phase==Phase.Choosing||(View.phase==Phase.Turns&&(View.duel?.stage=="choosing"||PlayingTableGame)));
         public float HitFlash { get; private set; }
         float eliminatedAt=-10;
         public bool ShowEliminationOverlay=>View?.phase!=Phase.Aftermath&&Self?.observer==true;
@@ -91,6 +97,7 @@ namespace Saloon
                 {
                     duel.coinChoiceSeconds=8;duel.coinFlipSeconds=2.2f;duel.choiceUntil=Time.time+duel.coinChoiceSeconds;
                     foreach(var seated in pair){seated.pitch=26;seated.poseVersion++;}
+                    if(CoinRoomGame=="bluff")DealBluffDice(duel);
                 }
                 if(group.Key==2)
                 {
@@ -102,7 +109,7 @@ namespace Saloon
         }
         void ClaimCoin(Participant p,int side)
         {
-            if(phase!=Phase.Turns||p.room!=1||!p.Alive||!duels.TryGetValue(p.room,out var duel)||duel.blackjack!=null||duel.claimed||duel.flipping||Time.time>=duel.choiceUntil)return;
+            if(phase!=Phase.Turns||p.room!=1||!p.Alive||!duels.TryGetValue(p.room,out var duel)||duel.blackjack!=null||duel.bluff!=null||duel.claimed||duel.flipping||Time.time>=duel.choiceUntil)return;
             if(side!=0&&side!=1)return;
             duel.heads=side==0?p.id:(p.id==duel.a?duel.b:duel.a);duel.claimed=true;StartFlip(duel);
         }
@@ -115,8 +122,9 @@ namespace Saloon
             foreach(var duel in duels.Values)
             {
                 if(duel.blackjack!=null)TickBlackjack(duel);
-                if(duel.blackjack==null&&!duel.flipping&&Time.time>=duel.choiceUntil)StartFlip(duel);
-                if(duel.blackjack==null&&duel.flipping&&!duel.revealed&&Time.time>=duel.revealAt)
+                if(duel.bluff!=null)TickBluffDice(duel);
+                if(duel.blackjack==null&&duel.bluff==null&&!duel.flipping&&Time.time>=duel.choiceUntil)StartFlip(duel);
+                if(duel.blackjack==null&&duel.bluff==null&&duel.flipping&&!duel.revealed&&Time.time>=duel.revealAt)
                 {
                     bool heads=UnityEngine.Random.Range(0,2)==0;duel.result=heads?"HEADS":"TAILS";
                     duel.first=heads?duel.heads:(duel.heads==duel.a?duel.b:duel.a);duel.revealed=true;
@@ -129,6 +137,7 @@ namespace Saloon
                         Broadcast();
                     }
                 }
+                if(duel.revealed&&players[duel.first].hp>=tuning.health)KeepMedicalOpening(players[duel.first]);
                 if(duel.revealed&&rounds.CanAct(duel.first,Time.time)&&
                     (!players[duel.first].Alive||Time.time>=duel.firstUntil))
                 {rounds.TrySpend(duel.first,Time.time);players[duel.first].notice="Opening passed. Your opponent may respond.";}
@@ -170,6 +179,7 @@ namespace Saloon
             if(phase!=Phase.Turns||!p.Alive||!duels.TryGetValue(p.room,out var d))return null;
             bool opening=d.revealed&&players[d.first].Alive&&rounds.CanAct(d.first,Time.time);
             if(d.blackjack!=null)return PrivateBlackjack(p,d,opening);
+            if(d.bluff!=null)return PrivateBluffDice(p,d,opening);
             return new DuelView{game="coin",coinAId=d.a.ToString(),coinBId=d.b.ToString(),headsId=d.heads.ToString(),coinRound=rounds.Round,coinDuration=d.coinFlipSeconds,
                 coinElapsed=d.revealed?d.coinFlipSeconds:d.flipping?Mathf.Clamp(d.coinFlipSeconds-(d.revealAt-Time.time),0,d.coinFlipSeconds):0,canChooseCoin=!d.flipping&&!d.claimed&&Time.time<d.choiceUntil,
                 stage=!d.flipping?"choosing":!d.revealed?"flipping":Time.time<d.combatAt?"result":"playing",
@@ -182,7 +192,7 @@ namespace Saloon
         }
         DuelView PublicCoinTable()
         {
-            if(phase!=Phase.Turns||!duels.TryGetValue(1,out var d)||d.blackjack!=null)return null;
+            if(phase!=Phase.Turns||!duels.TryGetValue(1,out var d)||d.blackjack!=null||d.bluff!=null)return null;
             var table=PrivateDuel(players[d.a]);if(table==null)return null;
             table.canChooseCoin=table.yourTurn=table.waitingForOpening=false;table.side="";table.opponent="";return table;
         }
@@ -203,18 +213,15 @@ namespace Saloon
             if(View.phase==Phase.Lobby||(View.round==1&&View.phase==Phase.Discussion))HealthDeltaUntil=0;
             if(previousHp>=0&&self.health!=previousHp&&!(View.round==1&&View.phase==Phase.Discussion))
             {HealthDelta=self.health-previousHp;HealthDeltaUntil=Time.unscaledTime+2.5f;}
-            if(previousHp>=0&&self.health<previousHp){hitKick=1;HitFlash=.22f;}
+            if(previousHp>=0&&self.health<previousHp&&self.hitAge<.5f)BeginDamageFeedback(self,previousHp-self.health);
             if(previousShots>=0&&self.shots>previousShots)shotKick=1;
             previousHp=self.health;previousShots=self.shots;
         }
         Quaternion CameraImpact()
         {
-            float t=Time.unscaledTime;
-            var offset=new Vector3(-shotKick*1.4f+Mathf.Sin(t*91)*hitKick*1.6f,Mathf.Sin(t*113)*(shotKick*.18f+hitKick*.9f),Mathf.Sin(t*87)*hitKick*.8f);
-            shotKick=Mathf.MoveTowards(shotKick,0,Time.unscaledDeltaTime*9);
-            hitKick=Mathf.MoveTowards(hitKick,0,Time.unscaledDeltaTime*4.5f);
-            HitFlash=Mathf.MoveTowards(HitFlash,0,Time.unscaledDeltaTime*.9f);
-            return Quaternion.Euler(offset);
+            float shot=shotKick;
+            if(Graphics!=null&&Graphics.Current.reducedMotion)return Quaternion.identity;
+            return Quaternion.Euler(new Vector3(-shot*3.4f,shot*.28f,shot*-.65f)+damageCameraImpulse*hitKick*hitKick);
         }
     }
 }

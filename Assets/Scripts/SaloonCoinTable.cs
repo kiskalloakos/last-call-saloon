@@ -14,6 +14,7 @@ namespace Saloon
         DuelView view;
         string shownA;
         int shownRound=-1;
+        bool settling;
         float snapshotAt,landAt=-100;
         Quaternion landFrom;
         public bool Visible=>board!=null&&board.gameObject.activeSelf;
@@ -22,9 +23,9 @@ namespace Saloon
 
         public void Initialize(SaloonGame owner)
         {
-            oak=Mat("Coin table walnut",new Color(.22f,.105f,.047f),.25f);
-            rail=Mat("Coin table leather",new Color(.13f,.065f,.042f),.18f);
-            felt=Mat("Coin table baize",new Color(.045f,.20f,.145f),0);
+            oak=Mat("Coin table walnut",new Color(.38f,.18f,.075f),.25f);
+            rail=Mat("Coin table leather",new Color(.25f,.105f,.055f),.18f);
+            felt=Mat("Coin table baize",new Color(.035f,.38f,.24f),0);
             brass=Mat("Coin table brass",new Color(.69f,.50f,.24f),.5f);
             furniture=SaloonTableFurniture.Build(1,"Coin Flip room table",oak,rail,felt,brass);
             board=new GameObject("Coin toss").transform;board.SetParent(transform,false);board.position=Center;
@@ -57,8 +58,16 @@ namespace Saloon
         }
         public void Apply(Snapshot snapshot,PlayerView self)
         {
+            if(snapshot?.phase==Phase.Aftermath&&self!=null&&self.room!=3)
+            {
+                // A deadline can end a toss. Leave the coin resting on the table
+                // instead of running an endless cached toss or removing the prop.
+                settling=true;
+                return;
+            }
             var next=self?.room==1&&snapshot?.duel?.game=="coin"?snapshot.duel:snapshot?.coinTable;
             if(snapshot?.phase!=Phase.Turns||self==null||next?.game!="coin"){Clear();return;}
+            settling=false;
             bool fresh=shownRound!=next.coinRound||shownA!=next.coinAId;
             if(fresh){landAt=-100;coin.localRotation=Quaternion.identity;shownRound=next.coinRound;shownA=next.coinAId;}
             if(!string.IsNullOrEmpty(next.result)&&string.IsNullOrEmpty(view?.result)){landAt=Time.time;landFrom=coin.localRotation;}
@@ -77,7 +86,7 @@ namespace Saloon
         void UpdateToss()
         {
             float elapsed=Time.time-snapshotAt;
-            if(view.stage=="flipping")
+            if(view.stage=="flipping"&&!settling)
             {
                 float progress=Mathf.Clamp((view.coinElapsed+elapsed)/Mathf.Max(.1f,view.coinDuration),0,.97f);
                 coin.localPosition=Vector3.up*(.012f+Mathf.Sin(progress*Mathf.PI)*.38f);
@@ -91,7 +100,7 @@ namespace Saloon
             }
         }
         public void Clear()
-        {if(board==null)return;board.gameObject.SetActive(false);view=null;shownRound=-1;shownA=null;}
+        {if(board==null)return;board.gameObject.SetActive(false);view=null;shownRound=-1;shownA=null;settling=false;}
         void OnDestroy()
         {foreach(var material in materials)if(material!=null)Destroy(material);if(board!=null)Destroy(board.gameObject);if(furniture!=null)Destroy(furniture.gameObject);}
     }

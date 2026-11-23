@@ -1,0 +1,11 @@
+Kenney Impact Sounds, CC0 1.0
+Author: Kenney (https://kenney.nl)
+Original pack: https://kenney.nl/assets/impact-sounds
+License: https://creativecommons.org/publicdomain/zero/1.0/
+Retrieved 2026-11-20 from the public mirror after the original ZIP returned HTTP 403.
+Mirror: https://github.com/euuuuuuan/voidclad-public/tree/main/assets/sfx/kenney
+
+Included original files, unchanged:
+impactMetal_light_003.ogg — dry fire, reflected damage and private hit confirmation
+
+Character hit thuds reuse the existing CC0 Kenney footsteps in ../Footsteps.

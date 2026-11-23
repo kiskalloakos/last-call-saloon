@@ -4,8 +4,8 @@ from pathlib import Path
 from mathutils import Vector,Matrix
 ROOT=Path(__file__).resolve().parents[1];SOURCE=ROOT/'ArtSource/LowPoly';OUT=ROOT/'Assets/Resources/Art/LowPoly'
 OUT.mkdir(parents=True,exist_ok=True);(OUT/'Textures').mkdir(exist_ok=True)
-items={'Mug':SOURCE/'mug.glb','Safe':SOURCE/'safe.glb','Revolver':SOURCE/'colt/revovler1.blend','Arms':SOURCE/'arms/arms.glb'}
-items.update({n:SOURCE/('tavern/tavern_pack/models/'+f+'.fbx') for n,f in [('Bar','bar'),('Table','tabel'),('Chair','Chair'),('Shelf','sideboard'),('Door','Door'),('Window','window'),('Cup','cup'),('Plate','plate')]})
+items={'Safe':SOURCE/'safe.glb','Revolver':SOURCE/'colt/revovler1.blend'}
+items.update({n:SOURCE/('tavern/tavern_pack/models/'+f+'.fbx') for n,f in [('Bar','bar'),('Table','tabel'),('Chair','Chair'),('Shelf','sideboard'),('Door','Door'),('Plate','plate')]})
 report={}
 for name,path in items.items():
  bpy.ops.wm.read_factory_settings(use_empty=True)

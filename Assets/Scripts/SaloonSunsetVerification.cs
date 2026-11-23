@@ -46,7 +46,42 @@ namespace Saloon
             Check(footsteps.StepsPlayed==steps&&!audioProbe.GetComponent<AudioSource>().isPlaying,"local and remote outside walking is silent and stops any previous step");
             for(int i=0;i<4;i++){pos.x+=.35f;footsteps.Tick(pos,true,false,true,true,false);}
             Check(footsteps.StepsPlayed>steps,"wooden footsteps resume after returning inside");Destroy(audioProbe);
-            SaloonSmokingArea.Apply();Check(FindObjectsByType<Light>().Count(l=>l.name=="Last light over the desert")==1,"reapplying the area does not duplicate scenery or lights");
+            SaloonSmokingArea.Apply();SaloonSmokingArea.Apply();
+            Check(root.GetComponentsInChildren<Light>().Count(l=>l.name=="Last light over the desert")==1&&GameObject.Find("Saloon entrance sunset").GetComponentsInChildren<Light>().Length==1,"reapplying the area does not duplicate either sunset or its lights");
+            Check(root.GetComponentsInChildren<InteractionPoint>().Count(p=>p.kind==InteractionKind.Seat)==2,"back bench has exactly two usable seats after repeated application");
+            var arrival=hero.body.transform.position;var peerArrival=peer.body.transform.position;
+            hero.lastStance=-100;OnCommand(hero.id,new Command{kind="stance"});
+            Check(hero.seat<0&&hero.notice.Contains("bench"),"Space requires an empty bench spot nearby");
+            IEnumerator WalkToBench(Participant p,float z)
+            {
+                var target=SaloonSmokingArea.Center+new Vector3(-2.15f,0,z);float until=Time.time+4;
+                while(Time.time<until&&Vector3.ProjectOnPlane(target-p.body.transform.position,Vector3.up).magnitude>.12f)
+                {
+                    var direction=Vector3.ProjectOnPlane(target-p.body.transform.position,Vector3.up).normalized;
+                    OnCommand(p.id,new Command{kind="input",x=direction.z*-1,z=direction.x,yaw=90,pitch=0,poseVersion=p.poseVersion});yield return null;
+                }
+                OnCommand(p.id,new Command{kind="input",yaw=90,poseVersion=p.poseVersion});
+                Check(Vector3.ProjectOnPlane(target-p.body.transform.position,Vector3.up).magnitude<.2f,"real walking reaches the back bench");
+            }
+            yield return WalkToBench(hero,-.75f);
+            hero.lastStance=-100;OnCommand(hero.id,new Command{kind="stance"});Broadcast();yield return null;
+            Check(hero.seat==1040&&!hero.controller.enabled&&PrivateSnapshot(hero.id).players.First(p=>p.id==hero.id.ToString()).seated,"Space seats the smoker on the bench and replicates seated posture");
+            Check(Mathf.Abs(Mathf.DeltaAngle(hero.yaw,90))<.01f&&!rounds.HasSpent(hero.id),"seated smoker faces the sunset without spending an action");
+            yield return WalkToBench(peer,-.75f);
+            peer.lastStance=-100;OnCommand(peer.id,new Command{kind="stance"});
+            Check(peer.seat<0,"another smoker cannot occupy the same bench spot");
+            yield return WalkToBench(peer,.75f);
+            peer.lastStance=-100;OnCommand(peer.id,new Command{kind="stance"});
+            Check(peer.seat==1041&&peer.seat!=hero.seat,"both smokers can sit in separate bench spots");
+            int puffs=hero.puffs;hero.smokeAt=-100;OnCommand(hero.id,new Command{kind="smoke"});
+            Check(hero.puffs==puffs+1&&hero.seat==1040&&!rounds.HasSpent(hero.id),"seated smoker can take a drag without leaving the bench or spending an action");
+            externalCamera=true;externalPosition=SaloonSmokingArea.Center+new Vector3(2,1.6f,0);externalRotation=Quaternion.LookRotation(SaloonSmokingArea.Center+new Vector3(-2.9f,1,0)-externalPosition);RefreshViewpoint();Broadcast();yield return null;
+            SmokingImage("back-bench");externalCamera=false;RefreshViewpoint();
+            hero.lastStance=-100;OnCommand(hero.id,new Command{kind="stance"});
+            Check(hero.seat<0&&hero.controller.enabled&&SaloonMovement.InRoom(hero.body.transform.position,3),"Space stands up safely and restores walking on the back deck");
+            foreach(var p in new[]{hero,peer})
+            {p.controller.enabled=false;p.body.transform.position=p==hero?arrival:peerArrival;p.seat=-1;p.controller.enabled=true;p.poseVersion++;UpdatePlayerColliders(p);}
+            Broadcast();yield return null;
             TrySmoke(hero);hero.smokeAt=Time.time-1;Broadcast();yield return new WaitForSeconds(.1f);
             var previous=RenderTexture.active;var oldTarget=ViewCamera.targetTexture;
             var target=new RenderTexture(1280,900,24);var texture=new Texture2D(1280,900,TextureFormat.RGB24,false);
@@ -68,7 +103,24 @@ namespace Saloon
             Check(Vector3.Distance(start,hero.body.transform.position)>.15f&&SaloonMovement.InRoom(hero.body.transform.position,3),"outside walking still works within the deck boundary (distance="+Vector3.Distance(start,hero.body.transform.position)+", phase="+phase+")");
             PositionEveryone(true);Broadcast();yield return null;
             SaloonSmokingArea.ApplyCamera(ViewCamera,false);
-            Check((ViewCamera.cullingMask&(1<<SaloonSmokingArea.OutdoorLayer))==0,"returning inside hides the sunset scenery");
+            Check((ViewCamera.cullingMask&(1<<SaloonSmokingArea.OutdoorLayer))==0&&(ViewCamera.cullingMask&(1<<SaloonSunset.EntranceLayer))!=0,"returning inside hides the private deck while retaining the front sunset");
+            var front=GameObject.Find("Saloon entrance sunset");
+            Check(front.GetComponentsInChildren<Renderer>().All(r=>r.gameObject.layer==SaloonSunset.EntranceLayer)&&front.GetComponentsInChildren<Collider>().All(c=>!c.enabled),"front sunset has scenery only on its own visibility layer");
+            Check(front.GetComponentInChildren<Light>().cullingMask==(1<<SaloonSunset.EntranceLayer),"front sunset light cannot alter indoor or smoking-deck lighting");
+            var frontSky=front.GetComponentInChildren<Renderer>();
+            var frontDirection=frontSky.sharedMaterial.GetVector("_SunDirection");
+            Check(Vector3.Dot(front.transform.TransformDirection(SaloonSunset.Direction),new Vector3(frontDirection.x,frontDirection.y,frontDirection.z))>.99f,"front scenery rotates the same sunset toward the entrance");
+            hero.room=0;hero.controller.enabled=false;hero.body.transform.position=new Vector3(0,.08f,-6.1f);hero.seat=-1;hero.controller.enabled=true;hero.yaw=yaw=180;hero.pitch=pitch=0;hero.poseVersion++;
+            peer.room=3;peer.controller.enabled=false;peer.body.transform.position=peerArrival;peer.controller.enabled=true;
+            hero.lastAction=-100;OnCommand(hero.id,new Command{kind="room",x=3});
+            Check(hero.room==0,"room actions cannot enter the back deck; smoking requires the discussion plan");
+            var indoor=Snapshot.FromWireJson(PrivateSnapshot(hero.id).ToWireJson());
+            Check(indoor.players.All(p=>p.id!=peer.id.ToString())&&SaloonPrivacy.VoiceChannel(VoiceRoom,Phase.Turns,0,true)!=SaloonPrivacy.VoiceChannel(VoiceRoom,Phase.Turns,3,true),"front view receives no smoker avatar, animation or private conversation");
+            Check(!SaloonMovement.InRoom(peerArrival,0)&&!SaloonMovement.InRoom(hero.body.transform.position,3),"front entrance and private back deck have separate walking bounds");
+            var door=SaloonEntranceDoor.Build();SaloonEntranceDoor.Build();Physics.SyncTransforms();
+            Check(door.GetComponentsInChildren<BoxCollider>().Length==2&&Physics.RaycastAll(new Vector3(0,1.7f,-6.1f),Vector3.back,1.8f).Any(h=>h.collider.GetComponentInParent<SaloonEntranceDoor>()==door),"sunset view keeps a full-height entrance barrier and two door leaves");
+            Broadcast();MenuOpen=ShowRole=false;cameraCut=true;UpdateCamera();yield return null;
+            SmokingImage("front-entrance");
             VerificationPassed=VerificationFinished=true;Debug.Log("SALOON_SUNSET PASS");
         }
     }

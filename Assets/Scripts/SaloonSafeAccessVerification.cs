@@ -31,7 +31,7 @@ namespace Saloon
             void Place(Participant p,Vector3 position)
             {p.controller.enabled=false;p.seat=-1;p.body.transform.position=position;p.move=Vector2.zero;UpdatePlayerColliders(p);Physics.SyncTransforms();}
             void Cmd(string kind){host.lastAction=-100;OnCommand(host.id,new Command{kind=kind,x=SaloonArt.SafePosition.x,z=SaloonArt.SafePosition.z});}
-            foreach(var role in new[]{Role.Outlaw,Role.Sheriff})
+            foreach(var role in new[]{Role.Outlaw,Role.Sheriff,Role.Deputy})
             {
                 Window(role);string command=role==Role.Outlaw?"rob":"inspect";
                 Cmd(command);
@@ -46,6 +46,14 @@ namespace Saloon
                 Destroy(wall);yield return null;Physics.SyncTransforms();
                 Check(AtSafe(host),role+" can reach the actual safe through its clear public approach");
                 Cmd(command);Check(rounds.HasSpent(host.id)&&(role==Role.Outlaw?host.busyAction=="rob":host.safeReport.Contains("money inside")),role+" can use safe beside it and spends exactly one action");
+                if(SaloonRules.CanInspectSafe(role))
+                {
+                    var own=PrivateSnapshot(host.id);string report=host.safeReport;
+                    Check(own.safeReport==report&&own.safeProgress==0&&own.evidence.Contains(report),role+" receives their private inspection report and clue");
+                    Check(players.Values.Where(p=>p!=host).All(p=>PrivateSnapshot(p.id).safeReport==""),role+" does not automatically share an inspection with other players");
+                    safeProgress=1;Cmd("inspect");own=PrivateSnapshot(host.id);
+                    Check(own.safeReport==report&&own.safeProgress==0,role+" cannot inspect twice in a round or receive live safe updates");
+                }
             }
             Window(Role.Outlaw);Place(host,SafeApproach);Cmd("rob");
             Place(host,new Vector3(-4,.08f,0));TickSafeWork(host);
@@ -55,11 +63,15 @@ namespace Saloon
             Check(!rounds.HasSpent(host.id)&&!host.bag,"money cannot be collected remotely from an open safe");
             Place(host,SafeApproach);Cmd("rob");host.busyUntil=Time.time-.01f;TickServer();
             Check(host.bag&&host.storyProgress.HasFlag(StoryProgress.SafeWork),"finishing work beside an open safe collects the money");
-            Broadcast();UpdateInteractionHint();Check(!InteractionHint.Contains("H  /"),"carrier is not prompted to collect again");
+            Broadcast();UpdateInteractionHint();Check(!InteractionHint.StartsWith("H   "),"carrier is not prompted to collect again");
             Window(Role.Sheriff);Place(host,SafeApproach);Broadcast();UpdateInteractionHint();
-            Check(NearSafe&&InteractionHint=="C  /  inspect this safe","nearby Sheriff receives the physical safe prompt");
+            Check(NearSafe&&InteractionHint=="C   Inspect the safe","nearby Sheriff receives the physical safe prompt");
+            Window(Role.Deputy);Place(host,SafeApproach);Broadcast();UpdateInteractionHint();
+            Check(NearSafe&&InteractionHint=="C   Inspect the safe","nearby Deputy receives the same physical safe prompt");
             Window(Role.Outlaw);Place(host,SafeApproach);Broadcast();UpdateInteractionHint();
-            Check(NearSafe&&InteractionHint=="H  /  work this safe or collect the money","nearby Outlaw receives the physical safe prompt");
+            Check(NearSafe&&InteractionHint=="H   Work on the safe","nearby Outlaw receives the physical safe prompt");
+            safeProgress=2;Broadcast();UpdateInteractionHint();
+            Check(InteractionHint=="H   Take the money","last safe job tells the Outlaw they can take the money");
             Window(Role.Sheriff);bot.botThink=Time.time-1;bot.controller.enabled=true;
             float until=Time.time+12;var start=bot.body.transform.position;
             while(Time.time<until&&!AtSafe(bot))

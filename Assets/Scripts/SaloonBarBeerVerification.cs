@@ -1,7 +1,6 @@
-#if UNITY_EDITOR
+#if UNITY_EDITOR || DEVELOPMENT_BUILD
 using System;
 using System.Collections;
-using System.IO;
 using System.Linq;
 using UnityEngine;
 
@@ -9,160 +8,148 @@ namespace Saloon
 {
     public partial class SaloonGame
     {
+        void MoveToBeerTrayForVerification(Participant p)
+        {
+            p.controller.enabled=false;p.body.transform.position=new Vector3(SaloonBeerTaps.Position.x,.08f,2.05f);p.seat=-1;
+            p.controller.enabled=true;UpdatePlayerColliders(p);Physics.SyncTransforms();
+        }
+
         public IEnumerator VerifyBarAndBeer()
         {
             verifying=true;AutomatedInput=true;VerificationPassed=VerificationFinished=false;
             void Check(bool ok,string text)
-            {
-                if(!ok){VerificationFinished=true;throw new InvalidOperationException("Bar/beer: "+text);}
-                Debug.Log("SALOON_BAR_BEER_CHECK "+text);
-            }
-            yield return null;
+            {if(!ok){VerificationFinished=true;throw new InvalidOperationException("Bar/beer: "+text);}Debug.Log("SALOON_BAR_BEER_CHECK "+text);}
+            // The editor can start this coroutine at Time.time == 0. Expired
+            // busy timers below must remain positive to exercise completion.
+            yield return new WaitForSeconds(.1f);
             var host=players[Connection.LocalId];var peer=players.Values.First(p=>p.bot);
-            MenuOpen=false;Broadcast();
-            Check(View.phase==Phase.Discussion&&RoomPlannerOpen&&NeedsPointer,"discussion opens the planner with a usable cursor");
-            ToggleRoomPlanner();Check(!RoomPlannerOpen&&!NeedsPointer,"planner closes and returns to mouse look");
-            ToggleRoomPlanner();Check(RoomPlannerOpen&&NeedsPointer,"planner reopens with a usable cursor");
-            ToggleRoomPlanner();
-            float drink=tuning.drinkSeconds,handoff=tuning.handoffSeconds;
+            float duration=tuning.drinkSeconds;
+            void Place(Participant p,Vector3 position)
+            {p.controller.enabled=false;p.body.transform.position=position;p.seat=-1;p.controller.enabled=true;UpdatePlayerColliders(p);Physics.SyncTransforms();}
             void Window()
             {
                 ResetHeist();pendingOutcome=outcome="";beers=tuning.sharedBeers;
                 foreach(var p in players.Values)
                 {
-                    p.hp=80;p.deathAt=-1;p.role=p==host?Role.Sheriff:Role.Outlaw;
-                    p.beer=0;p.beerHealing=0;p.beerChoiceUntil=0;p.beerPickupRound=-1;
-                    p.drawn=false;p.busyAction="";p.busyUntil=0;p.lastAction=-100;p.nextShot=0;
-                    p.chosenRoom=0;p.companion=null;p.ammo=6;p.cigaretteBuff=false;
+                    p.hp=60;p.deathAt=-1;p.role=p==host?Role.Sheriff:Role.Outlaw;p.chosenRoom=0;p.companion=null;
+                    p.beer=0;p.beerHealing=0;p.beerChoiceUntil=0;p.drawn=false;p.busyUntil=0;p.busyAction="";p.lastAction=-100;p.cigaretteBuff=false;
                 }
                 rounds.Start(players.Keys,Time.time,30,120,0);foreach(var p in players.Values)rounds.SetReady(p.id,true);
-                rounds.Tick(Time.time,id=>players[id].Alive);phase=rounds.Phase;PositionEveryone(false);
+                rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
+                Place(host,new Vector3(SaloonBeerTaps.Position.x,.08f,2.05f));Place(peer,new Vector3(SaloonBeerTaps.Position.x+1,.08f,2.05f));
+                MenuOpen=false;Broadcast();
             }
-            void Cmd(string kind){OnCommand(host.id,new Command{kind=kind});}
-            void Pour(float seconds)
+            void Cmd(Participant p,string kind){p.lastAction=-100;OnCommand(p.id,new Command{kind=kind});}
+            try
             {
-                host.lastAction=-100;Cmd("interact");host.pourStarted=Time.time-seconds;Cmd("stopPour");
-            }
-            void Aim(Participant from,Participant to)
-            {
-                var d=Eye(to)-Eye(from);from.yaw=Mathf.Atan2(d.x,d.z)*Mathf.Rad2Deg;
-                from.pitch=-Mathf.Atan2(d.y,new Vector2(d.x,d.z).magnitude)*Mathf.Rad2Deg;Physics.SyncTransforms();
-            }
-            foreach(var sample in new[]{(0f,0),(1f,5),(5f,5),(5.01f,10),(10f,10),(11f,15),(12f,15),(15f,15),(17f,20),(20f,20),(99f,20)})
-                Check(SaloonBeerPour.RoundHealing(sample.Item1)==sample.Item2,"raw "+sample.Item1+" rounds up to "+sample.Item2+"%");
-            Check(SaloonBeerPour.Healing(3)==20&&SaloonBeerPour.Healing(4.5f)==10&&SaloonBeerPour.Healing(float.NaN)==0,"perfect pour heals 20%, overflow wastes beer, invalid values cannot score");
-            Window();host.hp=100;int stock=beers;Cmd("interact");
-            Check(host.beer==0&&host.busyAction==""&&!rounds.HasSpent(host.id)&&beers==stock,"full-health spectator cannot pour or consume stock/action");
-            Stand(host);Check(CanWalk(host),"full-health bar spectator can stand and walk");
-            Window();OnCommand(peer.id,new Command{kind="interact"});
-            Check(peer.busyAction=="pour"&&beers==tuning.sharedBeers-1&&rounds.HasSpent(peer.id),"any Bar player can start a pour immediately");
-            Cmd("interact");Check(host.busyAction=="pour"&&peer.busyAction=="pour"&&beers==tuning.sharedBeers-2,"Bar players can pour concurrently using separate actions and stock");
-            Window();host.room=1;Cmd("interact");Check(host.busyAction==""&&beers==tuning.sharedBeers,"side rooms cannot pour beer");
-            Window();beers=0;Cmd("interact");Check(!rounds.HasSpent(host.id),"empty supply preserves action");
-            Window();Aim(host,peer);host.drawn=true;Cmd("fire");
-            Check(peer.hp==60&&host.ammo==5&&rounds.HasSpent(host.id)&&beers==tuning.sharedBeers,"skipping beer preserves the option to spend the turn shooting");
-            Window();Cmd("interact");
-            Check(host.busyAction=="pour"&&host.beer==0&&host.hp==80&&beers==tuning.sharedBeers-1&&rounds.HasSpent(host.id),"pour spends exactly one stock and one action without healing");
-            int seat=host.seat;Cmd("stance");Check(host.seat==seat,"pouring keeps the player at the tap");
-            Cmd("fire");Cmd("drink");Cmd("give");
-            Check(host.busyAction=="pour"&&host.ammo==6&&host.hp==80,"weapons and consumption cannot bypass active pour");
-            TakeDamage(host);Check(host.hp==60&&host.busyAction=="pour","non-lethal hit does not interrupt pouring");
-            host.pourStarted=Time.time-1.7f;Cmd("stopPour");
-            Check(host.beer==1&&host.beerHealing==15&&host.hp==60,"partial pour becomes a 15% mug without automatic drinking");
-            var wire=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(PrivateSnapshot(host.id),out _));
-            Check(wire.beerHealing==15&&wire.players.Single(p=>p.id==host.id.ToString()).beerHealing==15&&wire.beerChoiceRemaining>0,"exact mug healing and choice window survive compressed snapshots");
-            Cmd("drink");Check(host.busyAction=="drink"&&host.drinkHealing==15&&host.beer==0,"drink is a continuation of the already spent action");
-            TakeDamage(host);Check(host.hp==40&&host.busyAction=="drink","non-lethal headshot preserves self-drink");
-            host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==55,"finished sip heals exactly the poured 15 points after damage");
-            TickServer();Check(host.hp==55,"sip never heals twice");
-            host.lastAction=-100;Cmd("fire");Cmd("interact");Check(host.ammo==6&&beers==tuning.sharedBeers-1,"pour cannot be followed by another shot or pour");
-            foreach(int healing in new[]{5,10,15,20})
-            {
-                Window();Pour((healing-1)/20f*SaloonBeerPour.FullSeconds);Aim(host,peer);Cmd("give");
-                Check(peer.busyAction=="giftDrink"&&peer.drinkHealing==healing&&host.beer==0&&!rounds.HasSpent(peer.id),"gift keeps "+healing+"% healing and recipient's action");
-                TakeDamage(peer);Check(peer.hp==60&&peer.busyAction=="giftDrink","gift survives damage including its handoff");
-                peer.busyUntil=Time.time-.01f;TickServer();Check(peer.hp==60+healing,"recipient heals exactly "+healing+" points");
-            }
-            Window();host.hp=40;host.cigaretteBuff=true;Pour(1.7f);
-            Check(host.beerHealing==15&&host.cigaretteBuff,"pouring stores the original quality and preserves the buff until use");
-            Cmd("drink");Check(host.drinkHealing==30&&!host.cigaretteBuff,"cigarette doubles a 15-point pour and consumes the shared shot/healing buff");
-            host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==70,"boosted beer applies all 30 points instead of stopping at the old 20-point limit");
-            Window();host.hp=90;host.cigaretteBuff=true;Pour(3);Cmd("drink");
-            Check(host.drinkHealing==40&&!host.cigaretteBuff,"perfect buffed beer commits 40 points");
-            host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==100,"boosted healing never exceeds 100% health");
-            Window();host.cigaretteBuff=true;Pour(3);Aim(host,peer);Cmd("give");
-            Check(peer.drinkHealing==20&&host.cigaretteBuff,"offering a beer preserves the giver's unused buff");
-            Window();peer.cigaretteBuff=true;Pour(3);Aim(host,peer);Cmd("give");
-            Check(peer.drinkHealing==40&&!peer.cigaretteBuff,"gifted beer consumes the recipient's buff for double healing");
-            Window();host.hp=95;Pour(3);Cmd("drink");host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==100,"perfect pour respects maximum health");
-            Window();host.hp=20;Pour(3);Cmd("drink");TakeDamage(host);TickServer();Check(host.hp==0&&host.busyAction=="","lethal hit eliminates without revival");
-            Window();host.hp=20;Cmd("interact");TakeDamage(host);TickServer();Check(host.hp==0&&host.beer==0&&host.busyAction=="","death during pour cannot create a beer");
-            Window();Pour(.15f);Cmd("leaveBeer");
-            Check(host.hp==80&&host.beer==0&&rounds.HasSpent(host.id),"leaving poured beer spends action without healing");
-            Window();Pour(3);host.beerChoiceUntil=Time.time-.01f;TickServer();
-            Check(host.hp==80&&host.beer==0,"unclaimed beer is left behind without forced drinking");
-            Window();Cmd("interact");host.pourStarted=Time.time-10;host.busyUntil=Time.time-.01f;TickServer();
-            Check(host.beer==1&&host.beerHealing==10&&host.busyAction=="","unattended tap closes at overflow limit");
-            Window();Pour(3);peer.busyUntil=Time.time+10;Aim(host,peer);Cmd("give");
-            Check(host.beer==1&&host.beerHealing==20&&host.beerChoiceUntil>0,"invalid gift retains the mug and healing");
-            Window();foreach(var p in players.Values.Where(p=>p!=host))rounds.TrySpend(p.id,Time.time);
-            Pour(3);TickServer();Check(phase==Phase.Turns,"last action keeps the round open while choosing drink or offer");
-            Cmd("drink");TickServer();Check(phase==Phase.Turns&&host.hp==80,"last sip keeps the round open before healing");
-            host.busyUntil=Time.time-.01f;rounds.SetCompletion(host.id,Time.time);TickServer();
-            Check(host.hp==100&&phase==Phase.Aftermath,"last sip applies its healing before aftermath");
-            Window();Pour(3);PositionEveryone(true);
-            Check(players.Values.All(p=>p.beer==0&&p.beerChoiceUntil==0),"regroup clears beer, quality and continuation state");
-            // Exercise the actual world controls with center-of-view rays; no UI cursor is involved.
-            Ray CounterRay(int station,string target)
-            {
-                Physics.SyncTransforms();var at=BeerTaps.transform.Find("Pouring station "+(station+1)).GetComponentsInChildren<Transform>(true).First(t=>t.name==target).position;
-                return new Ray(Eye(host),(at-Eye(host)).normalized);
-            }
-            Window();MenuOpen=false;Broadcast();
-            Check(!NeedsPointer,"Bar keeps normal mouse look without holding right mouse");
-            bool automated=AutomatedInput;AutomatedInput=false;SyncPointer();AutomatedInput=automated;
-            Check(Cursor.lockState==CursorLockMode.Locked,"Bar locks the mouse for ordinary first-person look");
-            var pourRay=CounterRay(host.beerStation,"Tap handle");
-            Check(BeerTaps.ActionForRay(pourRay)=="interact","aim ray selects the physical pour control on the countertop");
-            Check(BeerTaps.ActionForRay(CounterRay(peer.beerStation,"Tap handle"))==null,"cannot operate another player's tap");
-            host.drawn=true;Broadcast();Check(BeerTaps.ActionForRay(pourRay)==null,"drawn weapon takes priority over tap clicks");
-            host.drawn=false;host.hp=100;Broadcast();Check(BeerTaps.ActionForRay(pourRay)==null,"full-health spectators cannot click into a pour");
-            host.hp=80;Broadcast();float oldYaw=host.yaw,oldPitch=host.pitch;int oldPose=host.poseVersion;
-            Cmd(BeerTaps.ActionForRay(pourRay));Broadcast();
-            Check(host.busyAction=="pour"&&host.yaw==oldYaw&&host.pitch==oldPitch&&host.poseVersion==oldPose,"world pour starts without turning or grabbing the camera");
-            Check(BeerTaps.ActionForRay(pourRay)=="stopPour","same physical control stops a running pour");
-            OnCommand(host.id,new Command{kind="pourFlow",x=1.5f});float beforeFlow=Time.time-host.pourStarted;
-            host.pourTick=Time.time-.2f;TickBeer(host);
-            Check(Time.time-host.pourStarted>beforeFlow+.09f,"opening the tap increases the actual beer flow");
-            OnCommand(host.id,new Command{kind="pourFlow",x=-99});Check(host.pourFlow==.35f,"tap flow is clamped by the host");
-            OnCommand(host.id,new Command{kind="pourFlow",x=1});
+                Window();
+                foreach(var p in players.Values.Where(p=>p!=host))Place(p,new Vector3(6,.08f,-.5f));
+                IEnumerator WalkTo(Vector3 target)
+                {
+                    float until=Time.time+3;
+                    while(Time.time<until&&Vector3.ProjectOnPlane(target-host.body.transform.position,Vector3.up).magnitude>.06f)
+                    {
+                        var direction=Vector3.ProjectOnPlane(target-host.body.transform.position,Vector3.up).normalized;
+                        OnCommand(host.id,new Command{kind="input",x=direction.x,z=direction.z,yaw=0,pitch=0,poseVersion=host.poseVersion});
+                        yield return null;
+                    }
+                    OnCommand(host.id,new Command{kind="input",poseVersion=host.poseVersion});
+                    Check(Vector3.ProjectOnPlane(target-host.body.transform.position,Vector3.up).magnitude<.12f,
+                        "standing collision movement reaches bar route "+target+"; actual="+host.body.transform.position);
+                }
+                for(int slot=0;slot<SaloonRules.BarCapacity-1;slot++)
+                {
+                    float x=(SaloonStations.BarX(slot)+SaloonStations.BarX(slot+1))*.5f;
+                    Place(host,new Vector3(x,.08f,1.35f));
+                    // The fitted drawer projects from the counter here; stop in front of its face.
+                    float approachZ=Mathf.Abs(x-SaloonArt.SafePosition.x)<.8f?2.35f:2.7f;
+                    yield return WalkTo(new Vector3(x,.08f,approachZ));
+                    yield return WalkTo(new Vector3(x,.08f,1.35f));
+                }
+                Place(host,new Vector3(-2.5f,.08f,1.35f));
+                yield return WalkTo(new Vector3(-2.5f,.08f,2.7f));
+                yield return WalkTo(new Vector3(SaloonBeerTaps.Position.x,.08f,2.7f));
+                Check(NearBeerTray(host)&&!rounds.HasSpent(host.id),"walking between stools reaches the beer tray without spending an action");
+                Cmd(host,"interact");Check(host.busyAction=="drink","E drinks a beer after physically walking to the counter");
+                host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==80,"beer heals after walking between the bar stools");
 
-            OnCommand(host.id,new Command{kind="input",yaw=37,pitch=12,poseVersion=host.poseVersion});
-            Check(host.yaw==37&&host.pitch==12,"looking around continues normally during the pour");
-            host.pourStarted=Time.time-2.4f;Broadcast();
-            var stationRoot=BeerTaps.transform.Find("Pouring station "+(host.beerStation+1));
-            var counterText=stationRoot.Find("Pour result on counter");
-            Check(Vector3.Dot(-counterText.forward,Eye(host)-counterText.position)>0,"counter lettering faces the player instead of appearing mirrored");
-            Check(stationRoot.Find("Beer level").localScale.y>.09f&&stationRoot.Find("Pouring stream").gameObject.activeSelf&&stationRoot.Find("Full line")!=null,"beer level, live stream and target line are physical objects on the bar");
-            BeerTaps.Apply(PrivateSnapshot(peer.id));
-            Check(stationRoot.Find("Pouring stream").gameObject.activeSelf&&BeerTaps.ActionForRay(pourRay)==null,"another player watches the live pour without gaining its controls");
-            Broadcast();Cmd("stopPour");Broadcast();
-            Check(BeerTaps.ActionForRay(CounterRay(host.beerStation,"Mug interaction"))=="drink","the finished mug can be clicked to drink");
-            Check(BeerTaps.ActionForRay(CounterRay(host.beerStation,"LEAVE / SPACE"))=="leaveBeer","leaving the mug uses the counter control");
-            Window();host.yaw=0;host.pitch=11;host.poseVersion++;Cmd("interact");host.pourStarted=Time.time-2.4f;
-            foreach(var p in players.Values)p.shots=0;
-            Broadcast();MenuOpen=false;nextBroadcast=Time.unscaledTime+5;
-            yield return new WaitForSeconds(.25f);yield return new WaitForEndOfFrame();
-            string path=Path.Combine(Path.GetTempPath(),"SaloonBeerPour.png");ScreenCapture.CaptureScreenshot(path);
-            yield return null;
-            Check(BeerTaps!=null&&View.pouring&&!NeedsPointer,"countertop pouring stays visible with ordinary mouse look");
-            externalCamera=true;externalPosition=new Vector3(-1.5f,2.7f,-1.1f);
-            externalRotation=Quaternion.LookRotation(new Vector3(-1.9f,1.9f,3.7f)-externalPosition);
-            yield return null;yield return new WaitForEndOfFrame();
-            ScreenCapture.CaptureScreenshot(Path.Combine(Path.GetTempPath(),"SaloonBeerStations.png"));yield return null;
-            externalCamera=false;RefreshViewpoint();
-            tuning.drinkSeconds=drink;tuning.handoffSeconds=handoff;
-            VerificationPassed=VerificationFinished=true;Debug.Log("SALOON_BAR_BEER PASS preview="+path);
+                Window();int supply=beers;Cmd(host,"interact");
+                Check(host.busyAction=="drink"&&host.hp==60&&host.drinkHealing==20&&beers==supply-1&&rounds.HasSpent(host.id),"E takes one ready beer and starts drinking as one action");
+                Cmd(host,"interact");Check(beers==supply-1,"duplicate E cannot consume another beer");
+                var wire=SaloonSnapshotWire.Decode(SaloonSnapshotWire.Encode(PrivateSnapshot(host.id),out _));
+                Check(wire.players.First(p=>p.id==host.id.ToString()).drinking&&wire.carriedBeer==0&&!wire.pouring&&wire.beerChoiceRemaining==0,"snapshots contain immediate drinking without a carry or pour step");
+                TakeDamage(host);Check(host.hp==40&&host.busyAction=="drink","a nonlethal shot preserves the drinking animation");
+                host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==60,"finishing the drink heals exactly 20 points after damage");
+                TickServer();Check(host.hp==60,"one beer cannot heal twice");
+
+                Window();host.cigaretteBuff=true;Cmd(host,"interact");
+                Check(host.drinkHealing==40&&!host.cigaretteBuff,"the drinker's cigarette buff doubles a ready beer to 40 points");
+                host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==100,"buffed beer caps health at 100 percent");
+                Window();host.hp=90;Cmd(host,"interact");host.busyUntil=Time.time-.01f;TickServer();Check(host.hp==100,"ordinary beer also respects maximum health");
+
+                Window();host.hp=100;host.cigaretteBuff=true;supply=beers;Cmd(host,"interact");
+                Check(beers==supply&&host.cigaretteBuff&&!rounds.HasSpent(host.id),"full health preserves stock, buff and action");
+                Window();Place(host,new Vector3(-6,.08f,-5));supply=beers;Cmd(host,"interact");
+                Check(beers==supply&&!rounds.HasSpent(host.id),"players must approach the shared tray to drink");
+                Window();host.room=1;supply=beers;Cmd(host,"interact");Check(beers==supply&&!rounds.HasSpent(host.id),"side rooms cannot drink from the Bar tray");
+                Window();beers=0;Cmd(host,"interact");Check(!rounds.HasSpent(host.id),"empty tray preserves the action");
+                Window();beers=1;Cmd(host,"interact");Cmd(peer,"interact");
+                Check(beers==0&&host.busyAction=="drink"&&peer.busyAction==""&&!rounds.HasSpent(peer.id),"two players cannot take the same last beer");
+
+                Window();supply=beers;
+                foreach(string removed in new[]{"give","stopPour","pourFlow","leaveBeer"})Cmd(host,removed);
+                Check(beers==supply&&host.busyAction==""&&peer.busyAction==""&&!rounds.HasSpent(host.id),"removed pouring and offering commands cannot create actions or gifted beer");
+                Window();Broadcast();yield return null;
+                var tray=BeerTaps.transform.Find("Shared beer tray");
+                Check(tray!=null&&tray.GetComponentsInChildren<Transform>(true).Count(t=>t.name.StartsWith("Ready beer "))==tuning.sharedBeers,"one shared tray holds the ready mugs");
+                Check(!FindObjectsByType<Transform>(FindObjectsInactive.Include,FindObjectsSortMode.None).Any(t=>t.name.StartsWith("Pouring station ")||t.name=="Tap handle"||t.name=="Brass beer tower"||t.name=="Pouring instructions"),"old tap towers, signs and pouring stations are absent");
+                Check(BeerTaps.HintForRay(new Ray(Eye(host),Vector3.forward)).StartsWith("E · Drink beer"),"nearby players receive one simple E prompt");
+                Cmd(host,"interact");Broadcast();yield return null;
+                Check(tray.GetComponentsInChildren<Transform>().Count(t=>t.name.StartsWith("Ready beer "))==beers,"taking a beer removes one visible mug from the tray");
+                Check(tray.GetComponentsInChildren<Transform>(true).Any(t=>t.name.StartsWith("BeerMug")||t.name=="CC0 Tankard"),"ready beers use the replacement CC0 tankard");
+
+                Window();
+                foreach(var p in players.Values.Where(p=>p!=host))Place(p,SaloonWorld.Spawns[(int)(p.id%(ulong)SaloonWorld.Spawns.Length)]);
+                Place(host,new Vector3(SaloonBeerTaps.Position.x,.35f,2.05f));host.seat=100;host.controller.enabled=false;host.move=Vector2.zero;
+                host.yaw=host.bodyYaw=0;host.pitch=7;host.poseVersion++;UpdatePlayerColliders(host);MenuOpen=true;Broadcast();yield return null;
+                yield return new WaitForSeconds(.35f);
+                CaptureBeerScene("Playing");
+                var position=host.body.transform.position;var cameraPosition=ViewCamera.transform.position;var cameraRotation=ViewCamera.transform.rotation;
+                var detailPosition=new Vector3(SaloonBeerTaps.Position.x+.4f,2.05f,2.9f);
+                ViewCamera.transform.SetPositionAndRotation(detailPosition,Quaternion.LookRotation(SaloonBeerTaps.Position+Vector3.up*.12f-detailPosition));
+                CaptureBeerScene("Tankard");ViewCamera.transform.SetPositionAndRotation(cameraPosition,cameraRotation);
+                foreach(var p in players.Values)rounds.TrySpend(p.id,Time.time);
+                TickServer();Broadcast();yield return null;
+                Check(phase==Phase.Aftermath&&BeerTaps.Visible,"the shared tray stays visible after every action is done");
+                Check(host.body.transform.position==position&&Vector3.Distance(ViewCamera.transform.position,cameraPosition)<.001f&&Quaternion.Angle(ViewCamera.transform.rotation,cameraRotation)<.01f,"waiting preserves the round's player position and camera (player "+position+" -> "+host.body.transform.position+", camera "+cameraPosition+" -> "+ViewCamera.transform.position+", angle "+Quaternion.Angle(ViewCamera.transform.rotation,cameraRotation)+")");
+                Check(BeerTaps.HintForRay(new Ray(Eye(host),Vector3.forward))==""&&!View.actionAvailable,"waiting does not permit another drink or action");
+                CaptureBeerScene("Waiting");
+                rounds.BeginAftermath(Time.time-4);TickServer();Broadcast();
+                Check(phase==Phase.Regroup&&cameraCut&&cameraVelocity==Vector3.zero,"regroup requests a single camera cut with no leftover movement");
+                yield return null;
+                var cameraPlayer=CameraPlayer;var eye=new Vector3(cameraPlayer.x,cameraPlayer.y+SaloonMovement.EyeHeight(cameraPlayer.seated,cameraPlayer.crouched),cameraPlayer.z);
+                Check(Vector3.Distance(ViewCamera.transform.position,eye)<.001f&&!BeerTaps.Visible,"the discussion-table camera arrives immediately without sliding through the bar");
+                CaptureBeerScene("Regroup");
+                Window();Cmd(host,"interact");TakeDamage(host,Vector3.back,100);host.busyUntil=Time.time-.01f;TickServer();
+                Check(!host.Alive&&host.hp==0&&host.busyAction=="","lethal damage cancels the drink and never revives a player");
+                VerificationPassed=VerificationFinished=true;Debug.Log("SALOON_BAR_BEER PASS");
+            }
+            finally{tuning.drinkSeconds=duration;}
+        }
+
+        void CaptureBeerScene(string name)
+        {
+            string directory=System.IO.Path.GetFullPath(System.IO.Path.Combine(Application.dataPath,"../Documentation/BeerScenePreviews"));
+            System.IO.Directory.CreateDirectory(directory);
+            var oldTarget=ViewCamera.targetTexture;var oldActive=RenderTexture.active;
+            var target=new RenderTexture(1280,800,24);var image=new Texture2D(1280,800,TextureFormat.RGB24,false);
+            try
+            {
+                ViewCamera.targetTexture=target;ViewCamera.Render();RenderTexture.active=target;
+                image.ReadPixels(new Rect(0,0,1280,800),0,0);image.Apply();
+                System.IO.File.WriteAllBytes(System.IO.Path.Combine(directory,name+".png"),image.EncodeToPNG());
+            }
+            finally{ViewCamera.targetTexture=oldTarget;RenderTexture.active=oldActive;Destroy(image);target.Release();Destroy(target);}
         }
     }
 }

@@ -23,7 +23,7 @@ namespace Saloon
                         int slot=chair.index-first;chair.transform.position=SaloonStations.Position(false,room,slot)-Vector3.up*.08f;
                         chair.sitYaw=SaloonStations.Facing(false,room,slot);chair.transform.rotation=Quaternion.Euler(0,chair.sitYaw,0);
                     }
-                foreach(var prop in world.GetComponentsInChildren<Transform>(true).Where(t=>t.name.EndsWith(" visual")&&(t.name.StartsWith("Mug")||t.name.StartsWith("Plate"))&&Vector3.Distance(t.position,new Vector3(center,.76f,-3.8f))<.65f))prop.gameObject.SetActive(false);
+                foreach(var prop in world.GetComponentsInChildren<Transform>(true).Where(t=>t.name.EndsWith(" visual")&&(t.name.StartsWith("Mug")||t.name.StartsWith("Plate")||t.name.StartsWith("BeerMug"))&&Vector3.Distance(t.position,new Vector3(center,.76f,-3.8f))<.65f))prop.gameObject.SetActive(false);
             }
             var root=new GameObject(name).transform;root.position=new Vector3(center,0,-3.8f);
             Box("Walnut table",root,new Vector3(0,.715f,0),new Vector3(1.46f,.10f,1.77f),oak);

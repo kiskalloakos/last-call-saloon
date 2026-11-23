@@ -17,21 +17,31 @@ namespace Saloon
                 var materials=renderer.sharedMaterials;bool changed=false;
                 for(int i=0;i<materials.Length;i++)
                 {
-                    var source=materials[i];if(source==null||source.shader==shader)continue;
-                    string name=source.name.Replace(" (Instance)","");
+                    var source=materials[i];if(source==null)continue;
+                    string name=source.name.Replace(" (Instance)","").Replace("Scanned ","");
                     string scan=null;Color tint=Color.white;float scale=.5f,polish=0,relief=.4f;
-                    if(name=="Warm limewash") {scan="LimePlaster";tint=new Color(.88f,.79f,.65f);scale=.65f;relief=.3f;}
+                    if(name=="Warm limewash") {scan="LimePlaster";tint=new Color(1f,.94f,.80f);scale=.65f;relief=.3f;}
                     else if(name=="Counter oak"||name=="Walnut joinery"||name=="Bar access walnut"||name=="Retro dark timber"||name=="Retro floorboards"||name=="Honey oak"||name=="Dark walnut"||name=="Sunset deck cedar"||name=="Weathered deck posts"||Furniture(name))
                     {
                         bool outside=name=="Sunset deck cedar"||name=="Weathered deck posts";
                         bool dark=name=="Walnut joinery"||name=="Bar access walnut"||name=="Retro dark timber"||name=="Dark walnut"||name=="Weathered deck posts";
                         bool floor=name=="Retro floorboards";
                         scan=outside||floor?"WeatheredWood":"CounterWood";
-                        tint=dark?new Color(.34f,.23f,.16f):outside?new Color(.73f,.60f,.46f):floor?new Color(.68f,.49f,.32f):new Color(.85f,.64f,.41f);
+                        tint=dark?new Color(.56f,.34f,.19f):outside?new Color(.95f,.73f,.45f):floor?new Color(.88f,.62f,.36f):new Color(1f,.77f,.45f);
                         scale=outside||floor?.42f:.65f;polish=outside||floor?0:.07f;
                     }
-                    else if(name=="Sunset sand") {scan="DesertGravel";scale=.25f;tint=new Color(.84f,.61f,.43f);relief=.55f;}
-                    if(scan==null)continue;
+                    else if(name=="Sunset sand") {scan="DesertGravel";scale=.25f;tint=new Color(1f,.76f,.50f);relief=.55f;}
+                    if(scan==null)
+                    {
+                        var accent=Accent(name);if(!accent.HasValue||source.color==accent.Value)continue;
+                        if(!replacements.TryGetValue(name,out var colored))
+                        {
+                            colored=new Material(source){name=source.name,color=accent.Value};
+                            replacements.Add(name,colored);SaloonWorld.GeneratedMaterials.Add(colored);
+                        }
+                        materials[i]=colored;changed=true;continue;
+                    }
+                    if(source.shader==shader&&source.color==tint)continue;
                     string key=name+"|"+scan;
                     if(!replacements.TryGetValue(key,out var material))
                     {
@@ -49,6 +59,21 @@ namespace Saloon
                 if(changed)renderer.sharedMaterials=materials;
             }
         }
+        static Color? Accent(string name)
+        {
+            switch(name)
+            {
+                case "Bottle green":return new Color(.12f,.48f,.22f);
+                case "Bottle amber":return new Color(.72f,.32f,.065f);
+                case "Bottle blue":return new Color(.10f,.43f,.58f);
+                case "Bottle paper":return new Color(.96f,.86f,.62f);
+                case "Oxblood leather":return new Color(.46f,.10f,.065f);
+                case "Polished aged brass":return new Color(.85f,.58f,.20f);
+                case "Smoky backbar mirror":return new Color(.39f,.58f,.57f);
+                default:return null;
+            }
+        }
+
         static bool Furniture(string name)
         {
             if(name.Contains("glass"))return false;

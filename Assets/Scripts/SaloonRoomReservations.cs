@@ -7,8 +7,8 @@ namespace Saloon
     {
         int[] RoomCapacities()
         {
-            var capacities=new[]{5,2,2,2};
-            foreach(var dead in players.Values.Where(p=>!p.Alive&&!p.gatherStation&&!ObserverReady(p)))capacities[dead.room]--;
+            var capacities=new[]{SaloonRules.BarCapacity,2,2,2};
+            foreach(var dead in players.Values.Where(p=>!p.Alive&&p.room>=0&&p.room<capacities.Length&&!p.gatherStation&&!ObserverReady(p)))capacities[dead.room]--;
             return capacities;
         }
         bool AcceptPlanCommand(Participant p,Command cmd)
@@ -32,6 +32,8 @@ namespace Saloon
         }
         bool CanSelectPlan(Participant p,int room,ulong? companion)
         {
+            if(room<0||room>3){p.notice="That room is assigned only by a mission offer.";return false;}
+            if(p.toiletDuty&&(room!=0||companion.HasValue)){p.notice="Solo toilet mission accepted; your return to Bar is reserved.";return false;}
             Participant partner=null;
             if(companion.HasValue)
             {
@@ -41,7 +43,7 @@ namespace Saloon
                 {p.notice=partner.name+" has already locked a plan. Choose an available player.";return false;}
             }
             if(!HasPlanSpace(room,p,partner))
-            {p.notice=SaloonStations.Name(room)+" is full. Choose another room.";return false;}
+            {p.notice=(room==1?"West room":SaloonStations.Name(room))+" is full. Choose another room.";return false;}
             return true;
         }
         void AcceptRoomInvitation(Participant p,Command cmd,bool ready=false)
@@ -67,17 +69,27 @@ namespace Saloon
         void SetRoomPlan(Participant p,int room,ulong? companion)
         {
             if(p.chosenRoom!=room||p.companion!=companion)ReleasePair(p);
+            if(room!=0||companion.HasValue)p.escapePlanned=false;
             p.chosenRoom=room;p.companion=companion;p.planSelected=true;
         }
         bool TryReady(Participant p,bool ready)
         {
+            if(ready&&p.toiletOffer){p.notice="Accept or deny toilet duty before locking your plan.";return false;}
+            if(!ready&&p.toiletDuty){p.notice="Solo toilet mission accepted; your return to Bar is reserved.";return false;}
             if(!ready){ReleasePair(p);p.notice="Plan unlocked — choose a room or invite someone.";return true;}
+            if(TutorialWalkthrough&&WalkthroughStep==WalkthroughBeat.Plan&&p.id==Connection.LocalId&&p.chosenRoom!=0)
+            {
+                p.notice="Choose Bar for this exercise. The other rooms come next.";
+                rounds.SetReady(p.id,false);RoomPlannerOpen=true;
+                return false;
+            }
             if(rounds.IsReady(p.id))return true;
             if(!CanSelectPlan(p,p.chosenRoom,p.companion))return false;
             Participant partner=null;
             if(p.companion.HasValue)
             {
                 partner=players[p.companion.Value];
+                if(partner.toiletOffer){p.notice="Wait for "+partner.name+" to accept or deny toilet duty.";return false;}
                 if(partner.companion!=p.id||partner.chosenRoom!=p.chosenRoom)
                 {p.notice="Waiting for "+partner.name+" to accept your invitation.";return false;}
             }
@@ -86,9 +98,9 @@ namespace Saloon
             if(partner!=null)
             {
                 partner.planSelected=true;rounds.SetReady(partner.id,true);
-                partner.notice="Locked with "+p.name+" · "+SaloonStations.Name(p.chosenRoom)+".";
+                partner.notice="Locked with "+p.name+" · "+(p.chosenRoom==1?"West room":SaloonStations.Name(p.chosenRoom))+".";
             }
-            p.notice="Locked · "+SaloonStations.Name(p.chosenRoom)+(partner==null?" · no partner selected.":" with "+partner.name+".");
+            p.notice="Locked · "+(p.chosenRoom==1?"West room":SaloonStations.Name(p.chosenRoom))+(partner==null?" · no partner selected.":" with "+partner.name+".");
             return true;
         }
         bool PlanFull(Participant p)=>!rounds.IsReady(p.id)&&!HasPlanSpace(p.chosenRoom,p);

@@ -27,7 +27,7 @@ namespace Saloon
             using(var occupied=new UdpClient(new IPEndPoint(IPAddress.Any,0)))
             {
                 Port=((IPEndPoint)occupied.Client.LocalEndPoint).Port.ToString();
-                SetBotsEnabled(false);StartSolo();
+                SetBotMatchSize(5);SetBotsEnabled(false);StartSolo();
                 yield return new WaitForSeconds(.2f);
                 Check(InRoom&&Hosting&&Connection.Solo&&phase==Phase.Discussion&&!MenuOpen,"Solo Practice starts even when the selected UDP port is occupied");
                 Check(!Connection.Manager.IsListening&&!Connection.Manager.IsServer,"solo starts without a network listener");
@@ -47,6 +47,33 @@ namespace Saloon
                 yield return new WaitForSeconds(.1f);
                 Check(Connection.Solo&&InRoom&&PlayerCount==4&&phase==Phase.Discussion,"solo restarts with four players despite invalid LAN settings");
                 yield return LeavePractice();
+                float previousDiscussion=tuning.discussionSeconds,previousActions=tuning.turnSeconds;
+                int previousBeers=tuning.sharedBeers;
+                for(int count=SaloonRules.MinimumPlayers;count<=SaloonRules.LobbyCapacity;count++)
+                {
+                    SetBotMatchSize(count);
+                    tuning.discussionSeconds=count==4?5:120;
+                    tuning.turnSeconds=count==4?5:60;
+                    tuning.sharedBeers=count==4?0:16;
+                    StartSolo();
+                    Check(Connection.Solo&&PlayerCount==count&&HumanCount==1&&players.Values.Count(p=>p.bot)==count-1,
+                        "practice selection starts with exactly "+(count-1)+" bots");
+                    var deck=SaloonRules.DeckFor(count,players.Values.Single(p=>SaloonRules.IsIndependent(p.role)).role);
+                    Check(deck.All(role=>players.Values.Count(p=>p.role==role)==deck.Count(r=>r==role)),
+                        count+"-player practice deals the matching role deck");
+                    Check(Mathf.Abs(rounds.Deadline-Time.time-RoleIntroDuration-tuning.discussionSeconds)<.01f,
+                        "selected discussion duration is applied after the role reveal");
+                    Check(beers==tuning.sharedBeers,"selected shared beer supply is applied, including zero");
+                    foreach(var id in players.Keys)rounds.SetReady(id,true);
+                    TickServer();
+                    Check(phase==Phase.Turns&&Mathf.Abs(rounds.Deadline-Time.time-tuning.turnSeconds)<.01f,
+                        "selected action duration controls the room-action clock");
+                    SetBotMatchSize(count==4?8:4);
+                    Check(PlayerCount==count&&BotMatchSize==count,"bot count stays locked during an active practice match");
+                    yield return LeavePractice();
+                }
+                tuning.discussionSeconds=previousDiscussion;tuning.turnSeconds=previousActions;tuning.sharedBeers=previousBeers;
+                SetBotMatchSize(5);
             }
             // Leaving solo must also allow an ordinary real LAN session afterwards.
             ushort available;

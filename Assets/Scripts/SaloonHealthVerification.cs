@@ -52,26 +52,26 @@ namespace Saloon
                 Check(peer.Alive==(shot<5)&&peer.head.enabled==(shot<5),"only the fifth hit eliminates and disables hitboxes");
                 host.nextShot=0;Shoot();Check(peer.hp==expected&&host.shots==shot,"repeated trigger cannot bypass the action limit");
             }
-            Window(true);peer.role=Role.Deputy;Shoot();Check(host.hp==80&&peer.hp==80,"friendly fire removes exactly 20 percentage points from both players");
+            Window(true);peer.role=Role.Deputy;Shoot();Check(host.hp==100&&peer.hp==80&&!PrivateSnapshot(host.id).confirmedFriendly,"allied hits damage only the target and never certify allegiance");
             Window(true);peer.hp=7;Shoot();Check(peer.hp==0&&!peer.Alive,"a hit at partial health eliminates without negative HP");
             Window(true);host.hp=20;peer.hp=20;peer.role=Role.Deputy;Shoot();
-            Check(host.hp==0&&peer.hp==0&&!host.Alive&&!peer.Alive,"lethal friendly fire resolves both deaths at zero");
-            Window(true);host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;host.lastAction=-100;OnCommand(host.id,new Command{kind="drink"});
+            Check(host.hp==20&&peer.hp==0&&host.Alive&&!peer.Alive,"an allied kill never reflects lethal damage onto the shooter");
+            Window(true);host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;host.lastAction=-100;MoveToBeerTrayForVerification(host);OnCommand(host.id,new Command{kind="interact"});
             Check(host.hp==100&&host.beer==1&&!rounds.HasSpent(host.id),"full-health drinking preserves beer and action");
             float duration=tuning.drinkSeconds;tuning.drinkSeconds=.1f;
             foreach(int hp in new[]{20,80,95})
             {
-                Window(true);host.hp=hp;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;OnCommand(host.id,new Command{kind="drink"});
+                Window(true);host.hp=hp;host.beer=1;host.beerHealing=SaloonHealth.BeerHealing;MoveToBeerTrayForVerification(host);OnCommand(host.id,new Command{kind="interact"});
                 Check(host.hp==hp&&host.busyAction=="drink","beer does not heal before the drinking timer completes");
                 yield return new WaitForSeconds(.2f);
                 Check(host.hp==Math.Min(100,hp+20)&&host.beer==0&&host.busyAction=="","completed drink heals 20 points, capped at 100%, from "+hp+"%");
             }
             foreach(int hp in new[]{20,80,95,100})
             {
-                Window(true);peer.hp=hp;peer.busyAction="giftDrink";peer.drinkHealing=SaloonHealth.BeerHealing;peer.drinkReady=Time.time;peer.busyUntil=Time.time+.1f;
+                Window(true);peer.hp=hp;peer.busyAction="drink";peer.drinkHealing=SaloonHealth.BeerHealing;peer.drinkReady=Time.time;peer.busyUntil=Time.time+.1f;
                 yield return new WaitForSeconds(.2f);
-                Check(peer.hp==Math.Min(100,hp+20)&&peer.busyAction=="","gifted beer heals once and respects the 100% cap from "+hp+"%");
-                TickServer();Check(peer.hp==Math.Min(100,hp+20),"completed gifted beer cannot heal a second time");
+                Check(peer.hp==Math.Min(100,hp+20)&&peer.busyAction=="","drinking beer heals once and respects the 100% cap from "+hp+"%");
+                TickServer();Check(peer.hp==Math.Min(100,hp+20),"completed drinking beer cannot heal a second time");
             }
             tuning.drinkSeconds=duration;
             Window(true);host.hp=80;peer.hp=40;Broadcast();MenuOpen=false;

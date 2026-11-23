@@ -32,9 +32,9 @@ namespace Saloon
         public void Initialize(SaloonGame owner)
         {
             art=new SaloonCardArt();
-            oak=Mat("Blackjack walnut",new Color(.22f,.105f,.047f),.25f);
-            rail=Mat("Blackjack leather rail",new Color(.13f,.065f,.042f),.18f);
-            felt=Mat("Blackjack green baize",new Color(.045f,.20f,.145f),0);
+            oak=Mat("Blackjack walnut",new Color(.38f,.18f,.075f),.25f);
+            rail=Mat("Blackjack leather rail",new Color(.25f,.105f,.055f),.18f);
+            felt=Mat("Blackjack green baize",new Color(.035f,.38f,.24f),0);
             brass=Mat("Blackjack brass inlay",new Color(.69f,.50f,.24f),.5f);
             BuildFurniture();
             board=new GameObject("Blackjack cards").transform;board.SetParent(transform,false);board.position=Center;
@@ -61,6 +61,9 @@ namespace Saloon
         float CenterBoardHeight;
         public void Apply(Snapshot snapshot,PlayerView self)
         {
+            // The wire correctly removes minigame controls after actions. Retain
+            // the last physical hand until players actually leave their rooms.
+            if(snapshot?.phase==Phase.Aftermath&&self!=null&&self.room!=3)return;
             var next=snapshot?.duel?.game=="blackjack"?snapshot.duel:snapshot?.blackjackTable;
             if(snapshot?.phase!=Phase.Turns||self==null||next?.game!="blackjack")
             {ClearHand();return;}
@@ -74,25 +77,29 @@ namespace Saloon
                 if(direction.sqrMagnitude>.01f)board.rotation=Quaternion.LookRotation(direction);
             }
             board.position=new Vector3(Center.x,CenterBoardHeight,Center.z);
-            SyncCards(next.playerHand,false,newHand);SyncCards(next.dealerHand,true,newHand);
+            bool openingDeal=newHand&&next.stage=="dealing";
+            SyncCards(next.playerHand,false,openingDeal);SyncCards(next.dealerHand,true,openingDeal);
+            if(next.playerHighCard>=0)SyncCards(new[]{next.playerHighCard},false,false,true);
+            if(next.dealerHighCard>=0)SyncCards(new[]{next.dealerHighCard},true,false,true);
         }
-        void SyncCards(int[] hand,bool dealer,bool initial)
+        void SyncCards(int[] hand,bool dealer,bool initial,bool highCard=false)
         {
             if(hand==null)return;
             for(int i=0;i<hand.Length;i++)
             {
-                var card=cards.FirstOrDefault(c=>c.dealer==dealer&&c.index==i);
+                int index=highCard?-1:i;
+                var card=cards.FirstOrDefault(c=>c.dealer==dealer&&c.index==index);
                 if(card==null)
                 {
-                    var go=new GameObject(dealer?"Dealer card "+(i+1):"Player card "+(i+1));go.transform.SetParent(board,false);
+                    var go=new GameObject((dealer?"Dealer ":"Player ")+(highCard?"high card":"card "+(i+1)));go.transform.SetParent(board,false);
                     go.AddComponent<MeshFilter>().sharedMesh=art.Mesh;
-                    card=new Card{transform=go.transform,renderer=go.AddComponent<MeshRenderer>(),id=hand[i],index=i,dealer=dealer,born=Time.time+(initial?(i*2+(dealer?1:0))*.65f:0)};
+                    card=new Card{transform=go.transform,renderer=go.AddComponent<MeshRenderer>(),id=hand[i],index=index,dealer=dealer,born=Time.time+(initial?(i*2+(dealer?1:0))*.4f:0)};
                     cards.Add(card);card.renderer.sharedMaterials=new[]{art.Face(card.id),art.Back,art.Edge};
                 }
                 else if(card.id!=hand[i])
                 {bool flip=card.id<0;card.id=hand[i];card.renderer.sharedMaterials=new[]{art.Face(card.id),art.Back,art.Edge};if(flip)card.flipAt=Time.time;}
                 float spacing=Mathf.Min(.23f,1.03f/Mathf.Max(1,hand.Length-1));
-                card.destination=new Vector3((i-(hand.Length-1)*.5f)*spacing,.008f+i*.0014f,dealer?.235f:-.235f);
+                card.destination=highCard?new Vector3(0,.009f,dealer?.60f:-.60f):new Vector3((i-(hand.Length-1)*.5f)*spacing,.008f+i*.0014f,dealer?.235f:-.235f);
             }
         }
         void Update()
@@ -100,9 +107,9 @@ namespace Saloon
             if(!Visible)return;
             foreach(var card in cards)
             {
-                float t=Mathf.Clamp01((Time.time-card.born)/.7f),ease=1-Mathf.Pow(1-t,3);
+                float t=Mathf.Clamp01((Time.time-card.born)/.5f),ease=1-Mathf.Pow(1-t,3);
                 card.transform.localPosition=Vector3.Lerp(new Vector3(.62f,.065f,0),card.destination,ease)+Vector3.up*(Mathf.Sin(t*Mathf.PI)*.075f);
-                float roll=card.id<0?180:card.flipAt>Time.time-.65f?Mathf.Lerp(180,0,Mathf.SmoothStep(0,1,(Time.time-card.flipAt)/.65f)):0;
+                float roll=card.id<0?180:card.flipAt>Time.time-.5f?Mathf.Lerp(180,0,Mathf.SmoothStep(0,1,(Time.time-card.flipAt)/.5f)):0;
                 card.transform.localRotation=Quaternion.Euler(0,card.dealer?180:0,roll);
                 card.renderer.enabled=Time.time>=card.born;
                 if(!card.sounded&&t>.02f){card.sounded=true;audioSource.PlayOneShot(slide,.22f);}

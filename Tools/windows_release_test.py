@@ -11,7 +11,7 @@ import sys
 p = argparse.ArgumentParser()
 p.add_argument('--app', type=Path, required=True)
 p.add_argument('--logs', type=Path, required=True)
-p.add_argument('--suite', choices=['standard', 'rooms', 'stress', 'limited', 'smoke', 'lan'], default='standard')
+p.add_argument('--suite', choices=['release', 'standard', 'rooms', 'stress', 'limited', 'smoke', 'lan'], default='release')
 args = p.parse_args()
 if sys.platform != 'win32':
     p.error('This test must execute on Windows, not a cross-build host')
@@ -40,6 +40,10 @@ def run(name, command, timeout):
         # A timed-out harness must not leave game processes to affect later tests.
         subprocess.run(['taskkill', '/F', '/IM', app.name, '/T'],
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, check=False)
+    if name in ('release-features', 'breakables'):
+        log = (logs / (name + '.log')).read_text(encoding='utf-8', errors='replace') if (logs / (name + '.log')).exists() else ''
+        marker = 'SALOON_RELEASE_FEATURES PASS' if name == 'release-features' else 'SALOON_BREAKABLE PASS'
+        result['passed'] &= marker in log and 'Exception:' not in log
     if name == 'functional':
         log = (logs / 'functional.log').read_text(encoding='utf-8', errors='replace') if (logs / 'functional.log').exists() else ''
         result['passed'] &= 'SALOON_GAMEPLAY PASS' in log and 'Exception:' not in log
@@ -49,11 +53,17 @@ def run(name, command, timeout):
     (logs / 'results.json').write_text(json.dumps(results, indent=2), encoding='utf-8')
 
 
-if args.suite == 'standard':
+if args.suite in ('release', 'standard'):
+    if args.suite == 'release':
+        run('release-features', [str(app), '-batchmode', '-force-d3d11', '-force-warp', '-saloonTest', 'release-features',
+                                 '-saloonPort', '17988', '-logFile', str(logs / 'release-features.log')], 270)
+        run('breakables', [str(app), '-batchmode', '-force-d3d11', '-force-warp', '-saloonTest', 'breakables',
+                           '-saloonPort', '17989', '-logFile', str(logs / 'breakables.log')], 150)
     run('voice-controls', [str(app), '-batchmode', '-nographics', '-saloonTest', 'voice-controls',
                            '-saloonPort', '17986', '-logFile', str(logs / 'voice-controls.log')], 150)
-    run('functional', [str(app), '-batchmode', '-nographics', '-saloonTest', 'functional',
-                       '-saloonPort', '17987', '-logFile', str(logs / 'functional.log')], 120)
+    if args.suite == 'standard':
+        run('functional', [str(app), '-batchmode', '-nographics', '-saloonTest', 'functional',
+                           '-saloonPort', '17987', '-logFile', str(logs / 'functional.log')], 120)
     run('five-player', [sys.executable, str(tools / 'smoke_test.py'), '--app', str(app),
                         '--logs', str(logs / 'five-player'), '--port', '17992'], 100)
 if args.suite in ('standard', 'rooms'):
@@ -75,7 +85,7 @@ elif args.suite == 'stress':
     for name, options in [('impaired-separate', []), ('impaired-pair', ['--pair'])]:
         run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),
                    '--logs', str(logs / name), '--impaired', *options], 120)
-else:
+elif args.suite == 'limited':
     for name, options in [('limited-separate', []), ('limited-pair', ['--pair'])]:
         run(name, [sys.executable, str(tools / 'lan_room_test.py'), '--software-gpu', '--app', str(app),
                    '--logs', str(logs / name), '--limited', *options], 120)

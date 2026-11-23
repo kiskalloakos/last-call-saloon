@@ -1,11 +1,9 @@
 using System.Linq;
 using UnityEngine;
-using UnityEngine.Rendering;
 
 namespace Saloon
 {
-    // Two independently culled faces give a fixed viewing direction on every client.
-    // The solid collider is shared by both faces and never depends on the viewer.
+    // Retained for the separate training map's booth windows.
     public sealed class SaloonRoomWindow : MonoBehaviour
     {
         public int room,layoutVersion;
@@ -16,12 +14,11 @@ namespace Saloon
     public static class SaloonRoomWindows
     {
         public const float FrontZ=-1.7f,Bottom=.08f,Top=2.85f,Width=3.8f,RoomHeight=4.1f;
-        const int LayoutVersion=3;
+        public const string RootName="Solid minigame room walls";
+        const int LayoutVersion=6;
         public static void Apply()
         {
             var world=GameObject.Find("Saloon World");if(world==null)return;
-            var original=world.GetComponentsInChildren<Transform>(true).Where(t=>t.name=="Room screen").ToArray();
-            var wall=original.FirstOrDefault()?.GetComponent<Renderer>()?.sharedMaterial;
             foreach(var old in world.GetComponentsInChildren<Transform>(true).Where(t=>t.name=="Room screen"||t.name=="Room doorway lintel"||
                 ((t.name=="Door visual"||t.name=="Room door")&&Mathf.Abs(t.position.z-FrontZ)<.8f&&Mathf.Abs(t.position.x)>3)).ToArray())
             {if(old==null)continue;old.gameObject.SetActive(false);Remove(old.gameObject);}
@@ -30,60 +27,65 @@ namespace Saloon
                 var position=wallPart.position;position.y=RoomHeight/2;wallPart.position=position;
                 var scale=wallPart.localScale;scale.y=RoomHeight;wallPart.localScale=scale;
             }
-            var existing=world.transform.Find("One-way room windows");
+            SealRoomPerimeter(world);
+            SaloonExteriorWindows.Apply(world);
+            var glass=world.transform.Find("One-way room windows");
+            if(glass!=null){glass.gameObject.SetActive(false);Remove(glass.gameObject);}
+            var existing=world.transform.Find(RootName);
             if(existing!=null)
             {
-                var panes=existing.GetComponentsInChildren<SaloonRoomWindow>(true);
+                var panes=existing.GetComponentsInChildren<SaloonRoomWall>(true);
                 if(panes.Length==2&&panes.All(p=>p.layoutVersion==LayoutVersion))return;
-                existing.name="Retired room window layout";existing.gameObject.SetActive(false);Remove(existing.gameObject);
+                existing.name="Retired room wall layout";existing.gameObject.SetActive(false);Remove(existing.gameObject);
             }
-            if(wall==null)wall=SaloonWorld.Material("Room window plaster",new Color(.70f,.61f,.47f));
-            var root=new GameObject("One-way room windows").transform;root.SetParent(world.transform,false);
-            var timber=SaloonWorld.Material("Window walnut frame",new Color(.24f,.135f,.075f),.25f);
-            timber.mainTexture=Resources.Load<Texture2D>("Art/LowPoly/Textures/WoodPlanks");
-            var brass=SaloonWorld.Material("Window brass trim",new Color(.59f,.42f,.19f),.6f);
-            var glassShader=Resources.Load<Shader>("Shaders/SaloonWindowGlass");
-            if(glassShader==null)throw new System.InvalidOperationException("Missing room window glass shader.");
-            var clear=new Material(glassShader){name="Glass · outside sees into room",color=new Color(.30f,.48f,.49f,.10f)};
-            var privacy=SaloonWorld.Material("Glass · opaque from room interior",new Color(.10f,.17f,.18f),.94f);
-            privacy.SetFloat("_Metallic",.65f);
+            var wall=world.transform.Find("Room back").GetComponent<Renderer>().sharedMaterial;
+            var root=new GameObject(RootName).transform;root.SetParent(world.transform,false);
+            var interior=world.transform.Find("Western interior");
+            var timber=interior.GetComponentsInChildren<Renderer>().First(r=>r.sharedMaterial.name.Contains("Walnut joinery")).sharedMaterial;
             for(int room=1;room<=2;room++)
             {
                 float x=room==1?-5:5;
-                SaloonWorld.Box("Window lower wall",new Vector3(x,Bottom/2,FrontZ),new Vector3(4,Bottom,.18f),wall,root);
-                SaloonWorld.Box("Window upper wall",new Vector3(x,(Top+RoomHeight)/2,FrontZ),new Vector3(4,RoomHeight-Top,.18f),wall,root);
-                foreach(float edge in new[]{x-1.95f,x+1.95f})
-                    SaloonWorld.Box("Window wall post",new Vector3(edge,(Bottom+Top)/2,FrontZ),new Vector3(.1f,Top-Bottom,.18f),wall,root);
-                foreach(float edge in new[]{x-Width/2,x+Width/2})
-                    SaloonWorld.Box("Walnut window upright",new Vector3(edge,(Bottom+Top)/2,FrontZ),new Vector3(.075f,Top-Bottom+.10f,.24f),timber,root);
-                foreach(float height in new[]{Bottom,Top})
+                var panel=new GameObject(SaloonStations.Name(room)+" solid plaster wall");panel.transform.SetParent(root,false);
+                panel.transform.localPosition=new Vector3(x,RoomHeight/2,FrontZ);
+                var boundary=panel.AddComponent<SaloonRoomWall>();boundary.room=room;boundary.layoutVersion=LayoutVersion;
+                boundary.barrier=panel.AddComponent<BoxCollider>();boundary.barrier.size=new Vector3(4.18f,RoomHeight,.18f);
+                var face=Decoration("Continuous plaster",panel.transform.position,new Vector3(4.18f,RoomHeight,.18f),wall);
+                boundary.surface=face.GetComponent<Renderer>();
+                foreach(float side in new[]{-1f,1f})
                 {
-                    SaloonWorld.Box("Walnut window crosspiece",new Vector3(x,height,FrontZ),new Vector3(Width+.10f,.075f,.24f),timber,root);
-                    SaloonWorld.Box("Window brass beading",new Vector3(x,height,FrontZ+.129f),new Vector3(Width,.012f,.014f),brass,root);
+                    Decoration("Front wall walnut dado",new Vector3(x,.52f,FrontZ+side*.12f),new Vector3(4.18f,1.04f,.045f),timber);
+                    Decoration("Front wall chair rail",new Vector3(x,1.09f,FrontZ+side*.14f),new Vector3(4.18f,.075f,.09f),timber);
                 }
-                var panel=new GameObject(SaloonStations.Name(room)+" one-way glass");panel.transform.SetParent(root,false);panel.transform.position=new Vector3(x,(Bottom+Top)/2,FrontZ);
-                var window=panel.AddComponent<SaloonRoomWindow>();window.room=room;window.layoutVersion=LayoutVersion;
-                window.barrier=panel.AddComponent<BoxCollider>();window.barrier.size=new Vector3(Width,Top-Bottom,.12f);window.barrier.isTrigger=false;
-                window.outside=Face(panel.transform,"Outside · transparent",clear,.062f,180);
-                window.inside=Face(panel.transform,"Inside · privacy glass",privacy,-.062f,0);
+            }
+            SaloonSmokingArea.SetLayer(root,SaloonSmokingArea.IndoorLayer);
+            GameObject Decoration(string name,Vector3 position,Vector3 size,Material material)
+            {
+                var go=SaloonWorld.Box(name,position,size,material,root);
+                var collider=go.GetComponent<Collider>();collider.enabled=false;Remove(collider);return go;
+            }
+        }
+        static void SealRoomPerimeter(GameObject world)
+        {
+            // Upgrade saved worlds too: no corridor beside or behind either room.
+            if(world.transform.Find("Room perimeter infill")!=null)return;
+            var root=new GameObject("Room perimeter infill").transform;root.SetParent(world.transform,false);
+            var wall=world.transform.Find("Room back").GetComponent<Renderer>().sharedMaterial;
+            foreach(float side in new[]{-1f,1f})
+            {
+                SaloonWorld.Box("Room outer wall infill",new Vector3(side*7.5f,RoomHeight/2,-4.35f),
+                    new Vector3(1,RoomHeight,5.3f),wall,root);
+                SaloonWorld.Box("Room rear wall infill",new Vector3(side*5,RoomHeight/2,-6.35f),
+                    new Vector3(4,RoomHeight,1.3f),wall,root);
             }
             SaloonSmokingArea.SetLayer(root,SaloonSmokingArea.IndoorLayer);
         }
         static void Remove(Object obj){if(Application.isPlaying)Object.Destroy(obj);else Object.DestroyImmediate(obj);}
-        static Renderer Face(Transform parent,string name,Material material,float z,float yaw)
-        {
-            var go=GameObject.CreatePrimitive(PrimitiveType.Quad);go.name=name;go.transform.SetParent(parent,false);
-            go.transform.localPosition=new Vector3(0,0,z);go.transform.localScale=new Vector3(Width,Top-Bottom,1);go.transform.localRotation=Quaternion.Euler(0,yaw,0);
-            var collider=go.GetComponent<Collider>();collider.enabled=false;
-            if(Application.isPlaying)Object.Destroy(collider);else Object.DestroyImmediate(collider);
-            var renderer=go.GetComponent<Renderer>();renderer.sharedMaterial=material;renderer.shadowCastingMode=ShadowCastingMode.Off;renderer.receiveShadows=false;return renderer;
-        }
         public static Vector3 ClipShotTrail(Vector3 origin,Vector3 direction,float distance)
         {
             var end=origin+direction*distance;
             foreach(var hit in Physics.RaycastAll(origin,direction,distance,~0,QueryTriggerInteraction.Ignore))
             {
-                if(hit.collider.GetComponent<SaloonRoomWindow>()==null||hit.distance>=distance)continue;
+                if((hit.collider.GetComponent<SaloonRoomWall>()==null&&hit.collider.GetComponent<SaloonRoomWindow>()==null&&hit.collider.name!=SaloonExteriorWindows.PaneName)||hit.distance>=distance)continue;
                 distance=hit.distance;end=hit.point;
             }
             return end;

@@ -67,7 +67,7 @@ namespace Saloon
             Reset();host.chosenRoom=3;Ready();Inside();rounds.TrySpend(host.id,Time.time);Fire(host);
             Check(host.cigaretteBuff&&host.shots==0,"spent action cannot consume a buff without firing");
             Reset();host.chosenRoom=3;Ready();Inside();peer.role=Role.Deputy;peer.cigaretteBuff=true;Aim(Eye(peer));Fire(host);
-            Check(peer.hp==60&&host.hp==80&&!host.cigaretteBuff&&peer.cigaretteBuff,"friendly target takes 40, shooter penalty stays 20 and target keeps its own buff");
+            Check(peer.hp==60&&host.hp==100&&!host.cigaretteBuff&&peer.cigaretteBuff,"allied target takes boosted damage without reflection and retains its own buff");
             Reset();host.chosenRoom=3;Ready();Inside();peer.hp=30;Aim(Eye(peer));Fire(host);
             Check(peer.hp==0&&!peer.Alive&&Wire(host).confirmedKill,"buffed lethal hit clamps health at zero and confirms elimination");
             Reset();host.chosenRoom=3;Ready();Inside();host.hp=20;TakeDamage(host);Broadcast();

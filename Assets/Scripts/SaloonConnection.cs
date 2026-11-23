@@ -45,7 +45,7 @@ namespace Saloon
         {
             foreach(var key in identities.Where(x=>x.Value==id).Select(x=>x.Key).ToArray())identities.Remove(key);
         }
-        void SetIdentityPayload()=>Manager.NetworkConfig.ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-15/"+Application.version+"/"+reconnectToken);
+        void SetIdentityPayload()=>Manager.NetworkConfig.ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-36/"+Application.version+"/"+reconnectToken);
         bool disconnectRequested;
         float lastFrameAt;
         public bool Busy { get; private set; }
@@ -74,20 +74,20 @@ namespace Saloon
             Manager = go.AddComponent<NetworkManager>();
             var transport = go.AddComponent<UnityTransport>();
             transport.MaxPacketQueueSize=1024;
-            Debug.Log("SALOON_BUILD version="+Application.version+" guid="+Application.buildGUID+" platform="+Application.platform+" protocol=state-15 utc="+DateTime.UtcNow.ToString("O"));
+            Debug.Log("SALOON_BUILD version="+Application.version+" guid="+Application.buildGUID+" platform="+Application.platform+" protocol=state-36 utc="+DateTime.UtcNow.ToString("O"));
             Manager.NetworkConfig = new NetworkConfig
             {
                 NetworkTransport = transport,
                 EnableSceneManagement = false,
                 ConnectionApproval = true,
-                ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-15/"+Application.version),
+                ConnectionData=Encoding.UTF8.GetBytes("LastCall/state-36/"+Application.version),
                 TickRate = 30,
                 ClientConnectionBufferTimeout = 15
             };
             Manager.ConnectionApprovalCallback = (request, response) =>
             {
                 string payload=Encoding.UTF8.GetString(request.Payload);
-                string prefix="LastCall/state-15/"+Application.version+"/";
+                string prefix="LastCall/state-36/"+Application.version+"/";
                 string token=payload.StartsWith(prefix)?payload.Substring(prefix.Length):"";
                 bool matching=Guid.TryParseExact(token,"N",out _);
                 bool known=identities.TryGetValue(token,out ulong stable);
@@ -95,7 +95,9 @@ namespace Saloon
                 bool room=Accepting&&(!known||resume)&&identities.Count<SaloonRules.LobbyCapacity;
                 response.Approved=matching&&(resume||room);
                 response.CreatePlayerObject=false;response.Pending=false;
-                response.Reason=!matching?"Different game version. Use "+Application.version+" on both devices.":"This place is unavailable or the reconnect window has expired.";
+                response.Reason=!matching?"Different game build or protocol. Use the same updated "+Application.version+" build on every device."
+                    :!known&&identities.Count>=SaloonRules.LobbyCapacity?"The room is full (8 players)."
+                    :"This place is unavailable or the reconnect window has expired.";
                 if(response.Approved)
                 {
                     if(!resume){stable=request.ClientNetworkId;identities[token]=stable;}
@@ -120,7 +122,9 @@ namespace Saloon
                 string reason=Manager.DisconnectReason;
                 Debug.LogWarning("SALOON_NET disconnect utc="+DateTime.UtcNow.ToString("O")+" peer="+id+" host="+Hosting+" event="+Manager.DisconnectEvent+
                     " age="+SnapshotAge.ToString("F2")+" lastState="+snapshotReceiver.LastSequence+" reason="+reason);
-                bool localLost=id==LocalId||!Manager.IsListening;
+                // NGO callback IDs are transport IDs; LocalId is the stable seat
+                // reclaimed after reconnect and can differ on the second loss.
+                bool localLost=id==Manager.LocalClientId||!Manager.IsListening;
                 if(localLost&&!disconnectRequested&&string.IsNullOrEmpty(LastDisconnectDetails))
                 {
                     LastDisconnectDetails="Last Call "+Application.version+" / "+Application.platform+" / build "+Application.buildGUID+
@@ -240,7 +244,7 @@ namespace Saloon
                     var options = new SessionOptions { MaxPlayers = SaloonRules.LobbyCapacity, IsPrivate = true, Name = "Saloon playtest" }.WithRelayNetwork();
                     session = await MultiplayerService.Instance.CreateSessionAsync(options);
                 }
-                else session = await MultiplayerService.Instance.JoinSessionByCodeAsync(code.Trim().ToUpperInvariant());
+                else session = await JoinCloudRoom(code.Trim().ToUpperInvariant());
                 RoomCode = session.Code;
                 Status = "Online room " + RoomCode;
             }
@@ -252,6 +256,29 @@ namespace Saloon
                 registered = false;
             }
             finally { Busy = false; }
+        }
+
+        async Task<ISession> JoinCloudRoom(string code)
+        {
+            for(int attempt=0;;attempt++)
+            {
+                try{return await MultiplayerService.Instance.JoinSessionByCodeAsync(code);}
+                catch(Exception e) when(attempt<3&&CloudRateLimited(e))
+                {
+                    Status="Online room is busy. Retrying join ("+(attempt+1)+"/3)…";
+                    Debug.LogWarning("SALOON_CLOUD_JOIN retry="+(attempt+1)+" reason=rate-limit");
+                    await Task.Delay(1500*(1<<attempt)+UnityEngine.Random.Range(0,750));
+                    if(this==null||!Application.isPlaying)throw new OperationCanceledException();
+                }
+            }
+        }
+
+        static bool CloudRateLimited(Exception error)
+        {
+            for(var current=error;current!=null;current=current.InnerException)
+                if(current is SessionException sessionError&&sessionError.Error==SessionError.RateLimitExceeded||
+                    current is Unity.Services.Lobbies.LobbyServiceException lobby&&lobby.Reason==Unity.Services.Lobbies.LobbyExceptionReason.RateLimited)return true;
+            return false;
         }
 
         public static async Task EnsureServices()

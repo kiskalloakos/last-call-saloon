@@ -76,14 +76,14 @@ public static class SaloonProject
         Assert(SaloonRules.Winner(new[]{Role.Sheriff,Role.Deputy})=="LAW WINS","Law victory");
         Assert(SaloonRules.Winner(new[]{Role.Sheriff,Role.Renegade})=="","Renegade prevents premature law victory");
         Assert(SaloonRules.Winner(new[]{Role.Renegade})=="RENEGADE WINS — LAST STANDING","Renegade wins as last survivor");
-        Assert(SaloonRules.Winner(new[]{Role.Outlaw,Role.Renegade})=="","Sheriff death does not resolve the heist");
-        Assert(SaloonRules.Winner(new[]{Role.Deputy,Role.Renegade})=="","Deputy can continue defending");
+        Assert(SaloonRules.Winner(new[]{Role.Outlaw,Role.Renegade})=="OUTLAWS WIN — SHERIFF DEAD","Sheriff death awards Outlaws");
+        Assert(SaloonRules.Winner(new[]{Role.Deputy,Role.Renegade})=="OUTLAWS WIN — SHERIFF DEAD","Renegade must leave Sheriff until last");
         Assert(SaloonRules.Winner(SaloonRules.Deck)=="","Full deck does not finish immediately");
         Assert(SaloonRules.Deck.Count(r=>r==Role.Outlaw)==2&&SaloonRules.Deck.Length==5,"Role deck");
-        Assert(SaloonRules.DeckFor(4).Length==4&&Enum.GetValues(typeof(Role)).Cast<Role>().Where(r=>r!=Role.Unknown).All(r=>SaloonRules.DeckFor(4).Count(v=>v==r)==1),"Four-player deck has one of each role");
+        Assert(new[]{Role.Renegade,Role.Swindler}.All(independent=>SaloonRules.DeckFor(4,independent).SequenceEqual(new[]{Role.Sheriff,Role.Deputy,Role.Outlaw,independent})),"Four-player deck has Sheriff, Deputy, Outlaw and one selected independent");
         Assert(SaloonRules.DeckFor(5).Count(r=>r==Role.Outlaw)==2,"Five-player deck has two Outlaws");
-        Assert(SaloonRules.LobbyCapacity==8&&SaloonRules.SupportedMatchSize(4)&&SaloonRules.SupportedMatchSize(5)&&!SaloonRules.SupportedMatchSize(3)&&!SaloonRules.SupportedMatchSize(6)&&!SaloonRules.SupportedMatchSize(8),"Eight lobby places; four/five-player starts only");
-        Assert(!SaloonRules.Guide(Role.Outlaw,4).Goal.Contains("other Outlaw")&&SaloonRules.Guide(Role.Outlaw,4).Warning.Contains("no teammate"),"Four-player Outlaw guide has no teammate");
+        Assert(SaloonRules.LobbyCapacity==8&&SaloonRules.SupportedMatchSize(4)&&SaloonRules.SupportedMatchSize(5)&&!SaloonRules.SupportedMatchSize(3)&&SaloonRules.SupportedMatchSize(6)&&SaloonRules.SupportedMatchSize(7)&&SaloonRules.SupportedMatchSize(8)&&!SaloonRules.SupportedMatchSize(9),"Four-to-eight-player matches");
+        Assert(!SaloonRules.Guide(Role.Outlaw,4).Goal.Contains("other Outlaw")&&SaloonRules.Guide(Role.Outlaw,4).Goal.Contains("only Outlaw"),"Four-player Outlaw guide has no teammate");
         foreach(string model in new[]{"Art/tableRound","Art/chair","Art/stoolBar","Art/bookcaseOpen","Art/WineBarrel","Art/Character/characterMedium"})
             Assert(Resources.Load<GameObject>(model)!=null,"Imported model "+model);
         Assert(Resources.Load<Texture2D>("Art/BarrelDiffuse")!=null,"Poly Haven barrel texture");
@@ -154,17 +154,53 @@ public static class SaloonProject
             Debug.Log("SALOON_RELEASE_BUILD PASS "+target+" "+report.summary.totalSize+" bytes");
         }
     }
-    public const string ReleaseVersion="0.2.17";
+    public const string ReleaseVersion="0.3.0";
     [MenuItem("Saloon/Build current downloadable release")]
     public static void BuildCurrentRelease()
+        =>BuildRelease(BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64);
+
+    public static void BuildCurrentMacRelease()=>BuildRelease(BuildTarget.StandaloneOSX);
+    public static void BuildCurrentWindowsRelease()=>BuildRelease(BuildTarget.StandaloneWindows64);
+
+    // Local test binary, separate from the downloadable release and its version settings.
+    public static void BuildMultiplayerVerification()
+        =>BuildMultiplayerVerificationTarget(BuildTarget.StandaloneOSX);
+
+    public static void BuildMultiplayerVerificationWindows()
+    {
+        var standalone=UnityEditor.Build.NamedBuildTarget.Standalone;
+        int previous=PlayerSettings.GetArchitecture(standalone);
+        try{PlayerSettings.SetArchitecture(standalone,0);BuildMultiplayerVerificationTarget(BuildTarget.StandaloneWindows64);}
+        finally{PlayerSettings.SetArchitecture(standalone,previous);}
+    }
+
+    static void BuildMultiplayerVerificationTarget(BuildTarget target)
+    {
+        EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
+        string path=target==BuildTarget.StandaloneOSX?"Builds/MultiplayerVerification/macOS/Last Call.app":"Builds/MultiplayerVerification/Windows/Last Call.exe";
+        Directory.CreateDirectory(Path.GetDirectoryName(path));
+        var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions
+        {
+            scenes=new[]{ScenePath},locationPathName=path,target=target,
+            options=BuildOptions.Development
+        });
+        if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Multiplayer verification build failed: "+report.summary.result);
+        Debug.Log("SALOON_MULTIPLAYER_BUILD PASS "+report.summary.totalSize+" bytes");
+    }
+
+    static void BuildRelease(params BuildTarget[] targets)
     {
         if(EditorApplication.isPlaying)throw new InvalidOperationException("Stop Play mode before building.");
         EnsureRuntimeShaders();SaloonWesternCharacter.Prepare();Verify();SaloonRoundVerification.VerifyClock();
-        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber="17";AssetDatabase.SaveAssets();
-        foreach(var target in new[]{BuildTarget.StandaloneOSX,BuildTarget.StandaloneWindows64,BuildTarget.StandaloneLinux64})
+        var version=new Version(ReleaseVersion);
+        PlayerSettings.bundleVersion=ReleaseVersion;PlayerSettings.macOS.buildNumber=(version.Major*10000+version.Minor*100+version.Build).ToString();
+        AssetDatabase.SaveAssets();
+        foreach(var target in targets)
         {
             bool mac=target==BuildTarget.StandaloneOSX;
-            string path="Builds/"+ReleaseVersion+(mac?"/macOS/Last Call.app":target==BuildTarget.StandaloneLinux64?"/Linux/Last Call.x86_64":"/Windows/Last Call.exe");
+            var standalone=UnityEditor.Build.NamedBuildTarget.Standalone;
+            PlayerSettings.SetArchitecture(standalone,mac?2:0); // Universal on macOS, x64 on Windows.
+            string path="Builds/"+ReleaseVersion+(mac?"/macOS/Last Call.app":"/Windows/Last Call.exe");
             Directory.CreateDirectory(Path.GetDirectoryName(path));
             var report=BuildPipeline.BuildPlayer(new BuildPlayerOptions{scenes=new[]{ScenePath},locationPathName=path,target=target,options=BuildOptions.Development});
             if(report.summary.result!=BuildResult.Succeeded)throw new Exception("Release build failed: "+target+" "+report.summary.result);

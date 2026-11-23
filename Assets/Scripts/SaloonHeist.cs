@@ -6,75 +6,108 @@ namespace Saloon
 {
     public partial class SaloonGame
     {
-        int safeProgress;
+        // Three shared theft steps; at most one completes per round.
+        int safeProgress,drawerRevision;
         bool verifying;
         static readonly int[] PracticeRoomCycle={0,1,1,2,3};
         void ResetHeist()
         {
-            safeProgress=0;lastSafeWorkRound=0;pendingOutcome="";BartenderMenuOpen=false;bartenderBarShots=0;bartenderArrived=false;bartenderArrivedAt=-100;
+            ResetToiletDuty();ResetBreakables();
+            safeProgress=drawerRevision=lastSafeWorkRound=0;medicalRoom=medicalRound=0;pendingOutcome="";
             botSafeRoutes.Clear();
-            foreach(var p in players.Values){p.storyProgress=StoryProgress.None;p.storySeenDead.Clear();p.bag=false;p.escapeRound=0;p.botThink=0;p.botAimAt=-1;p.giftUntil=0;p.inspectedProgress=-1;p.safeReport="";p.bartenderUsed=false;p.bartenderQuestion=p.bartenderAnswer="";p.evidence.Clear();p.safeWatch.Clear();}
+            foreach(var p in players.Values)
+            {p.storyProgress=StoryProgress.None;p.personalVictory=false;p.storySeenDead.Clear();p.bag=false;p.bagRound=0;p.escapeRound=0;p.escapePlanned=false;p.botThink=0;p.botAimAt=-1;p.giftUntil=0;p.inspectedProgress=p.inspectedRevision=-1;p.safeReport="";p.evidence.Clear();p.safeWatch.Clear();}
         }
-        void BeginRobbery(Participant p)
+        void BeginRobbery(Participant p)=>BeginDrawerCheck(p,true);
+        void InspectSafe(Participant p)=>BeginDrawerCheck(p,false);
+        void BeginDrawerCheck(Participant p,bool steal)
         {
-            if(!SaloonRules.CanRob(p.role)){p.notice="Only Outlaws can rob or collect the money.";return;}
-            if(phase!=Phase.Turns||p.room!=0){p.notice="The safe is at the bar. Work it during room actions.";return;}
-            if(p.bag){p.notice="You already carry the money.";return;}
-            if(!AtSafe(p)){p.notice="Walk up to the safe, then press H on your turn. F stands; WASD moves.";return;}
-            if(!SpendAction(p,tuning.robberySeconds))return;
-            p.busyAction="rob";p.busyUntil=Time.time+tuning.robberySeconds;p.notice="Working quietly — a shot will interrupt you.";
-            // No global notification. Only attentive, living bar witnesses can collect a private clue.
+            if(phase!=Phase.Turns||p.room!=0||!p.Alive||!SaloonRules.CanInspectSafe(p.role))
+            {p.notice="Check the cash drawer at the Bar during room actions.";return;}
+            if(steal&&!SaloonRules.CanRob(p.role)){p.notice="Only Outlaws can take the money.";return;}
+            if(steal&&p.bag){p.notice="You already carry the money. Plan your escape next discussion.";return;}
+            if(steal&&lastSafeWorkRound==rounds.Round){p.notice="The drawer was already worked this round. Try again next round.";return;}
+            if(!AtSafe(p)){p.notice="Walk to the cash drawer beside the beer tray. C checks it; Outlaws can use H to work the drawer.";return;}
+            if(!SpendAction(p,SaloonRules.DrawerInteractionSeconds))return;
+            p.busyAction=steal?"rob":"inspect";p.drawerStarted=Time.time;p.busyUntil=Time.time+SaloonRules.DrawerInteractionSeconds;
+            p.drawn=false;p.fireAfterDraw=false;p.pendingShot=null;CancelShotCharge(p);p.move=Vector2.zero;
+            var direction=SaloonArt.SafePosition-p.body.transform.position;
+            p.bodyYaw=p.yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;p.pitch=0;
+            p.notice="Checking the cash drawer. Stay nearby for two seconds.";
         }
-        void InspectSafe(Participant p)
+        void CompleteInspection(Participant p)
         {
-            if(phase!=Phase.Turns||p.room!=0||p.role!=Role.Sheriff){p.notice="Only the Sheriff can inspect the safe, at the bar.";return;}
-            if(!AtSafe(p)){p.notice="Walk up to the safe, then press C on your turn. F stands; WASD moves.";return;}
-            if(!SpendAction(p))return;
-            int previous=p.inspectedProgress;
-            p.inspectedProgress=safeProgress;
-            string state=players.Values.Any(x=>x.Alive&&x.bag)?"money missing":safeProgress==3?"open · money inside":safeProgress==0?"sealed · money inside":"tampered with · money inside";
-            string marks=safeProgress==0?"No tool marks.":previous<0?"Tool marks from round "+lastSafeWorkRound+".":safeProgress>previous?"New tool marks since your last check (round "+lastSafeWorkRound+").":"No new tool marks since your last check.";
-            p.safeReport="Round "+rounds.Round+" check · "+state+". "+marks;
-            NoteEvidence(p,p.safeReport);p.notice="Inspection complete. Hold Tab to read your clues.";
+            if(!p.Alive||p.room!=0||phase!=Phase.Turns||!AtSafe(p))return;
+            string state=safeProgress>=SaloonRules.DrawerWorkSteps?"money missing":safeProgress>0?"money present · drawer tampered with":"money present";
+            string change=p.inspectedRevision<0?"First inspection.":p.inspectedRevision!=drawerRevision?"The drawer changed since your last inspection.":"No change since your last inspection.";
+            p.inspectedProgress=safeProgress;p.inspectedRevision=drawerRevision;
+            p.safeReport="Round "+rounds.Round+" drawer check · "+state+". "+change;
+            NoteEvidence(p,p.safeReport);p.notice="Drawer checked. Hold Tab to read your private report.";
         }
         void CompleteRobbery(Participant p)
         {
-            if(!SaloonRules.CanRob(p.role)||!p.Alive||p.room!=0||phase!=Phase.Turns)return;
-            if(!AtSafe(p)){p.notice="Safe work interrupted. Stay next to the safe while working.";return;}
-            if(players.Values.Any(x=>x.bag&&x.Alive)){p.notice="Nothing recovered from the safe.";return;}
-            // Safe work belongs to the Outlaw team, even when a partner is elsewhere
-            // or temporarily disconnected. The money still has a single carrier.
-            foreach(var outlaw in players.Values.Where(x=>SaloonRules.CanRob(x.role)))
-                outlaw.storyProgress|=StoryProgress.SafeWork;
-            safeProgress=Mathf.Min(3,safeProgress+1);lastSafeWorkRound=rounds.Round;
-            if(safeProgress==3){p.bag=true;p.notice="You collected the money. X next round to declare escape.";}
-            else p.notice="Safe work completed: "+safeProgress+" / 3.";
+            if(!SaloonRules.CanRob(p.role)||!p.Alive||p.room!=0||phase!=Phase.Turns||!AtSafe(p))return;
+            // Competing and empty-drawer attempts look identical and spend an action.
+            if(players.Values.Any(x=>x.bag&&x.Alive)){p.notice="The drawer is empty.";return;}
+            if(lastSafeWorkRound==rounds.Round){p.notice="The drawer was already worked this round. Try again next round.";return;}
+            safeProgress++;drawerRevision++;lastSafeWorkRound=rounds.Round;
+            foreach(var outlaw in players.Values.Where(x=>SaloonRules.CanRob(x.role)))outlaw.storyProgress|=StoryProgress.SafeWork;
+            if(safeProgress<SaloonRules.DrawerWorkSteps){p.notice="Drawer work "+safeProgress+" / "+SaloonRules.DrawerWorkSteps+". Continue next round.";return;}
+            p.bag=true;p.bagRound=rounds.Round;
+            p.notice="Money taken. Choose Attempt escape during the next discussion.";
         }
         void DeclareEscape(Participant p)
         {
-            if(!SaloonRules.CanRob(p.role)){p.notice="Only Outlaws can escape with the money.";return;}
-            if(phase!=Phase.Turns||p.room!=0||!p.bag){p.notice="Carry the money at the bar to declare an escape.";return;}
-            if(p.escapeRound>0){p.notice="Escape is already pending. Survive the next action phase at the bar.";return;}
-            if(!SaloonPosse.CanEscape(rounds.Round)){p.notice="The posse arrives after this round. An escape needs one more round; it is too late to start.";return;}
-            if(rounds.HasSpent(p.id)){p.notice="Your action is spent. X next round to declare escape.";return;}
-            if(!SpendAction(p))return;
-            p.escapeRound=rounds.Round;p.notice="Escape pending. Keep the bag and choose the bar next round.";
+            if(p.toiletDuty){p.notice="The accepted solo mission replaces this round's escape plan.";return;}
+            if(!p.Alive||!SaloonRules.CanRob(p.role)||!p.bag)
+            {p.notice="Carry the money as an Outlaw to plan an escape.";return;}
+            if(phase!=Phase.Discussion&&phase!=Phase.Choosing)
+            {p.notice="Choose Attempt escape during discussion, before room actions start.";return;}
+            if(p.bagRound>=rounds.Round){p.notice="Plan the escape in the discussion after taking the money.";return;}
+            if(p.escapePlanned)return;
+            SetRoomPlan(p,0,null);rounds.SetReady(p.id,false);p.planSelected=true;p.escapePlanned=true;
+            rounds.HoldDiscussionUntil(Time.time+10);
+            AddEvent(p.name+" plans to escape. Guard the Bar to stop the attempt.");
+            p.notice="Escape announced. Everyone can change rooms before the attempt. Lock your Bar plan.";
+        }
+        void BeginPlannedEscapes()
+        {
+            if(phase!=Phase.Turns)return;
+            foreach(var p in players.Values)
+            {
+                bool planned=p.escapePlanned;p.escapePlanned=false;p.escapeRound=0;
+                if(!planned||!p.Alive||!SaloonRules.CanRob(p.role)||!p.bag||p.bagRound>=rounds.Round||p.room!=0||!rounds.IsReady(p.id))continue;
+                p.escapeRound=rounds.Round;p.notice="Escape underway. You still have one action. Stay at Bar and avoid every headshot until actions end.";
+                AddEvent(p.name+" is attempting to escape! One headshot stops the attempt.");
+            }
+        }
+        void CancelEscapeOnHit(Participant p)
+        {
+            if(p.escapeRound<=0||p.escapeRound!=rounds.Round)return;
+            p.escapeRound=0;
+            p.notice="Escape interrupted. Keep the money and try again next discussion.";
+            AddEvent(p.name+"'s escape was stopped.");
+        }
+        void ReturnDrawerMoney(Participant p)
+        {
+            if(!p.bag)return;
+            safeProgress=0;drawerRevision++;lastSafeWorkRound=rounds.Round;
         }
         void ResolveEscapes()
         {
-            var escaped=players.Values.FirstOrDefault(p=>SaloonRules.CanRob(p.role)&&p.Alive&&p.bag&&p.room==0&&p.escapeRound>0&&rounds.Round>p.escapeRound);
-            if(escaped!=null)QueueFinish("OUTLAWS WIN — MONEY ESCAPED");
+            if((phase!=Phase.Turns&&phase!=Phase.Aftermath)||!string.IsNullOrEmpty(pendingOutcome))return;
+            var escaped=players.Values.FirstOrDefault(p=>SaloonRules.CanRob(p.role)&&p.Alive&&p.bag&&p.room==0&&p.escapeRound==rounds.Round&&p.escapeRound>0);
+            if(escaped==null)return;
+            // Only Bar players can stop the escape. Let all of them, including
+            // the carrier, finish their action before skipping to the results.
+            if(phase==Phase.Turns&&players.Values.Any(p=>p.Alive&&p.room==0&&(!rounds.HasSpent(p.id)||p.busyUntil>Time.time)))return;
+            Finish("OUTLAWS WIN — MONEY ESCAPED");
         }
-        void ResolveRoundEnding()
-        {
-            // A completed escape on the final round beats the arrival; terminal shots keep their result.
-            ResolveEscapes();
-            if(string.IsNullOrEmpty(pendingOutcome)&&SaloonPosse.Arrives(rounds.Round))
-                QueueFinish(SaloonPosse.ArrivalOutcome(players.Values.Where(p=>p.Alive).Select(p=>p.role)));
-        }
+        void ResolveRoundEnding(){ResolveEscapes();}
         bool Enemies(Participant a,Participant b)
         {
-            if(a.role==Role.Renegade)return a!=b&&(b.role==Role.Outlaw||!players.Values.Any(p=>p.Alive&&p.role==Role.Outlaw));
+            if(a.role==Role.Renegade)return a!=b&&(b.role!=Role.Sheriff||!players.Values.Any(p=>p!=a&&p!=b&&p.Alive))&&
+                (b.role==Role.Outlaw||!players.Values.Any(p=>p.Alive&&p.role==Role.Outlaw));
             if(a.role==Role.Outlaw)return b.role!=Role.Outlaw;
             return b.role==Role.Outlaw||b.role==Role.Renegade;
         }
@@ -85,22 +118,28 @@ namespace Saloon
             var bots=players.Values.Where(p=>p.bot&&p.Alive).OrderBy(p=>p.id).ToArray();
             foreach(var p in bots)
             {
+                if(p.room==SaloonBathroom.Room)continue;
                 if(phase==Phase.Turns&&p.room==3){if(Time.time-p.smokeAt>6)TrySmoke(p);continue;}
                 if(phase==Phase.Turns&&duels.TryGetValue(p.room,out var duel)&&!duel.flipping&&Time.time>=duel.choiceUntil-duel.coinChoiceSeconds+(p.room==1?3:1))
                     ClaimCoin(p,UnityEngine.Random.Range(0,2));
-                if(phase==Phase.Turns&&p.busyAction=="pour")
-                {if(Time.time-p.pourStarted>=p.botPourSeconds)OnCommand(p.id,new Command{kind="interact"});continue;}
-                if(phase==Phase.Turns&&p.beerChoiceUntil>Time.time&&p.beer>0)
-                {OnCommand(p.id,new Command{kind="drink"});continue;}
                 if(phase==Phase.Turns&&!DuelAllows(p))continue;
                 if(phase!=Phase.Turns||!rounds.CanAct(p.id,Time.time)||p.busyUntil>Time.time||Time.time<p.botThink)continue;
                 if(p.botThink==0){p.botThink=Time.time+1.2f+(p.id%5)*.4f;continue;}
                 p.lastAction=-100;
+                if(p.role!=Role.Swindler&&p.hp<tuning.health&&MedicalChoice(p)){UseMedicalSupplies(p);continue;}
+                // This practice AI cannot bluff. A Swindler presents a drawn gun
+                // to invite suspicion, but does not shoot or heal away its objective.
+                if(p.role==Role.Swindler)
+                {
+                    if(!p.drawn)OnCommand(p.id,new Command{kind="draw"});
+                    else OnCommand(p.id,new Command{kind="pass"});
+                    continue;
+                }
                 var targets=players.Values.Where(x=>x.Alive&&x.room==p.room&&Enemies(p,x)).OrderByDescending(x=>x.bag||x.escapeRound>0).ThenBy(x=>x.hp).ToArray();
                 var target=targets.FirstOrDefault();
-                if(p.hp<=SaloonHealth.RevolverDamage&&p.beer>0){OnCommand(p.id,new Command{kind="drink"});continue;}
+                if(BotWantsBeer(p)){if(NearBeerTray(p))OnCommand(p.id,new Command{kind="interact"});continue;}
                 bool law=p.role==Role.Sheriff||p.role==Role.Deputy;
-                if(SaloonRules.CanRob(p.role)&&p.bag&&p.escapeRound==0&&p.room==0&&SaloonPosse.CanEscape(rounds.Round)){DeclareEscape(p);continue;}
+
                 bool shoot=target!=null&&(law||p.role==Role.Renegade||target.bag||target.escapeRound>0||target.hp<=SaloonHealth.RevolverDamage||p.room!=0||p.bag);
                 if(shoot)
                 {
@@ -111,151 +150,26 @@ namespace Saloon
                     if(!p.drawn){OnCommand(p.id,new Command{kind="draw"});continue;}
                     if(Time.time<p.botAimAt)continue;
                     p.botAimAt=-1;
-                    if(p.ammo==0)OnCommand(p.id,new Command{kind="reload"});else OnCommand(p.id,new Command{kind="fire"});
+                    if(!p.UnlimitedAmmo&&p.ammo<=0)OnCommand(p.id,new Command{kind="reload"});else OnCommand(p.id,new Command{kind="fire"});
                 }
-                else if(SaloonRules.CanRob(p.role)&&p.room==0&&!p.bag&&!players.Values.Any(x=>x.Alive&&x.bag))
+                else if(BotWantsSafe(p))
                 {if(AtSafe(p))BeginRobbery(p);}
-                else if(p.room==0&&p.hp<tuning.health&&p.beer==0&&beers>0)OnCommand(p.id,new Command{kind="interact"});
-                else if(p.hp<tuning.health&&p.beer>0)OnCommand(p.id,new Command{kind="drink"});
                 else OnCommand(p.id,new Command{kind="pass"});
             }
         }
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         System.Collections.IEnumerator VerifyHeist()
-        {
-            void Check(bool ok,string text){if(!ok){VerificationFinished=true;Debug.LogError("SALOON_HEIST FAIL "+text);throw new InvalidOperationException(text);}Debug.Log("SALOON_HEIST_CHECK "+text);}
-            var witness=players[Connection.LocalId];var robber=players.Values.First(p=>p.bot);var outsider=players.Values.First(p=>p.bot&&p!=robber);
-            var remaining=players.Values.Where(p=>p!=witness&&p!=robber&&p!=outsider).ToArray();var otherRobber=remaining[0];var renegade=remaining[1];
-            witness.role=Role.Sheriff;robber.role=otherRobber.role=Role.Outlaw;outsider.role=Role.Deputy;renegade.role=Role.Renegade;
-            void Window()
-            {
-                pendingOutcome="";
-                foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=60;p.deathAt=-1;p.controller.enabled=false;p.hitbox.enabled=true;}
-                rounds.Start(players.Keys,Time.time-1,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear(); // Isolate heist commands; group authorization has its own fixture.
-                // Keep the real work target in reach, with an unobstructed shot from the witness.
-                witness.controller.enabled=robber.controller.enabled=otherRobber.controller.enabled=false;
-                witness.body.transform.position=new Vector3(2,.35f,2.05f);
-                robber.body.transform.position=new Vector3(3.6f,.35f,2.05f);
-                otherRobber.body.transform.position=SafeApproach;
-                outsider.controller.enabled=renegade.controller.enabled=false;
-                outsider.body.transform.position=new Vector3(1,.35f,-.3f);renegade.body.transform.position=new Vector3(3,.35f,-.3f);
-                Physics.SyncTransforms();
-            }
-            ResetHeist();tuning.robberySeconds=.2f;Window();
-            foreach(var role in new[]{Role.Sheriff,Role.Deputy,Role.Renegade})
-            {
-                witness.role=role;witness.lastAction=-100;witness.busyUntil=0;witness.busyAction="";
-                OnCommand(witness.id,new Command{kind="rob"});
-                Check(witness.busyAction==""&&safeProgress==0&&rounds.CanAct(witness.id,Time.time),role+" cannot start robbery or spend an action on H");
-                CompleteRobbery(witness);Check(safeProgress==0&&!witness.bag,role+" cannot complete or collect money through a stale robbery");
-                witness.bag=true;witness.lastAction=-100;OnCommand(witness.id,new Command{kind="escape"});
-                Check(witness.escapeRound==0&&rounds.CanAct(witness.id,Time.time)&&!PrivateSnapshot(witness.id).escapePending,role+" cannot declare escape even with injected money state");
-                witness.bag=false;
-            }
-            witness.role=Role.Sheriff;outsider.room=otherRobber.room=1;
-            BeginRobbery(otherRobber);Check(rounds.CanAct(otherRobber.id,Time.time)&&safeProgress==0,"Outlaw side-room work rejected without spending action");otherRobber.room=0;
-            int eventsBefore=events.Count;robber.drawn=true;BeginRobbery(robber);
-            Check(robber.busyAction=="rob"&&robber.drawn,"silent robbery preserves the visible weapon pose");
-            var observer=PrivateSnapshot(witness.id).players.First(p=>p.id==robber.id.ToString());
-            Check(!observer.robbing&&!observer.moneyBag&&!observer.busy,"same-room observer receives no robbery animation or busy flag");
-            Check(PrivateSnapshot(robber.id).players.First(p=>p.id==robber.id.ToString()).robbing,"worker receives their own private progress state");
-            var hidden=PrivateSnapshot(outsider.id);Check(!hidden.players.First(p=>p.id==robber.id.ToString()).robbing&&hidden.safeProgress==-1,"other rooms receive no robbery state or progress");
-            Check(events.Count==eventsBefore,"robbery creates no global event");
-            BeginRobbery(robber);Check(!rounds.CanAct(robber.id,Time.time),"robbery consumes the single action");
-            yield return new WaitForSeconds(.3f);Check(safeProgress==1,"timer completion advances one safe step");
-            Window();BeginRobbery(robber);witness.drawn=true;witness.yaw=90;witness.pitch=0;witness.nextShot=0;witness.lastAction=-100;Fire(witness);
-            Check(robber.hp==40&&robber.busyAction=="","real shot interrupts the working player");
-            yield return new WaitForSeconds(.3f);Check(safeProgress==1,"interruption grants no safe progress");
-            Window();BeginRobbery(otherRobber);yield return new WaitForSeconds(.3f);Check(safeProgress==2,"the other Outlaw continues shared progress across action windows");
-            Window();BeginRobbery(robber);yield return new WaitForSeconds(.3f);Check(safeProgress==3&&robber.bag,"third completed work action collects the money");
-            outsider.room=1;Check(!PrivateSnapshot(outsider.id).players.First(p=>p.id==robber.id.ToString()).moneyBag,"bag possession is not broadcast outside the room");
-            Check(!PrivateSnapshot(witness.id).players.First(p=>p.id==robber.id.ToString()).moneyBag,"bag possession is also hidden from roommates");
-            Window();BeginRobbery(otherRobber);Check(otherRobber.busyAction=="rob"&&!rounds.CanAct(otherRobber.id,Time.time),"Outlaw empty-safe probing costs a full action instead of leaking money state for free");
-            yield return new WaitForSeconds(.3f);Check(!otherRobber.bag&&otherRobber.notice=="Nothing recovered from the safe.","empty-safe attempt reveals no carrier identity");
-            Window();robber.role=Role.Outlaw;DeclareEscape(robber);ResolveEscapes();Check(phase==Phase.Turns&&robber.escapeRound==1,"escape does not win in the declaration round");
-            foreach(var p in players.Values)rounds.TrySpend(p.id,Time.time);TickServer();
-            yield return new WaitForSeconds(4.15f);Check(rounds.Round==2,"escape crosses aftermath and regroup into a full response round");
-            foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear();
-            foreach(var role in new[]{Role.Sheriff,Role.Deputy,Role.Renegade})
-            {
-                robber.role=role;ResolveEscapes();Check(phase==Phase.Turns&&pendingOutcome=="",role+" cannot resolve an escape or win with injected money state");
-            }
-            robber.role=Role.Outlaw;
-            foreach(var p in players.Values)rounds.TrySpend(p.id,Time.time);TickServer();
-            Check(phase==Phase.Aftermath&&pendingOutcome=="OUTLAWS WIN — MONEY ESCAPED","escape result waits for aftermath");
-            yield return new WaitForSeconds(3.15f);
-            Check(phase==Phase.Finished&&outcome=="OUTLAWS WIN — MONEY ESCAPED","surviving next action phase resolves faction escape win");
-            Window();robber.bag=true;robber.escapeRound=1;robber.chosenRoom=otherRobber.chosenRoom=1;PositionEveryone(false);Check(robber.escapeRound==0,"leaving the bar cancels escape");
-            Check(SaloonRules.Winner(new[]{Role.Deputy,Role.Outlaw})=="","Sheriff death is not an Outlaw victory");
-            Check(SaloonRules.Winner(new[]{Role.Renegade})=="RENEGADE WINS — LAST STANDING"&&SaloonRules.Winner(new[]{Role.Outlaw,Role.Renegade})=="","Renegade wins only as the sole survivor");
-            ResetHeist();Window();witness.role=Role.Sheriff;robber.role=Role.Outlaw;outsider.role=Role.Deputy;
-            outsider.drawn=true;outsider.botThink=Time.time-1;outsider.ammo=6;
-            foreach(var p in players.Values.Where(p=>p.bot&&p!=outsider))p.botThink=Time.time+100;
-            int shots=outsider.shots;TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(outsider.shots==shots+1&&!rounds.CanAct(outsider.id,Time.time),"practice Law bot aims and fires a legal real shot instead of passing");
-            Window();robber.role=Role.Outlaw;robber.botThink=Time.time-1;
-            foreach(var p in players.Values.Where(p=>p.bot&&p!=robber))p.botThink=Time.time+100;
-            TickPracticeBots();Check(robber.busyAction=="rob","practice criminal works the safe toward victory");
-            ResetHeist();Window();renegade.drawn=true;renegade.ammo=6;renegade.nextShot=0;renegade.botThink=Time.time-1;
-            foreach(var p in players.Values.Where(p=>p.bot&&p!=renegade))p.botThink=Time.time+100;
-            int lawHealth=witness.hp+outsider.hp;int outlawHealth=robber.hp+otherRobber.hp;shots=renegade.shots;
-            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&robber.hp+otherRobber.hp==outlawHealth-SaloonHealth.RevolverDamage&&witness.hp+outsider.hp==lawHealth&&renegade.busyAction!="rob","practice Renegade attacks Outlaws first and never robs");
-            Window();robber.hp=otherRobber.hp=0;robber.hitbox.enabled=otherRobber.hitbox.enabled=false;
-            renegade.drawn=true;renegade.ammo=6;renegade.nextShot=0;renegade.botThink=Time.time-1;outsider.botThink=Time.time+100;
-            lawHealth=witness.hp+outsider.hp;shots=renegade.shots;
-            TickPracticeBots();yield return new WaitForSeconds(.32f);TickPracticeBots();Check(renegade.shots==shots+1&&witness.hp+outsider.hp==lawHealth-SaloonHealth.RevolverDamage,"practice Renegade turns on the Law after all Outlaws are dead");
-            tuning.robberySeconds=3;Debug.Log("SALOON_HEIST PASS");
-        }
+        {yield return VerifyCashDrawer();VerificationFinished=VerificationPassed=false;}
+
 #endif
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
         System.Collections.IEnumerator VerifyBeerGift()
         {
-            void Check(bool ok,string text){if(!ok){VerificationFinished=true;Debug.LogError("SALOON_BEER FAIL "+text);throw new InvalidOperationException(text);}Debug.Log("SALOON_BEER_CHECK "+text);}
-            var giver=players[Connection.LocalId];var recipient=players.Values.First(p=>p.bot);
-            void Window()
-            {
-                pendingOutcome="";
-                foreach(var p in players.Values){p.chosenRoom=0;p.companion=null;p.hp=60;p.deathAt=-1;p.hitbox.enabled=true;}
-                rounds.Start(players.Keys,Time.time-1,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear();
-                giver.beer=1;giver.beerHealing=SaloonHealth.BeerHealing;giver.yaw=90;giver.pitch=0;giver.lastAction=-100;recipient.beer=0;recipient.hp=20;recipient.yaw=-90;
-            }
-            tuning.handoffSeconds=.15f;tuning.drinkSeconds=.4f;Window();Give(giver);
-            Check(giver.beer==0&&recipient.busyAction=="giftDrink"&&!rounds.CanAct(giver.id,Time.time),"handoff spends giver action and beer");
-            Check(rounds.CanAct(recipient.id,Time.time),"receiving a gift does not spend recipient action");
-            Check(!PrivateSnapshot(recipient.id).players.First(p=>p.id==recipient.id.ToString()).drinking,"recipient waits for beer arrival");
-            yield return new WaitForSeconds(.23f);
-            Check(PrivateSnapshot(recipient.id).players.First(p=>p.id==recipient.id.ToString()).drinking,"recipient begins synchronized first/third person drinking after arrival");
-            yield return new WaitForSeconds(.4f);Check(recipient.hp==40&&recipient.busyAction=="","received beer heals 20% health after drinking completes (health="+recipient.hp+", quality="+recipient.drinkHealing+", busy="+recipient.busyAction+")");
-            Window();Give(giver);yield return new WaitForSeconds(.2f);
-            var shooter=players.Values.First(p=>p.bot&&p!=recipient);shooter.drawn=true;shooter.ammo=6;shooter.nextShot=0;
-            var direction=Eye(recipient)-Eye(shooter);shooter.yaw=Mathf.Atan2(direction.x,direction.z)*Mathf.Rad2Deg;shooter.pitch=0;
-            Fire(shooter);Check(recipient.hp==0&&recipient.busyAction=="","shot interrupts gifted beer");
-            yield return new WaitForSeconds(.5f);Check(recipient.hp==0,"interrupted gift never heals or revives");
-            var sound=SaloonBeerAudio.Drinking;var wave=new float[sound.samples];sound.GetData(wave,0);
-            Check(wave.All(v=>!float.IsNaN(v)&&Mathf.Abs(v)<=1)&&wave.Any(v=>Mathf.Abs(v)>.02f),"recorded drinking sound contains valid audible samples");
-            Check(SaloonBeerAudio.Handoff.length>.1f,"handoff clink generated");
-            tuning.handoffSeconds=.65f;tuning.drinkSeconds=2.5f;
-#if UNITY_EDITOR
-            // Exercise actual snapshot delivery and rendered avatars at normal alpha timings.
-            Window();Give(giver);yield return new WaitForSeconds(.3f);
-            Check(UnityEngine.Object.FindObjectsByType<Transform>(FindObjectsSortMode.None).Any(t=>t.name=="Mug visual"&&t.parent==null),"snapshot delivery creates a travelling handoff mug");
-            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/BeerHandoffPreview.png"));
-            yield return new WaitForSeconds(1.2f);
-            var remoteAvatar=avatars[recipient.id.ToString()];
-            var remoteMug=remoteAvatar.transform.Find("Mug visual");
-            Check(remoteMug!=null&&remoteMug.gameObject.activeInHierarchy&&remoteMug.localPosition.y>.95f&&remoteAvatar.GetComponents<AudioSource>().Any(a=>a.clip==sound&&a.isPlaying),"remote avatar raises mug and plays positional drinking audio");
-            Check((remoteMug.localRotation*Vector3.up).z<-.8f,"third-person rim tips toward the drinker, not away");
-            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/BeerThirdPersonPreview.png"));
-            yield return new WaitForSeconds(1.9f);
-            Window();giver.beer=0;giver.hp=20;recipient.beer=1;recipient.beerHealing=SaloonHealth.BeerHealing;recipient.hp=60;recipient.yaw=-90;recipient.lastAction=-100;
-            Give(recipient);yield return new WaitForSeconds(1.5f);
-            var localMug=ViewCamera.transform.Find("Mug visual");
-            Check(localMug!=null&&localMug.gameObject.activeInHierarchy&&localMug.localPosition.y>-.18f&&avatars[giver.id.ToString()].GetComponents<AudioSource>().Any(a=>a.clip==sound&&a.isPlaying&&a.spatialBlend==0),"local recipient sees raised first-person mug and hears drinking audio");
-            Check((localMug.localRotation*Vector3.up).z<-.8f,"first-person rim tips toward the camera, not the mug base");
-            ScreenCapture.CaptureScreenshot(System.IO.Path.Combine(Application.dataPath,"../Documentation/BeerFirstPersonPreview.png"));
-            yield return new WaitForSeconds(1.9f);Check(giver.hp==40,"bot-to-human gift heals after first-person animation");
-#endif
+            // Keep the existing automation entry point, exercising the replacement flow.
+            yield return VerifyBarAndBeer();
             Debug.Log("SALOON_BEER PASS");
         }
+
 #endif
     }
 }

@@ -22,13 +22,11 @@ namespace Saloon
             foreach(var p in players.Values){p.hp=60;p.deathAt=-1;p.hitbox.enabled=true;}
             rounds.Start(players.Keys,Time.time-1,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear();
             Check(players.Values.All(p=>string.IsNullOrEmpty(PrivateSnapshot(p.id).ally)&&PrivateSnapshot(p.id).players.All(v=>SaloonRules.KnowsRole(p.role,players[ulong.Parse(v.id)].role)?v.revealedRole==players[ulong.Parse(v.id)].role.ToString():string.IsNullOrEmpty(v.revealedRole))),"role labels follow recipient permissions; legacy ally field stays empty");
-            host.beer=0;host.hp=20;host.beerPickupRound=-1;host.lastAction=-100;int supply=beers;Interact(host);
-            Check(host.busyAction=="pour"&&beers==supply-1&&rounds.HasSpent(host.id),"beer pouring spends the action and one supply");
-            Interact(host);Check(host.busyAction=="pour"&&beers==supply-1,"duplicate pour cannot drain supply");
-            host.pourStarted=Time.time-SaloonBeerPour.FullSeconds;StopPour(host);
-            tuning.drinkSeconds=.2f;host.lastAction=-100;OnCommand(host.id,new Command{kind="drink"});
-            Check(host.busyAction=="drink"&&host.beer==0&&!rounds.CanAct(host.id,Time.time),"same-round self-drinking continues the pour action");
-            yield return new WaitForSeconds(.3f);Check(host.hp==40,"self-drinking heals after taking beer in the same round");tuning.drinkSeconds=2.5f;
+            host.controller.enabled=false;host.body.transform.position=new Vector3(SaloonBeerTaps.Position.x,.08f,2.05f);host.controller.enabled=true;host.seat=-1;
+            host.beer=0;host.hp=20;host.lastAction=-100;int supply=beers;float drinkSeconds=tuning.drinkSeconds;tuning.drinkSeconds=.2f;Interact(host);
+            Check(host.busyAction=="drink"&&beers==supply-1&&rounds.HasSpent(host.id),"E drinks a ready beer using one action and one supply");
+            Interact(host);Check(host.busyAction=="drink"&&beers==supply-1,"duplicate E cannot drain supply");
+            yield return new WaitForSeconds(.3f);Check(host.hp==40,"ready beer heals after drinking completes");tuning.drinkSeconds=drinkSeconds;
             rounds.Start(players.Keys,Time.time-1,1,30,6,1,1);foreach(var id in players.Keys)rounds.SetReady(id,true);rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);roomTurns.Clear();
             host.drawn=true;host.yaw=90;host.pitch=0;host.nextShot=0;host.ammo=6;Fire(host);Broadcast();
             yield return new WaitForSeconds(.4f);

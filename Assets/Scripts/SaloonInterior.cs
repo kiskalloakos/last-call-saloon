@@ -12,7 +12,10 @@ namespace Saloon
         public static void Apply(GameObject world)
         {
             var previous=world.transform.Find("Western interior");
-            if(previous!=null&&previous.Find("Lantern interior v2")!=null){SaloonLighting.Apply(world);return;}
+            if(previous!=null)
+                foreach(var old in previous.GetComponentsInChildren<Transform>(true).Where(t=>t.name=="Tap drip tray"||t.name=="Brass beer tower"||t.name=="Tap spout"||t.name=="Tap handle").ToArray())
+                {old.gameObject.SetActive(false);Remove(old.gameObject);}
+            if(previous!=null&&previous.Find("Lantern interior v5")!=null){SaloonLighting.Apply(world);return;}
             if(previous!=null){previous.gameObject.SetActive(false);Remove(previous.gameObject);}
             root=new GameObject("Western interior").transform;root.SetParent(world.transform,false);
             var texture=Resources.Load<Texture2D>("Art/LowPoly/Textures/WoodPlanks");
@@ -28,6 +31,8 @@ namespace Saloon
                 var renderer=child.GetComponent<Renderer>();
                 if(child.name=="Bar visual"||child.name=="Shelf visual"||child.name=="Bottle"||child.name=="Bottle neck"||child.name=="Brass foot rail")
                     foreach(var r in child.GetComponentsInChildren<Renderer>(true))r.enabled=false;
+                if(child.name=="Bottle"||child.name=="Bottle neck"||child.name=="bookcaseOpen")
+                    foreach(var collider in child.GetComponentsInChildren<Collider>(true))collider.enabled=false;
                 if(renderer!=null&&(child.name.Contains("wall")||child.name.StartsWith("Room "))&&child.GetComponent<Collider>()!=null)renderer.sharedMaterial=cream;
                 if(child.name=="stoolBar")
                 {
@@ -37,7 +42,7 @@ namespace Saloon
             }
             Counter();Backbar();WallDetails();
             BatchGeometry();
-            new GameObject("Lantern interior v2").transform.SetParent(root,false);
+            new GameObject("Lantern interior v5").transform.SetParent(root,false);
             SaloonLighting.Apply(world);
         }
 
@@ -81,14 +86,6 @@ namespace Saloon
                 Box("Foot rail bracket",new Vector3(x,.24f,3.1f),new Vector3(.035f,.055f,.31f),brass);
                 Cylinder("Rail socket",new Vector3(x,.17f,3.23f),new Vector3(.075f,.12f,.075f),brass);
             }
-            Box("Tap drip tray",new Vector3(1.6f,1.444f,3.51f),new Vector3(.62f,.018f,.36f),brass);
-            for(int i=0;i<2;i++)
-            {
-                float x=1.43f+i*.31f;
-                Cylinder("Brass beer tower",new Vector3(x,1.64f,3.79f),new Vector3(.075f,.21f,.075f),brass);
-                var spout=Cylinder("Tap spout",new Vector3(x,1.78f,3.68f),new Vector3(.045f,.12f,.045f),brass);spout.transform.localRotation=Quaternion.Euler(90,0,0);
-                Box("Tap handle",new Vector3(x,1.91f,3.74f),new Vector3(.065f,.21f,.055f),walnut);
-            }
         }
         static void Backbar()
         {
@@ -113,10 +110,16 @@ namespace Saloon
                     {
                         float x=center-1.06f+bottle*.35f,height=.22f+((bay+bottle+shelf)%3)*.035f;
                         var material=colors[(bottle+bay+shelf)%colors.Length];var position=new Vector3(x,y+.04f,6.34f);
-                        Cylinder("Backbar bottle",position+Vector3.up*(height*.5f),new Vector3(.105f,height*.5f,.105f),material);
-                        Cylinder("Bottle label",position+Vector3.up*(height*.48f),new Vector3(.108f,height*.14f,.108f),label);
-                        Cylinder("Bottle neck",position+Vector3.up*(height+.045f),new Vector3(.048f,.045f,.048f),material);
-                        Cylinder("Bottle stopper",position+Vector3.up*(height+.095f),new Vector3(.052f,.012f,.052f),brass);
+                        var bottleRoot=new GameObject("Breakable backbar bottle").transform;bottleRoot.SetParent(root,false);
+                        var parts=new[]{
+                            Cylinder("Backbar bottle",position+Vector3.up*(height*.5f),new Vector3(.105f,height*.5f,.105f),material),
+                            Cylinder("Bottle label",position+Vector3.up*(height*.48f),new Vector3(.108f,height*.14f,.108f),label),
+                            Cylinder("Bottle neck",position+Vector3.up*(height+.045f),new Vector3(.048f,.045f,.048f),material),
+                            Cylinder("Bottle stopper",position+Vector3.up*(height+.095f),new Vector3(.052f,.012f,.052f),brass)};
+                        foreach(var part in parts)part.transform.SetParent(bottleRoot,true);
+                        var target=bottleRoot.gameObject.AddComponent<BoxCollider>();target.center=position+Vector3.up*((height+.11f)*.5f);
+                        target.size=new Vector3(.108f,height+.11f,.108f);
+                        bottleRoot.gameObject.AddComponent<SaloonBreakable>().id=100+(bay*3+shelf)*7+bottle;
                     }
                 }
             }
@@ -129,7 +132,6 @@ namespace Saloon
                 Box("Room picture rail",new Vector3(center,1.09f,-5.53f),new Vector3(3.9f,.075f,.09f),oak);
                 foreach(float x in new[]{center-1.87f,center+1.87f})
                 {Box("Room side dado",new Vector3(x,.52f,-3.78f),new Vector3(.05f,1.04f,3.55f),walnut);Box("Room side cap",new Vector3(x,1.09f,-3.78f),new Vector3(.09f,.075f,3.55f),oak);}
-                Picture(new Vector3(center,2.02f,-5.43f),center<0?new Color(.35f,.13f,.065f):new Color(.16f,.30f,.29f));
             }
             foreach(float x in new[]{-7.74f,7.74f})
             {
@@ -137,18 +139,10 @@ namespace Saloon
                 for(int i=0;i<7;i++)Box("Main wall panel stile",new Vector3(x,.60f,-.8f+i*1.10f),new Vector3(.12f,1.12f,.07f),walnut);
             }
         }
-        static void Picture(Vector3 position,Color color)
-        {
-            var art=SaloonWorld.Material("Western wall print",color,.05f);
-            Box("Picture frame",position,new Vector3(.93f,.64f,.075f),walnut);
-            Box("Picture mat",position+Vector3.forward*.044f,new Vector3(.81f,.52f,.018f),cream);
-            Box("Picture field",position+Vector3.forward*.058f,new Vector3(.72f,.43f,.012f),art);
-            var sun=Cylinder("Print medallion",position+new Vector3(.18f,.045f,.072f),new Vector3(.17f,.006f,.17f),brass);sun.transform.localRotation=Quaternion.Euler(90,0,0);
-        }
         static void Remove(Object obj){if(Application.isPlaying)Object.Destroy(obj);else Object.DestroyImmediate(obj);}
         static void BatchGeometry()
         {
-            var pieces=root.GetComponentsInChildren<MeshFilter>();
+            var pieces=root.GetComponentsInChildren<MeshFilter>().Where(p=>p.GetComponentInParent<SaloonBreakable>()==null);
             foreach(var group in pieces.GroupBy(p=>p.GetComponent<Renderer>().sharedMaterial))
             {
                 var mesh=new Mesh{name="Western interior · "+group.Key.name};mesh.indexFormat=IndexFormat.UInt32;

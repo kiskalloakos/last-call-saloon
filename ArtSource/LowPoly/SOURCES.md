@@ -11,3 +11,5 @@ Imported 2026-11-07. Exported runtime derivatives are under Assets/Resources/Art
 No downloaded scripts are executed. Blender is run with --disable-autoexec.
 
 Active weapon: Colt lowpoly revolver by TimDev, https://opengameart.org/content/colt-lowpoly-revolver , CC BY 4.0 https://creativecommons.org/licenses/by/4.0/ . Adapted FBX/texture. Attribution in Resources/AssetCredits.txt and pause menu. Earlier Lucian Pavel model is evaluated source only.
+
+Cleanup 2026-11-23: unused WRAD Arms, ale mug and evaluated Lucian Pavel revolver downloads were removed. Origin and license citations above are retained as provenance; the active weapon remains the TimDev Colt.

@@ -29,9 +29,11 @@ namespace Saloon
             Discussion();foreach(var p in players.Values){p.chosenRoom=0;rounds.SetReady(p.id,true);}
             rounds.Tick(Time.time,id=>true);phase=rounds.Phase;PositionEveryone(false);
             Check(!roomTurns.ContainsKey(0)&&players.Values.All(p=>DuelAllows(p)&&PrivateSnapshot(p.id).actionAvailable),"all Bar actions are available concurrently");
-            host.role=Role.Outlaw;host.bag=true;DeclareEscape(host);
-            Check(host.escapeRound==rounds.Round&&rounds.HasSpent(host.id)&&bots.All(p=>!rounds.HasSpent(p.id)),"escape can be declared before any other Bar player acts");
-            Check(PrivateSnapshot(host.id).roomTurn==null&&bots.All(p=>PrivateSnapshot(p.id).actionAvailable),"declaring escape creates no queue or wait for the other players");
+            Discussion();host.role=Role.Outlaw;host.bag=true;host.bagRound=rounds.Round-1;DeclareEscape(host);
+            foreach(var p in players.Values){p.chosenRoom=0;rounds.SetReady(p.id,true);}
+            rounds.Tick(rounds.DiscussionHeldUntil,id=>true);phase=rounds.Phase;PositionEveryone(false);BeginPlannedEscapes();
+            Check(host.escapeRound==rounds.Round&&!rounds.HasSpent(host.id)&&bots.All(p=>!rounds.HasSpent(p.id)),"escape preserves the carrier and every other Bar player's action");
+            Check(PrivateSnapshot(host.id).roomTurn==null&&players.Values.All(p=>PrivateSnapshot(p.id).actionAvailable),"declaring escape creates no queue or wait for any player");
 
             void Shot(Role shooter,Role target,int hp=60,int targetHp=60)
             {
@@ -44,15 +46,15 @@ namespace Saloon
             foreach(var pair in new[]{(Role.Deputy,Role.Sheriff),(Role.Sheriff,Role.Deputy),(Role.Outlaw,Role.Outlaw)})
             {
                 Shot(pair.Item1,pair.Item2);
-                Check(host.hp==40&&peer.hp==40&&host.ammo==5&&!rounds.CanAct(host.id,Time.time),pair+" friendly shot costs shooter and target 20% health, one bullet and one action");
-                host.nextShot=0;Fire(host);Check(host.hp==40&&peer.hp==40,"rejected second shot cannot apply another penalty");
+                Check(host.hp==60&&peer.hp==40&&host.ammo==5&&!rounds.CanAct(host.id,Time.time),pair+" allied shot damages only target and costs one bullet and action");
+                host.nextShot=0;Fire(host);Check(host.hp==60&&peer.hp==40,"rejected second shot cannot cause more damage");
             }
             foreach(var pair in new[]{(Role.Sheriff,Role.Outlaw),(Role.Deputy,Role.Renegade),(Role.Outlaw,Role.Deputy),(Role.Renegade,Role.Sheriff),(Role.Renegade,Role.Outlaw)})
             {
                 Shot(pair.Item1,pair.Item2);Check(host.hp==60&&peer.hp==40,pair+" enemy shot has no friendly-fire penalty");
             }
             Shot(Role.Deputy,Role.Sheriff,20,20);
-            Check(!host.Alive&&!peer.Alive&&!host.hitbox.enabled&&!peer.hitbox.enabled&&!host.drawn&&host.hp==0&&peer.hp==0,"lethal friendly shot eliminates both players cleanly");
+            Check(host.Alive&&!peer.Alive&&host.hitbox.enabled&&!peer.hitbox.enabled&&host.hp==20&&peer.hp==0,"an allied kill eliminates only the target");
             Broadcast();yield return null;
             Debug.Log("SALOON_PRACTICE PASS");
         }
