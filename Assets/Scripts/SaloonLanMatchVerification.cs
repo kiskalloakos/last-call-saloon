@@ -14,6 +14,7 @@ namespace Saloon
         int expectedAmmoAfterShot;
         bool host,online,codeWritten,started,connected,planSent,stanceSent,stood,moved,actionSent,actionSeen,drawSent,beerSent,reported,privacy;
         float began,roomAt,nextCommand,quitAt,drawAt,discussionAt,outageSeconds,walkAt;Vector3 origin;
+        int beerRoute;float beerAisleX;
         string Arg(string key,string fallback){var args=Environment.GetCommandLineArgs();int n=Array.IndexOf(args,key);return n>=0&&n+1<args.Length?args[n+1]:fallback;}
         void Start()
         {
@@ -88,7 +89,7 @@ namespace Saloon
             {
                 if(roomAt==0)
                 {
-                    roomAt=Time.unscaledTime;initialHealth=self.health;
+                    roomAt=Time.unscaledTime;initialHealth=self.health;beerRoute=0;beerAisleX=Mathf.Floor(self.x)+.5f;
                     expectedAmmoAfterShot=view.ammo-(view.UnlimitedAmmo?0:1);
                     Debug.Log("SALOON_LAN_MATCH_PHASE index="+index+" round="+round+" Turns room="+self.room);
                 }
@@ -138,7 +139,12 @@ namespace Saloon
                         if(self.seated){Game.Act("stance");nextCommand=Time.unscaledTime+.2f;}
                         else if(!SaloonBeerTaps.WithinReach(new Vector3(self.x,self.y,self.z),Game.tuning.interactionDistance))
                         {
-                            var direction=Vector3.ProjectOnPlane(SaloonBeerTaps.Position-new Vector3(self.x,self.y,self.z),Vector3.up).normalized;
+                            // Walk through a stool gap and along the public aisle; a direct
+                            // diagonal to the tray can run into another player or stool.
+                            var current=new Vector3(self.x,self.y,self.z);
+                            var waypoint=beerRoute==0?new Vector3(beerAisleX,self.y,1.35f):new Vector3(SaloonBeerTaps.Position.x,self.y,1.35f);
+                            if(Vector3.ProjectOnPlane(waypoint-current,Vector3.up).magnitude<.15f)beerRoute=1;
+                            var direction=Vector3.ProjectOnPlane(waypoint-current,Vector3.up).normalized;
                             var local=Quaternion.Euler(0,-self.yaw,0)*direction;
                             Game.Connection.Send(new Command{kind="input",x=local.x,z=local.z,yaw=self.yaw,pitch=self.pitch,poseVersion=self.poseVersion});
                         }
@@ -162,7 +168,7 @@ namespace Saloon
             if(view.phase==Phase.Aftermath&&(completedMask&(1<<round))==0)
             {
                 bool ok=actionSeen&&(round!=1||(stood&&moved))&&(round!=2||index>=4||self.health<SaloonHealth.Maximum);
-                if(!ok){Report(false,"round "+round+" action/movement/health not acknowledged health="+self.health+" action="+actionSeen+" stood="+stood+" moved="+moved+" sent="+actionSent+" beer="+view.carriedBeer+" notice="+view.notice);return;}
+                if(!ok){Report(false,"round "+round+" action/movement/health not acknowledged health="+self.health+" action="+actionSeen+" stood="+stood+" moved="+moved+" sent="+actionSent+" beer="+view.carriedBeer+" position="+new Vector3(self.x,self.y,self.z)+" seated="+self.seated+" route="+beerRoute+" notice="+view.notice);return;}
                 completedMask|=1<<round;Debug.Log("SALOON_LAN_MATCH_ROUND PASS index="+index+" round="+round+" health="+self.health);
             }
         }

@@ -27,8 +27,8 @@ namespace Saloon
             {
                 foreach(var p in players.Values){p.hp=100;p.role=Role.Deputy;p.chosenRoom=0;p.companion=null;p.busyAction="";p.busyUntil=0;p.lastAction=-100;p.nextShot=0;p.drawn=true;p.ammo=6;}
                 players[Connection.LocalId].role=Role.Sheriff;players[peers[0].LocalId].role=Role.Outlaw;
-                rounds.Start(players.Keys,Time.time,30,30,0);foreach(var id in players.Keys)rounds.SetReady(id,true);TickServer();
-                foreach(var p in players.Values)Place(p,new Vector3(-6+(int)p.id*.5f,.08f,-.5f));
+                rounds.Start(players.Keys,Time.time,30,30,0);phase=rounds.Phase;foreach(var id in players.Keys)rounds.SetReady(id,true);TickServer();
+                foreach(var p in players.Values){p.drawn=true;Place(p,new Vector3(-6+(int)p.id*.5f,.08f,-.5f));}
             }
             void Aim(Participant p,Vector3 point)
             {var angle=Quaternion.LookRotation(point-Eye(p)).eulerAngles;p.yaw=angle.y;p.pitch=Mathf.DeltaAngle(0,angle.x);Physics.SyncTransforms();}
@@ -69,7 +69,14 @@ namespace Saloon
                 var hit=Target(shooter,65);
                 Check(hit?.collider.GetComponentInParent<SaloonBreakable>()==bottleTarget,"bottles can be shot from the public Bar over the visible counter (hit "+hit?.collider.name+")");
                 WindowPreview(Eye(shooter),point,32,"breakable-bottle-before");
-                peers[0].Send(new Command{kind="fire"});yield return Wait(()=>bottleTarget.Broken,"a real UDP shot breaks an individual bottle");
+                // Quick-fire spread can legitimately miss a narrow bottle. Exercise
+                // the same charged accurate shot a human uses for a precise target.
+                int sequence=shooter.shotChargeSequence+1;
+                peers[0].Send(new Command{kind="chargeShot",shotSequence=sequence,shotRound=rounds.Round,poseVersion=shooter.poseVersion});
+                yield return Wait(()=>shooter.chargingShot,"remote shooter charges an accurate bottle shot");
+                yield return new WaitForSeconds(AccurateShotSeconds+.05f);
+                peers[0].Send(new Command{kind="fire",accurateShot=true,shotSequence=sequence});
+                yield return Wait(()=>bottleTarget.Broken,"a real accurate UDP shot breaks an individual bottle");
                 Check(bottleTarget.GetComponentsInChildren<Renderer>().All(r=>!r.enabled)&&!bottleTarget.GetComponent<Collider>().enabled,"bottle body, neck, label and stopper disappear together");
                 Check(breakableProps.Count(p=>p.Broken)==2,"neighboring bottles and all other windows remain intact");
                 WindowPreview(Eye(shooter),point,32,"breakable-bottle-after");
